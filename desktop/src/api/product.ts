@@ -125,6 +125,7 @@ export interface WorkspaceInstall {
   updatedAt: string;
 }
 export interface CloudPlanRequest {
+ cluster?: import("./azureCluster").AzureClusterSpec;
  foundation?: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string };
   provider: "aws" | "azure";
   name: string;
@@ -135,7 +136,8 @@ export interface CloudPlanRequest {
   sshPublicKey: string;
 }
 export interface CloudPlan {
- foundation?: { version: 1; request: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string }; actor: { userId: string; projectId: string; teamId?: string }; contextDigest: string; planDigest: string; fit: { blueprintDigest: string; tier: string; fits: boolean; capacityVerified: false; milliCpu: number; memoryMiB: number; systemReserveMiB: number; decisions: { path: string; code: string; message: string }[] } };
+ kind?: "aks";
+ foundation?: { cluster?: import("./azureCluster").AzureClusterBinding; version: 1; request: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string }; actor: { userId: string; projectId: string; teamId?: string }; contextDigest: string; planDigest: string; fit: { blueprintDigest: string; tier: string; fits: boolean; capacityVerified: false; milliCpu: number; memoryMiB: number; systemReserveMiB: number; decisions: { path: string; code: string; message: string }[] } };
   id: string;
   provider: string;
   name: string;
@@ -213,6 +215,7 @@ export interface GitState {
   diff: string;
 }
 export interface ImplementationTask {
+  reuse?: import("./taskReuse").TaskReuseDecision[];
   id: string;
   title: string;
   status: "todo" | "doing" | "done";
@@ -335,6 +338,8 @@ export interface PagesReleaseRequest {
   acknowledgePublic: boolean;
 }
 export interface CloudJob {
+ kind?: "aks";
+ cluster?: import("./azureCluster").AzureClusterObservation;
   id: string;
   planId: string;
   provider: string;

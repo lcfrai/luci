@@ -5,6 +5,7 @@ package deploymentkube
 
 import (
 	"context"
+	"io"
 
 	"github.com/lcfrai/luci/control-plane/internal/deploymentplan"
 	"k8s.io/client-go/kubernetes"
@@ -32,6 +33,25 @@ type Request struct {
 	Blueprint         deploymentplan.Blueprint `json:"blueprint"`
 	ApprovalReference string                   `json:"approvalReference"`
 	Expected          []ExpectedResource       `json:"expected"`
+	References        []ReferenceSnapshot      `json:"references,omitempty"`
+}
+
+// Only selected keys and bounded identity/access metadata enter a review.
+// Secret/ConfigMap values are neither hashed nor retained in this record.
+type ReferenceSnapshot struct {
+	Kind              string   `json:"kind"`
+	Name              string   `json:"name"`
+	Namespace         string   `json:"namespace"`
+	NamespaceUID      string   `json:"namespaceUid"`
+	TargetFingerprint string   `json:"targetFingerprint"`
+	UID               string   `json:"uid"`
+	ResourceVersion   string   `json:"resourceVersion"`
+	Keys              []string `json:"keys,omitempty"`
+	Phase             string   `json:"phase,omitempty"`
+	AccessModes       []string `json:"accessModes,omitempty"`
+	VolumeMode        string   `json:"volumeMode,omitempty"`
+	VolumeName        string   `json:"volumeName,omitempty"`
+	MetadataDigest    string   `json:"metadataDigest"`
 }
 
 type Target struct {
@@ -63,14 +83,32 @@ type ResourceReceipt struct {
 }
 
 type Operation struct {
-	Revision                  int               `json:"revision"`
-	Request                   Request           `json:"request"`
-	RequestDigest             string            `json:"requestDigest"`
-	NamespaceUID              string            `json:"namespaceUid"`
-	State                     string            `json:"state"` // reserved, unknown, pending, ready, blocked
-	Resources                 []ResourceReceipt `json:"resources"`
-	ObservedAt                string            `json:"observedAt"`
-	ApplicationHealthVerified bool              `json:"applicationHealthVerified"`
+	Revision                  int                   `json:"revision"`
+	Request                   Request               `json:"request"`
+	RequestDigest             string                `json:"requestDigest"`
+	NamespaceUID              string                `json:"namespaceUid"`
+	State                     string                `json:"state"` // reserved, unknown, pending, ready, blocked
+	Resources                 []ResourceReceipt     `json:"resources"`
+	ObservedAt                string                `json:"observedAt"`
+	ApplicationHealthVerified bool                  `json:"applicationHealthVerified"`
+	ReferenceState            string                `json:"referenceState,omitempty"` // current, changed, unavailable, unreviewed
+	Workloads                 []WorkloadObservation `json:"workloads,omitempty"`
+	Telemetry                 *TelemetryObservation `json:"telemetry,omitempty"` // latest retained attributed sample, not live/lifetime analytics
+}
+
+type WorkloadObservation struct {
+	ComponentID              string   `json:"componentId"`
+	DeploymentUID            string   `json:"deploymentUid"`
+	State                    string   `json:"state"` // ready, pending, unknown, unprobed
+	ReadinessProbeConfigured bool     `json:"readinessProbeConfigured"`
+	ObservedPods             int      `json:"observedPods"`
+	ReadyPods                int      `json:"readyPods"`
+	RestartCount             int64    `json:"restartCount"`
+	OOMObserved              bool     `json:"oomObserved"`
+	Reasons                  []string `json:"reasons"` // closed codes only, never event/log/error text
+	Omitted                  bool     `json:"omitted"`
+	ObservedAt               string   `json:"observedAt"`
+	ModelContentsVerified    bool     `json:"modelContentsVerified"`
 }
 
 // Journal reservations and CAS writes MUST be durable before they return. A
@@ -83,9 +121,10 @@ type Journal interface {
 }
 
 type Connector struct {
-	resolve   Resolver
-	authorize Authorizer
-	journal   Journal
+	resolve     Resolver
+	authorize   Authorizer
+	journal     Journal
+	metricsRead func(context.Context, Target, string) (io.ReadCloser, error) // private deterministic connector-test seam; default is fixed Service proxy
 }
 
 func New(resolve Resolver, authorize Authorizer, journal Journal) *Connector {

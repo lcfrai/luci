@@ -280,6 +280,7 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 	copies := map[string]bool{}
 	terminalCapability := false
 	normalZeroCapability := false
+	harnessCapability := false
 	for _, line := range lines {
 		clean := strings.TrimSpace(line)
 		if strings.ContainsAny(line, "\x00\r") || strings.Contains(line, "<<") {
@@ -341,6 +342,13 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 			}
 			copies[instruction] = true
 		case "LABEL":
+			if instruction == `LABEL ai.lcfr.harness-task-result="`+backend.HarnessTaskResultVersion+`"` {
+				if fromCount != 2 || harnessCapability {
+					return nil, nil, backend.ErrUnsupported
+				}
+				harnessCapability = true
+				break
+			}
 			if instruction == `LABEL ai.lcfr.task-exit-normal-zero="v1"` {
 				if fromCount != 2 || normalZeroCapability {
 					return nil, nil, backend.ErrUnsupported
@@ -380,6 +388,9 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 		out = append(out, line)
 	}
 	expectedCopies := 5
+	if harnessCapability && (!normalZeroCapability || !terminalCapability) {
+		return nil, nil, backend.ErrUnsupported
+	}
 	if normalZeroCapability && !terminalCapability {
 		return nil, nil, backend.ErrUnsupported
 	}

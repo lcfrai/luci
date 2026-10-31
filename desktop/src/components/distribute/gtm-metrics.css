@@ -1,0 +1,9 @@
+.gtm-metrics { min-width: 0; }
+.gtm-metrics > * + * { margin-top: .75rem; }
+.gtm-metrics__hint { color: var(--ink-2); font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.gtm-metrics__table { max-width: 100%; overflow-x: auto; border: 1px solid var(--line-soft); border-radius: .5rem; }
+.gtm-metrics table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.gtm-metrics caption { text-align: left; padding: .75rem; color: var(--ink-2); }
+.gtm-metrics th, .gtm-metrics td { padding: calc(var(--panel-padding) * .5) calc(var(--panel-padding) * .65); text-align: left; border-top: 1px solid var(--line-soft); vertical-align: top; }
+.gtm-metrics input[type="file"] { display: block; max-width: 100%; margin-top: .5rem; }
+.gtm-metrics section { padding: var(--panel-padding); border: 1px solid var(--line-soft); border-radius: .5rem; }

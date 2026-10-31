@@ -51,6 +51,9 @@ func prepare(request Request) (Request, []desiredResource, error) {
 		return Request{}, nil, ErrRefused
 	}
 	request.Blueprint = plan.Blueprint
+	if canonicalReferenceSnapshots(&request) != nil {
+		return Request{}, nil, ErrRefused
+	}
 	expected := map[string]ExpectedResource{}
 	for _, row := range request.Expected {
 		key := row.Kind + "/" + row.Name
@@ -178,6 +181,9 @@ func (c *Connector) Apply(ctx context.Context, input Request) (Operation, error)
 	if err != nil {
 		return Operation{}, ErrRefused
 	}
+	if c.validateReferences(ctx, admissionTarget, request, nil, true) != nil {
+		return Operation{}, ErrRefused
+	}
 	operation := Operation{Revision: 1, Request: request, RequestDigest: digest(request), NamespaceUID: admissionTarget.NamespaceUID, State: "reserved", Resources: []ResourceReceipt{}, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	for index, row := range resources {
 		operation.Resources = append(operation.Resources, ResourceReceipt{ExpectedResource: request.Expected[index], DesiredSHA256: row.hash})
@@ -230,6 +236,22 @@ func (c *Connector) Apply(ctx context.Context, input Request) (Operation, error)
 		// object UIDs are retained and observation confirms the namespace again.
 		target, err = c.target(ctx, request)
 		if err != nil || target.NamespaceUID != operation.NamespaceUID {
+			return Operation{}, ErrRefused
+		}
+		var component *deploymentplan.Service
+		for serviceIndex := range request.Blueprint.Services {
+			candidate := &request.Blueprint.Services[serviceIndex]
+			labels := desired.service
+			if desired.deployment != nil {
+				if desired.deployment.Labels["luci.ai/component"] == candidate.ID {
+					component = candidate
+				}
+			}
+			if labels != nil && labels.Labels["luci.ai/component"] == candidate.ID {
+				component = candidate
+			}
+		}
+		if component == nil || c.validateReferences(ctx, target, request, component, true) != nil {
 			return Operation{}, ErrRefused
 		}
 		// Fresh grant after target I/O and immediately before the only write.
@@ -299,6 +321,19 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 		return Operation{}, ErrRefused
 	}
 	state := "ready"
+	operation.ReferenceState = "current"
+	if deploymentplan.RuntimeReferenceCount(request.Blueprint) > 0 && len(request.References) == 0 {
+		operation.ReferenceState = "unreviewed"
+		state = "unknown"
+	} else if referenceErr := c.validateReferences(ctx, target, request, nil, false); referenceErr != nil {
+		operation.ReferenceState = "unavailable"
+		if errors.Is(referenceErr, ErrReferenceChanged) {
+			operation.ReferenceState = "changed"
+		}
+		state = "unknown"
+	}
+	operation.Workloads = nil
+	workloadBudget := &workloadObservationBudget{}
 	for index, desired := range resources {
 		if c.authorize(ctx, request, false) != nil {
 			return Operation{}, ErrRefused
@@ -317,10 +352,23 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 			object, readErr := target.Client.AppsV1().Deployments(target.Namespace).Get(ctx, desired.name, metav1.GetOptions{})
 			err = readErr
 			meta = object
-			if err == nil && object != nil && objectOwned(object, request, desired, true) && deploymentMatches(desired.deployment, object) {
+			if err == nil && object != nil && objectOwned(object, request, desired, true) && deploymentMatches(desired.deployment, object) && (receipt.ObservedUID == "" || receipt.ObservedUID == string(object.UID)) && (receipt.UID == "" || receipt.UID == string(object.UID)) {
 				receipt.ObservedGeneration = object.Generation
 				replicas := *desired.deployment.Spec.Replicas
 				receipt.Ready = object.Status.ObservedGeneration >= object.Generation && object.Status.Replicas == replicas && object.Status.UpdatedReplicas == replicas && object.Status.AvailableReplicas >= replicas && object.Status.ReadyReplicas >= replicas
+				for _, service := range request.Blueprint.Services {
+					if service.ID != object.Labels["luci.ai/component"] || service.Health == nil && service.Model == nil && len(service.Environment) == 0 {
+						continue
+					}
+					observation := c.observeWorkload(ctx, target, request, service, object, workloadBudget)
+					operation.Workloads = append(operation.Workloads, observation)
+					if observation.State == "unknown" {
+						state = "unknown"
+						receipt.Ready = false
+					} else if observation.ReadinessProbeConfigured && observation.State != "ready" || observation.ObservedPods != service.Replicas || observation.ReadyPods != service.Replicas {
+						receipt.Ready = false
+					}
+				}
 			} else {
 				err = ErrUnknown
 			}
@@ -340,6 +388,9 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 			continue
 		}
 		receipt.ObservedUID, receipt.ObservedVersion = string(meta.GetUID()), meta.GetResourceVersion()
+		if operation.ReferenceState != "current" {
+			receipt.Ready = false
+		}
 		if !receipt.Ready && state == "ready" {
 			state = "pending"
 		}
@@ -351,11 +402,26 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 	if err != nil || latestTarget.NamespaceUID != operation.NamespaceUID {
 		return Operation{}, ErrRefused
 	}
+	if operation.ReferenceState == "current" && c.validateReferences(ctx, latestTarget, request, nil, false) != nil {
+		operation.ReferenceState = "unavailable"
+		state = "unknown"
+		for index := range operation.Resources {
+			operation.Resources[index].Ready = false
+		}
+	}
+	if operation.ReferenceState != "current" {
+		for index := range operation.Workloads {
+			operation.Workloads[index].State = "unknown"
+		}
+	}
 	if err = c.save(ctx, &operation, state); err != nil {
 		return Operation{}, err
 	}
 	latestTarget, err = c.target(ctx, request)
 	if err != nil || latestTarget.NamespaceUID != operation.NamespaceUID {
+		return Operation{}, ErrRefused
+	}
+	if operation.ReferenceState == "current" && c.validateReferences(ctx, latestTarget, request, nil, false) != nil {
 		return Operation{}, ErrRefused
 	}
 	if c.authorize(ctx, request, false) != nil {
@@ -367,6 +433,9 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 // ValidateOperation is the private journal's closed-record check. It compiles
 // pure data only; it does not contact a cluster or confer any authorization.
 func ValidateOperation(operation Operation) error {
+	if validateTelemetryObservation(operation.Telemetry, operation.Request, operation.Resources) != nil {
+		return ErrRefused
+	}
 	request, resources, err := prepare(operation.Request)
 	if err != nil || operation.Revision < 1 || operation.Revision > 1_000_000_000 || operation.RequestDigest != digest(request) || operation.NamespaceUID == "" || len(operation.NamespaceUID) > 128 || operation.ApplicationHealthVerified || len(operation.Resources) != len(resources) {
 		return ErrRefused
@@ -379,6 +448,33 @@ func ValidateOperation(operation Operation) error {
 	}
 	for index, row := range operation.Resources {
 		if row.ExpectedResource != request.Expected[index] || row.DesiredSHA256 != resources[index].hash || len(row.ObservedUID) > 128 || len(row.ObservedVersion) > 128 || (row.ObservedUID == "") != (row.ObservedVersion == "") || row.Ready && (!row.Attempted || row.ObservedUID == "") {
+			return ErrRefused
+		}
+	}
+	if operation.ReferenceState != "" && operation.ReferenceState != "current" && operation.ReferenceState != "changed" && operation.ReferenceState != "unavailable" && operation.ReferenceState != "unreviewed" {
+		return ErrRefused
+	}
+	for _, reference := range request.References {
+		if reference.NamespaceUID != operation.NamespaceUID {
+			return ErrRefused
+		}
+	}
+	if len(operation.Workloads) > len(request.Blueprint.Services) {
+		return ErrRefused
+	}
+	seenWorkloads := map[string]bool{}
+	for _, row := range operation.Workloads {
+		if !validWorkloadObservation(row) || seenWorkloads[row.ComponentID] || operation.ReferenceState != "current" && operation.ReferenceState != "" && row.State != "unknown" {
+			return ErrRefused
+		}
+		seenWorkloads[row.ComponentID] = true
+		matched := false
+		for index, resource := range resources {
+			if resource.deployment != nil && resource.deployment.Labels["luci.ai/component"] == row.ComponentID && operation.Resources[index].ObservedUID == row.DeploymentUID {
+				matched = true
+			}
+		}
+		if !matched {
 			return ErrRefused
 		}
 	}

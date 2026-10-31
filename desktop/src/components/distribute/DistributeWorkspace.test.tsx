@@ -21,6 +21,13 @@ const assessment:AssessmentView={state:'unreviewed',projectId:'p-1',contextDiges
 beforeEach(()=>{vi.restoreAllMocks();resetCockpit();scope.teamId='team-one';scope.read=true;scope.edit=true;scope.admin=true;scope.actor='reviewer';scope.workspace='local';useCockpit.setState(state=>({selection:{...state.selection,projectId:'p-1'}}));vi.spyOn(distributeControlsApi,'library').mockResolvedValue(library);vi.spyOn(distributeControlsApi,'assessment').mockResolvedValue(assessment);vi.spyOn(distributeArtifactsApi,'list').mockResolvedValue({projectId:'p-1',artifacts:[]})});
 afterEach(cleanup);
 
+
+function renderTeamControls(){
+  const view=render(<DistributeWorkspace/>);
+  if(scope.read&&scope.teamId)fireEvent.click(screen.getByRole('button',{name:'Team controls and assessments'}));
+  return view;
+}
+
 beforeEach(() => {
   vi.spyOn(gtmWorkspaceApi, 'get').mockImplementation(async projectId => ({ projectId, source: { briefRevision: 0, briefDigest: 'a'.repeat(64), specificationRevision: 0, specificationDigest: 'b'.repeat(64), designRevision: 0, designDigest: 'c'.repeat(64), planRevision: 0, planDigest: 'd'.repeat(64), checks: 'not-selected', release: 'not-selected' }, sourceDigest: 'e'.repeat(64), freshness: 'none', workspace: null, history: [], requirements: [] } as GTMView));
 });
@@ -30,15 +37,18 @@ it('mounts the versioned go-to-market editor in Distribute without publishing', 
   expect(await screen.findByRole('heading', { name: 'Go to market' })).not.toBeNull();
   expect((await screen.findByLabelText('Positioning') as HTMLTextAreaElement).value).toBe(emptyGTM().positioning);
   expect(screen.queryByRole('button', { name: /Publish campaign/ })).toBeNull();
+  expect(screen.getByRole('button',{name:'Team controls and assessments'}).getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('heading',{name:'Team control library'})).toBeNull();
 });
 
 it('keeps the personal stage truthful without requesting team state',async()=>{
   scope.teamId='';render(<DistributeWorkspace/>);
-  expect(screen.getByText(/personal workspace/)).toBeTruthy();
+  expect(screen.getByRole('heading',{name:'Go to market'})).toBeTruthy();
+  expect(screen.queryByRole('button',{name:'Team controls and assessments'})).toBeNull();
   expect(distributeControlsApi.library).not.toHaveBeenCalled();
 });
 it('shows current controls and guards unsaved assessment edits before navigation',async()=>{
-  render(<DistributeWorkspace/>);
+  renderTeamControls();
   await screen.findByText(/Review access controls/);
   await userEvent.selectOptions(screen.getByLabelText('Assessment'),'missing');
   expect(Object.values(useCockpit.getState().unsavedProjectDrafts).some(row=>row.lens==='distribute')).toBe(true);
@@ -48,7 +58,7 @@ it('shows current controls and guards unsaved assessment edits before navigation
   await waitFor(()=>expect(Object.values(useCockpit.getState().unsavedProjectDrafts).some(row=>row.lens==='distribute')).toBe(false));
 });
 it('enforces admin import and project read grants in the mounted view',async()=>{
-  scope.admin=false;const view=render(<DistributeWorkspace/>);
+  scope.admin=false;const view=renderTeamControls();
   await screen.findByText(/Review access controls/);
   expect(screen.queryByText('Import or update XLSX controls')).toBeNull();
   scope.read=false;view.rerender(<DistributeWorkspace/>);
@@ -59,7 +69,7 @@ it('offers the exact saved assessment report without starting another assessment
   vi.mocked(distributeControlsApi.assessment).mockResolvedValue({...assessment,state:'stale',assessment:{...assessment.assessment,revision:1}});
   const download=vi.spyOn(distributeControlsApi,'downloadReport').mockResolvedValue();
   const save=vi.spyOn(distributeControlsApi,'saveAssessment');
-  render(<DistributeWorkspace/>);
+  renderTeamControls();
   await userEvent.click(await screen.findByRole('button',{name:'Download assessment XLSX (marked stale)'}));
   expect(download).toHaveBeenCalledExactlyOnceWith('p-1',expect.any(Function));
   expect(save).not.toHaveBeenCalled();
@@ -70,7 +80,7 @@ it('renders clean serialized preview and no-op comparison through the client',as
   const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw))).map(byte=>byte.toString(16).padStart(2,'0')).join('');
   vi.spyOn(productApi,'uploadJSON').mockResolvedValue(JSON.parse(JSON.stringify({sourceSHA256:hash,workbook:{sheets:[{name:'Controls',headers:[{column:'A',name:'ID'}],rows:[]}],issues:null},suggestedColumns:{id:'A'}})));
   vi.spyOn(productApi,'request').mockResolvedValue(JSON.parse('{"expectedRevision":1,"sourceSHA256":"abc","sheet":"Controls","columns":{"id":"A"},"added":null,"changed":null,"removed":null,"controlCount":1,"diffDigest":"digest"}'));
-  render(<DistributeWorkspace/>);
+  renderTeamControls();
   await screen.findByText(/Review access controls/);
   await userEvent.click(screen.getByText('Import or update XLSX controls'));
   const file=new File(['xlsx'],'controls.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
@@ -90,7 +100,7 @@ const evidenceA=evidenceDocument('a','First.pdf'),evidenceB=evidenceDocument('b'
 function deferred<T>(){let resolve!:(value:T)=>void;let reject!:(error:Error)=>void;const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no});return {promise,resolve,reject}}
 async function openEvidencePicker(){
   vi.spyOn(discoveryDocumentsApi,'list').mockResolvedValue({documents:[evidenceA,evidenceB],nextCursor:'',omitted:false});
-  const view=render(<DistributeWorkspace/>);
+  const view=renderTeamControls();
   await userEvent.click(await screen.findByRole('button',{name:'Link document evidence'}));
   await screen.findByRole('option',{name:'First.pdf'});
   return view;
@@ -162,7 +172,7 @@ it('shows the current evidence read failure and permits selecting another docume
 it('keeps assessment edits entered while a refresh is pending and saves only on request against the prior revision',async()=>{
   const pending=deferred<AssessmentView>();
   const save=vi.spyOn(distributeControlsApi,'saveAssessment').mockResolvedValue({...assessment.assessment,revision:1});
-  render(<DistributeWorkspace/>);
+  renderTeamControls();
   await screen.findByLabelText('Reviewer note');
   vi.mocked(distributeControlsApi.assessment).mockReturnValueOnce(pending.promise);
   await userEvent.click(screen.getByRole('button',{name:'Refresh evidence'}));
@@ -181,7 +191,7 @@ it('keeps assessment edits entered while a refresh is pending and saves only on 
 
 it('does not replace an active assessment draft with a late refresh error',async()=>{
   const pending=deferred<AssessmentView>();
-  render(<DistributeWorkspace/>);
+  renderTeamControls();
   await screen.findByLabelText('Reviewer note');
   vi.mocked(distributeControlsApi.assessment).mockReturnValueOnce(pending.promise);
   await userEvent.click(screen.getByRole('button',{name:'Refresh evidence'}));
@@ -194,7 +204,7 @@ it('does not replace an active assessment draft with a late refresh error',async
 
 it('drops a refresh from before read permission was revoked and regranted',async()=>{
   const pending=deferred<AssessmentView>();
-  const view=render(<DistributeWorkspace/>);
+  const view=renderTeamControls();
   await screen.findByLabelText('Reviewer note');
   vi.mocked(distributeControlsApi.assessment).mockReturnValueOnce(pending.promise);
   await userEvent.click(screen.getByRole('button',{name:'Refresh evidence'}));
@@ -212,7 +222,7 @@ it('keeps a confirmed save busy until its exact assessment readback settles',asy
   const pending=deferred<AssessmentView>();
   const saved={...assessment.assessment,revision:1,results:[{controlId:'SEC-1',status:'partial' as const,note:'Saved review',evidenceRefs:[]}]};
   vi.spyOn(distributeControlsApi,'saveAssessment').mockResolvedValue(saved);
-  render(<DistributeWorkspace/>);
+  renderTeamControls();
   await screen.findByLabelText('Reviewer note');
   await userEvent.selectOptions(screen.getByLabelText('Assessment'),'partial');
   await userEvent.type(screen.getByLabelText('Reviewer note'),'Saved review');
@@ -228,13 +238,15 @@ it('keeps a confirmed save busy until its exact assessment readback settles',asy
 
 it.each(['account','workspace'])('never applies a previous %s assessment refresh to the current selection',async(kind)=>{
   const pending=deferred<AssessmentView>();
-  const view=render(<DistributeWorkspace/>);
+  const view=renderTeamControls();
   await screen.findByLabelText('Reviewer note');
   vi.mocked(distributeControlsApi.assessment).mockReturnValueOnce(pending.promise);
   await userEvent.click(screen.getByRole('button',{name:'Refresh evidence'}));
   vi.mocked(distributeControlsApi.assessment).mockResolvedValue({...assessment,state:'current',assessment:{...assessment.assessment,revision:2,results:[{controlId:'SEC-1',status:'partial',note:'Current scoped assessment',evidenceRefs:[]}]}});
   if(kind==='account')scope.actor='new-reviewer';else scope.workspace='another-connection';
   view.rerender(<DistributeWorkspace/>);
+  expect(screen.getByRole('button',{name:'Team controls and assessments'}).getAttribute('aria-expanded')).toBe('false');
+  await userEvent.click(screen.getByRole('button',{name:'Team controls and assessments'}));
   await waitFor(()=>expect(screen.getByLabelText('Reviewer note')).toHaveProperty('value','Current scoped assessment'));
   await act(async()=>pending.resolve({...assessment,assessment:{...assessment.assessment,revision:1,results:[{controlId:'SEC-1',status:'supported',note:'Previous private assessment',evidenceRefs:[]}]}}));
   expect(screen.getByLabelText('Reviewer note')).toHaveProperty('value','Current scoped assessment');
@@ -248,7 +260,7 @@ it('does not redirect navigation after leaving an applied gap pending readback',
   vi.spyOn(definitionApi,'get').mockResolvedValue({projectId:'p-1',version:1,revision:2,briefRevision:1,startingPoint:'new',purpose:'Current idea',audience:'People',constraints:'',outOfScope:[],requirements:[],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:'draft',digest:'',updatedAt:''});
   const apply=vi.spyOn(distributeControlsApi,'applyGap').mockResolvedValue({...proposal,state:'applied-draft',appliedRevision:3});
   const pending=deferred<AssessmentView>();
-  const view=render(<DistributeWorkspace/>);
+  const view=renderTeamControls();
   await userEvent.click(await screen.findByText('Recorded gap proposals',{selector:'summary'}));
   vi.mocked(distributeControlsApi.assessment).mockReturnValueOnce(pending.promise);
   await userEvent.click(screen.getByRole('button',{name:'Apply to discover draft'}));

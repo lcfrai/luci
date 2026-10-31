@@ -1,0 +1,7 @@
+.telemetry-readings { margin-block: 1.5rem; min-width: 0; }
+.telemetry-readings .journey-table-scroll { max-width: 100%; overflow-x: auto; }
+.telemetry-readings table { width: 100%; border-collapse: collapse; text-align: start; font-variant-numeric: tabular-nums; }
+.telemetry-readings caption { text-align: start; color: var(--ink-2); padding-block: .5rem; }
+.telemetry-readings th, .telemetry-readings td { padding: .5rem .75rem; vertical-align: top; }
+.telemetry-readings th:first-child, .telemetry-readings td:first-child { padding-inline-start: 0; }
+.telemetry-readings details { margin-block: .75rem; overflow-wrap: anywhere; }

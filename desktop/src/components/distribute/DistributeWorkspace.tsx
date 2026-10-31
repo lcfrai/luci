@@ -12,7 +12,9 @@ import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
 import { JourneyHeader, ProjectRequired } from '../journey/shared';
 import { ArtifactWorkspace } from './ArtifactWorkspace';
+import { GitHubReleasePublisher } from './GitHubReleasePublisher';
 import { GTMWorkspace } from './GTMWorkspace';
+import { ProjectFeedback } from './ProjectFeedback';
 import './distribute.css';
 
 const fields=[['id','Control ID'],['requirement','Requirement'],['category','Category'],['applicability','Applies to'],['owner','Owner'],['evidenceExpected','Evidence expected'],['severity','Severity (optional)'],['reviewCadence','Review cadence (optional)']] as const;
@@ -56,6 +58,8 @@ function ProjectDistribute({projectId,accountScope}:{projectId:string;accountSco
   const [gapDraft,setGapDraft]=useState<{controlId:string;target:'discover'|'design';summary:string}|null>(null);
   const [edited,setEdited]=useState(false);
   const [refreshing,setRefreshing]=useState(false);
+  const [controlsOpen,setControlsOpen]=useState(false);
+  const showControls=controlsOpen||edited||!!gapDraft;
   useUnsavedProjectDraft(projectId,edited,'Distribute assessment','distribute');
   const canRead=!!team?.teamId&&access.canRead&&!access.error,canEdit=canRead&&access.canEdit,canAdmin=canRead&&!!team?.selected?.permissions.admin;
   const readScope=JSON.stringify([accountScope,projectId,team?.teamId,canRead]);
@@ -81,11 +85,19 @@ function ProjectDistribute({projectId,accountScope}:{projectId:string;accountSco
   async function step(action:()=>Promise<void>){setBusy(true);setError('');setNotice('');try{await action()}catch(cause){setError(errorText(cause))}finally{setBusy(false)}}
   const workbook=async()=>{if(!file)throw new Error('Choose an XLSX workbook first.');const source=await workbookBytes(file);if(source.sourceSHA256!==preview?.sourceSHA256)throw new Error('The workbook changed after preview. Preview it again.');return source};
   const current=assessment?.library;
-  return <section className="journey-page distribute-workspace"><JourneyHeader title="Distribute" subtitle="Review product readiness, shared team controls, evidence gaps and the next project amendment."><Button type="button" variant="secondary" loading={refreshing} disabled={!canRead||busy||edited||refreshing} onClick={()=>void refresh()}>Refresh evidence</Button></JourneyHeader>
-    {!team?.teamId&&<p role="status">This is a personal workspace. A shared team control library is not configured here. Your project can still be developed and deployed without a team assessment.</p>}
+  return <section className="journey-page distribute-workspace"><JourneyHeader title="Distribute" subtitle="Define your audience and offer. Prepare the launch, then use what you learn to improve the product."/>
     {team?.teamId&&!access.canRead&&<p role="status">{access.message||'Current project read access is required.'}</p>}
     {error&&<p role="alert" className="journey-error">{error}</p>}{notice&&<p role="status">{notice}</p>}
-    {canRead&&<><section className="distribute-card"><h2>Team control library</h2><p>{library?.state==='configured'?`Revision ${library.revision} · ${library.library?.controls.length??0} controls · imported ${library.library?.at??''}`:'No team control library has been imported.'}</p>
+    {access.canRead&&!access.error&&<GTMWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
+    {access.canRead&&!access.error&&<ArtifactWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
+    <GitHubReleasePublisher projectId={projectId}/>
+    {access.canRead&&!access.error&&<ProjectFeedback projectId={projectId}/>}
+    {canRead&&<section className="distribute-team-secondary" aria-label="Team controls and assessments">
+      <Button type="button" variant="tertiary" aria-expanded={showControls} aria-controls="distribute-team-controls" disabled={edited||!!gapDraft||busy} onClick={()=>setControlsOpen(value=>!value)}>Team controls and assessments</Button>
+      {edited&&<p role="status">Save or discard your assessment changes before closing this section.</p>}
+      <div id="distribute-team-controls" hidden={!showControls}>
+      <Button type="button" variant="secondary" loading={refreshing} disabled={!canRead||busy||edited||refreshing} onClick={()=>void refresh()}>Refresh evidence</Button>
+      <section className="distribute-card"><h2>Team control library</h2><p>{library?.state==='configured'?`Revision ${library.revision} · ${library.library?.controls.length??0} controls · imported ${library.library?.at??''}`:'No team control library has been imported.'}</p>
       {canAdmin&&<details><summary>Import or update XLSX controls</summary><p>Preview the workbook, map its columns, inspect the full change summary, then import one new immutable revision. Formula cells, macros and external links are refused.</p>
         <label>Workbook (.xlsx, up to 2 MiB)<input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={event=>{setFile(event.target.files?.[0]??null);setPreview(null);setDiff(null);importKey.current=''}} /></label>
         <Button type="button" variant="secondary" disabled={!file||busy} onClick={()=>step(async()=>{const view=await distributeControlsApi.preview(file!);setPreview(view);setSheet(view.workbook.sheets[0]?.name??'');setColumns(view.suggestedColumns);setDiff(null)})}>Preview workbook</Button>
@@ -112,8 +124,6 @@ function ProjectDistribute({projectId,accountScope}:{projectId:string;accountSco
       {edited&&<Button type="button" variant="secondary" disabled={busy} onClick={()=>{readState.current.edits++;setResults(emptyResults(assessment!));setEdited(false)}}>Discard assessment edits</Button>}
       <Button type="button" variant="primary" disabled={!canEdit||busy||results.length!==current.controls.length} onClick={()=>step(async()=>{assessmentKey.current ||= `team-assessment-${crypto.randomUUID()}`;await distributeControlsApi.saveAssessment(projectId,{expectedRevision:assessment?.assessment.revision??0,libraryRevision:current.revision,libraryDigest:current.digest,contextDigest:assessment?.contextDigest??'',idempotencyKey:assessmentKey.current,results});setEdited(false);setNotice('The project assessment was saved against exact library and project versions.');await refresh(true)})}>Save reviewed assessment</Button>
       {assessment?.assessment.proposals.length>0&&<details><summary>Recorded gap proposals</summary>{assessment.assessment.proposals.map(proposal=><div key={proposal.id}><p>{proposal.controlId} · {proposal.summary} · {proposal.state==='applied-draft'?'Applied to an unapproved draft':`Pending ${proposal.target} review`}</p>{proposal.state==='pending-review'&&assessment.state==='current'&&canEdit&&<Button type="button" variant="secondary" disabled={busy||edited} onClick={()=>step(async()=>{const target=proposal.target==='discover'?await definitionApi.get(projectId):await designPlanApi.get(projectId);await distributeControlsApi.applyGap(projectId,proposal,{expectedAssessmentRevision:assessment.assessment.revision,expectedContextDigest:assessment.contextDigest,expectedTargetRevision:target.revision});setNotice(`The gap is now an unapproved ${proposal.target} draft. Review and approve it through the normal project flow.`);if(await refresh(true))setLens(proposal.target)})}>Apply to {proposal.target} draft</Button>}<Button type="button" variant="secondary" onClick={()=>setLens(proposal.target)}>Open {proposal.target}</Button></div>)}</details>}</>}
-    </section></>}
-    {access.canRead&&!access.error&&<GTMWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
-    {access.canRead&&!access.error&&<ArtifactWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
+    </section></div></section>}
   </section>;
 }

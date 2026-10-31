@@ -12,6 +12,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
+
 	"github.com/distribution/reference"
 )
 
@@ -77,7 +79,7 @@ func Compile(input Blueprint) (Plan, error) {
 	if b.Infrastructure.Kind != "kubernetes" && b.Infrastructure.Kind != "existing-vm" && b.Infrastructure.Kind != "local-docker" {
 		return Plan{}, fmt.Errorf("unknown infrastructure kind")
 	}
-	if b.Infrastructure.Namespace != "" && !validName(b.Infrastructure.Namespace) {
+	if b.Infrastructure.Namespace != "" && len(kubevalidation.IsDNS1123Label(b.Infrastructure.Namespace)) != 0 {
 		return Plan{}, fmt.Errorf("invalid namespace")
 	}
 	p := Plan{Version: Version, State: "decisions-required", Decisions: []Decision{}, Steps: []Step{}, Artifacts: []Artifact{}, Capabilities: capabilities(), Warnings: []string{
@@ -120,10 +122,16 @@ func Compile(input Blueprint) (Plan, error) {
 			decision(fmt.Sprintf("externalResources[%d].reference", i), "external-reference-required", "Identify the existing resource; this is not a provisioning request.")
 		}
 	}
+	if err := validateTelemetryBlueprint(&b, decision); err != nil {
+		return Plan{}, err
+	}
 	for i := range b.Services {
 		s := &b.Services[i]
 		field := fmt.Sprintf("services[%d]", i)
-		if !validName(s.ID) || (s.Kind != "app" && s.Kind != "inference") {
+		if err := validateServiceRuntime(s, field, decision); err != nil {
+			return Plan{}, err
+		}
+		if !validName(s.ID) || (s.Kind != "app" && s.Kind != "inference" && s.Kind != "collector") {
 			return Plan{}, fmt.Errorf("invalid service identity or kind")
 		}
 		if _, exists := nodes[s.ID]; exists {
@@ -167,7 +175,7 @@ func Compile(input Blueprint) (Plan, error) {
 				return Plan{}, fmt.Errorf("command elements must not be empty")
 			}
 		}
-		if s.Kind == "app" && s.Model != nil {
+		if s.Kind != "inference" && s.Model != nil {
 			return Plan{}, fmt.Errorf("only inference services accept model mounts")
 		}
 		if s.Kind == "inference" {
@@ -193,12 +201,13 @@ func Compile(input Blueprint) (Plan, error) {
 		if s.Telemetry != nil {
 			t := s.Telemetry
 			resource, exists := externals[t.ResourceID]
-			if !exists || resource.Kind != "analytics" {
+			managed := ManagedCollector(b, t.ResourceID) != nil
+			if !managed && (!exists || resource.Kind != "analytics") {
 				return Plan{}, fmt.Errorf("telemetry requires an analytics resource dependency")
 			}
-			if t.Endpoint == "" {
+			if t.Endpoint == "" && !managed {
 				decision(field+".telemetry.endpoint", "telemetry-endpoint-required", "Supply an existing OTLP/HTTP receiver endpoint.")
-			} else if !validEndpoint(t.Endpoint) {
+			} else if t.Endpoint != "" && !validEndpoint(t.Endpoint) {
 				return Plan{}, fmt.Errorf("telemetry endpoint must be HTTPS without credentials, query or fragment")
 			}
 			deps = append(deps, t.ResourceID)
@@ -211,6 +220,9 @@ func Compile(input Blueprint) (Plan, error) {
 		p.ResourceSummary.RequestMemoryMiB += r.RequestMemoryMiB * s.Replicas
 		p.ResourceSummary.LimitMemoryMiB += r.LimitMemoryMiB * s.Replicas
 		p.ResourceSummary.GPUCount += r.GPUCount * s.Replicas
+	}
+	if RuntimeReferenceCount(b) > 64 {
+		return Plan{}, fmt.Errorf("at most sixty-four distinct imported runtime references")
 	}
 	order, err := dependencyOrder(nodes)
 	if err != nil {
@@ -234,6 +246,10 @@ func Compile(input Blueprint) (Plan, error) {
 	if len(p.Decisions) == 0 {
 		p.State = "compiled-prototype"
 		p.Artifacts, err = manifests(b, p.Digest)
+		if err != nil {
+			return Plan{}, err
+		}
+		p.SupportingArtifacts, err = telemetrySupportingArtifacts(b, p.Digest)
 		if err != nil {
 			return Plan{}, err
 		}
@@ -312,7 +328,7 @@ func dependencyOrder(nodes map[string][]string) ([]string, error) {
 func capabilities() []Capability {
 	return []Capability{
 		{"kubernetes-manifests", "prototype", "This pure compiler exports app/inference Deployment and ClusterIP Service JSON. Applying them requires the separate reviewed existing-cluster workflow."},
-		{"telemetry-binding", "prototype", "Bind an existing OTLP/HTTP receiver via environment variables; no instrumentation or analytics platform provisioning."},
+		{"telemetry-binding", "prototype", "Bind an existing receiver, or compile one closed mTLS Collector with separate explicit Node.js instrumentation artifacts. Generated code and replica readiness do not verify telemetry delivery or customer outcomes."},
 		{"local-pages-coolify", "existing-separate-path", "Existing project release executors retain their own admission, observation and acceptance gates; this compiler does not invoke them."},
 		{"aws-azure-vm", "existing-separate-path", "Existing one-machine provisioning is separate from managed Kubernetes, customer inference and cloud microVM acceptance."},
 		{"cluster-model-analytics-provisioning", "planned", "Cluster creation, model acquisition, GPU setup, analytics provisioning and live connector commissioning remain unimplemented here."},

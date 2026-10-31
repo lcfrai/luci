@@ -12,25 +12,26 @@ import (
 )
 
 type ProjectDesignPlan struct {
-	Scene                         *ProjectDesignScene `json:"scene,omitempty"`
-	ControlLibraryRevision        int                 `json:"controlLibraryRevision,omitempty"`
-	ControlLibraryDigest          string              `json:"controlLibraryDigest,omitempty"`
-	CurrentControlLibraryRevision int                 `json:"currentControlLibraryRevision,omitempty"`
-	CurrentControlLibraryDigest   string              `json:"currentControlLibraryDigest,omitempty"`
-	ProjectID                     string              `json:"projectId"`
-	Revision                      int                 `json:"revision"`
-	BriefRevision                 int                 `json:"briefRevision"`
-	SpecificationRevision         int                 `json:"specificationRevision"`
-	SketchRevision                int                 `json:"sketchRevision"`
-	Screens                       []DesignScreen      `json:"screens"`
-	Tokens                        []DesignToken       `json:"tokens"`
-	Assets                        []DesignAsset       `json:"assets"`
-	ImplementationNotes           string              `json:"implementationNotes"`
-	PrototypeReleaseID            string              `json:"prototypeReleaseId"`
-	PrototypeCommit               string              `json:"prototypeCommit"`
-	Status                        string              `json:"status" enum:"draft"`
-	Digest                        string              `json:"digest" output:"empty"`
-	UpdatedAt                     string              `json:"updatedAt"`
+	ComponentLibrary              *DesignComponentLibrary `json:"componentLibrary,omitempty"`
+	Scene                         *ProjectDesignScene     `json:"scene,omitempty"`
+	ControlLibraryRevision        int                     `json:"controlLibraryRevision,omitempty"`
+	ControlLibraryDigest          string                  `json:"controlLibraryDigest,omitempty"`
+	CurrentControlLibraryRevision int                     `json:"currentControlLibraryRevision,omitempty"`
+	CurrentControlLibraryDigest   string                  `json:"currentControlLibraryDigest,omitempty"`
+	ProjectID                     string                  `json:"projectId"`
+	Revision                      int                     `json:"revision"`
+	BriefRevision                 int                     `json:"briefRevision"`
+	SpecificationRevision         int                     `json:"specificationRevision"`
+	SketchRevision                int                     `json:"sketchRevision"`
+	Screens                       []DesignScreen          `json:"screens"`
+	Tokens                        []DesignToken           `json:"tokens"`
+	Assets                        []DesignAsset           `json:"assets"`
+	ImplementationNotes           string                  `json:"implementationNotes"`
+	PrototypeReleaseID            string                  `json:"prototypeReleaseId"`
+	PrototypeCommit               string                  `json:"prototypeCommit"`
+	Status                        string                  `json:"status" enum:"draft"`
+	Digest                        string                  `json:"digest" output:"empty"`
+	UpdatedAt                     string                  `json:"updatedAt"`
 }
 type DesignScreen struct {
 	ID             string   `json:"id"`
@@ -122,6 +123,9 @@ func validateDesignPlan(plan ProjectDesignPlan) error {
 			return errors.New("Assets need unique IDs and safe project paths with provenance.")
 		}
 		ids[asset.ID] = true
+	}
+	if err := validateDesignComponentLibrary(plan); err != nil {
+		return err
 	}
 	return validateDesignScene(plan)
 }
@@ -404,6 +408,7 @@ func renderDesignPlan(plan ProjectDesignPlan) []byte {
 		fmt.Fprintf(&out, "- %s: %s. %s. Licence/source: %s\n", asset.ID, asset.Path, asset.Purpose, asset.Licence)
 	}
 	fmt.Fprintf(&out, "\n## Prototype\n\nRelease: %s\nCommit: %s\n\n## Implementation notes\n\n%s\n", plan.PrototypeReleaseID, plan.PrototypeCommit, plan.ImplementationNotes)
+	out.WriteString(renderDesignComponentLibrary(plan))
 	out.WriteString(renderDesignScene(plan.Scene))
 	return []byte(out.String())
 }

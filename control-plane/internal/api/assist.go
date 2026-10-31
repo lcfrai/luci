@@ -357,7 +357,7 @@ func (a *API) assistJob(w http.ResponseWriter, r *http.Request) (assistance.Job,
 		return assistance.Job{}, false
 	}
 	job, err := a.assistanceStore().Read(r.PathValue("jobId"))
-	if err != nil || job.ProjectID != r.PathValue("id") {
+	if err != nil || job.ProjectID != r.PathValue("id") || assistance.IsPersonal(job) {
 		httpx.WriteProblem(w, 404, "assistant_not_found", "No assistant job with that id belongs to this project.", nil)
 		return job, false
 	}
@@ -406,8 +406,10 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		contextRef = "luci:repository-analysis"
 	} else if job.Kind == "orchestrator" {
 		contextRef = "luci:orchestrator"
+	} else if job.Kind == "personal-luci" && job.PersonalOwner != "" {
+		contextRef = "luci:personal"
 	}
-	if err != nil || session.ContextRef != contextRef || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree || (job.Harness != "" && (session.Harness != job.Harness || session.Model != job.Model || session.AuthMode != job.AuthMode)) || session.AgentConnectionID != job.AgentConnectionID || session.AgentConnectionRevision != job.AgentConnectionRevision || session.AgentConnectionKind != job.AgentConnectionKind || session.AgentConnectionProtocol != job.AgentConnectionProtocol {
+	if err != nil || session.PersonalOwner != job.PersonalOwner || session.ContextRef != contextRef || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree || (job.Harness != "" && (session.Harness != job.Harness || session.Model != job.Model || session.AuthMode != job.AuthMode)) || session.AgentConnectionID != job.AgentConnectionID || session.AgentConnectionRevision != job.AgentConnectionRevision || session.AgentConnectionKind != job.AgentConnectionKind || session.AgentConnectionProtocol != job.AgentConnectionProtocol {
 		failed, saveErr := a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
 			j.Status = "failed"
 			j.Message = "The assistant's owned session is no longer available."
@@ -501,8 +503,19 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		})
 		if saveErr == nil {
 			a.completeOrchestratorJob(saved)
+			a.completePersonalJob(saved)
 		}
 	}()
+	if job.PersonalOwner != "" {
+		if _, err := a.authorizePersonalJob(ctx, job); err != nil {
+			message = "Current access changed. This private request could not continue."
+			return
+		}
+	}
+	if err := a.authorizeDiscussionJob(ctx, job); err != nil {
+		message = "Current project authority changed. The discussion could not continue."
+		return
+	}
 	if spec != nil {
 		var releaseModel func()
 		if b := session.ManagedLocalModel; b != nil {
@@ -543,6 +556,14 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			if err := a.execution.markBackendStarting(ctx, b.LeaseID, job.SessionID, spec.ID); err != nil {
 				return
 			}
+		}
+		if job.PersonalOwner != "" {
+			if _, err := a.authorizePersonalJob(ctx, job); err != nil {
+				return
+			}
+		}
+		if err := a.authorizeDiscussionJob(ctx, job); err != nil {
+			return
 		}
 		sb, err := a.deps.Backend.Create(ctx, *spec)
 		if err != nil {
@@ -624,6 +645,25 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			}
 			data, err := codexRead(a.deps.ConversationsDir, filepath.Join(output, "result.json"), assistance.MaxResultBytes)
 			if err != nil {
+				return
+			}
+			if job.Kind == "personal-luci" && job.PersonalOwner != "" {
+				if _, err := a.authorizePersonalJob(ctx, job); err != nil {
+					return
+				}
+				answer, decodeErr := decodePersonalAnswer(job, data)
+				if decodeErr != nil {
+					return
+				}
+				personalResult, marshalErr := json.Marshal(answer)
+				if marshalErr != nil {
+					return
+				}
+				_, saveErr := a.assistanceStore().Update(job.ID, func(current *assistance.Job) error { current.PersonalResult = personalResult; return nil })
+				if saveErr != nil {
+					return
+				}
+				status, message = "succeeded", "Your private response is ready. No project action was performed."
 				return
 			}
 			if job.Kind == "orchestrator" {

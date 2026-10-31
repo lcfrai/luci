@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { TextDecoder } = require('node:util');
+const { Transform } = require('node:stream');
+const { finished } = require('node:stream/promises');
 const CONTRACT = '/home/dev/.luci-task-terminal/contract.json';
 const SCHEMA = '/usr/local/lib/luci/task-handoff.schema.json';
 const OUTPUT = '/home/dev/.luci-task-output';
@@ -16,8 +18,8 @@ function commandDigest(values) { const h = crypto.createHash('sha256'); for (con
 
 // JSON.parse alone silently accepts duplicate keys. This bounded grammar walk
 // rejects duplicates at every depth before the canonical product decoder runs.
-function strictJSON(bytes) {
-  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 65536) throw Error('size');
+function strictJSON(bytes, limit = 65536) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1048576 || !Buffer.isBuffer(bytes) || !bytes.length || bytes.length > limit) throw Error('size');
   const s = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   let i = 0;
   const ws = () => { while (/\s/.test(s[i] || '') && i < s.length) { if (!' \t\n\r'.includes(s[i])) throw Error('space'); i++; } };
@@ -82,7 +84,8 @@ function exclusive(path, bytes, io = fs) {
   const fd = io.openSync(path, 'wx', 0o600);
   try { io.writeFileSync(fd, bytes); io.fsyncSync(fd); } finally { io.closeSync(fd); }
 }
-function invocation(command, args) {
+function invocation(command, args, schema) {
+  if (command === '/usr/local/bin/claude' || command === '/usr/local/bin/opencode') return otherInvocation(command,args,schema);
   if (!['/usr/local/bin/codex','/usr/local/bin/node'].includes(command) || !Array.isArray(args) || args.some(v => typeof v !== 'string' || v.includes('\0') || Buffer.byteLength(v) > 512*1024)) throw Error('argv');
   if (command === '/usr/local/bin/node' && args[0] !== '/usr/local/lib/luci/codex-native-task.cjs') throw Error('helper');
   // Never inspect an opaque prompt for delimiters/flags. The controller always
@@ -91,6 +94,34 @@ function invocation(command, args) {
   if (args.length > 32 || args.at(-2) !== '--' || !args.at(-1) || !options.includes('exec') || options.includes('--output-schema') || options.includes('--output-last-message')) throw Error('argv');
   return [...args.slice(0,-2), '--output-schema', SCHEMA, '--output-last-message', CANDIDATE,
     '--', args.at(-1) + '\n\nController terminal contract: return only the final structured handoff JSON. Do not write handoff.json yourself; the controller adapter publishes it after termination. Checks are reported claims; use not-run/unknown honestly. Coordination messages remain reported claims.'];
+}
+
+// Claude exposes a schema-constrained final result. OpenCode's pinned CLI stream
+// is not a reliable completion signal; retain its explicit untrusted file report.
+function otherInvocation(command,args,schema) {
+  if (!Array.isArray(args) || args.length>64 || args.some(v=>typeof v!=='string'||v.includes('\0')||Buffer.byteLength(v)>512*1024) || !args.at(-1)) throw Error('argv');
+  const claude=command==='/usr/local/bin/claude';
+  const options=args.slice(0,claude?-1:-2);
+  if (claude) {
+    if (!options.includes('--print') || options.some(v=>['--output-format','--json-schema','--resume','--continue','--fork-session'].includes(v))) throw Error('argv');
+    strictJSON(schema);
+    return [...options,'--output-format','json','--json-schema',schema.toString('utf8'),'--',args.at(-1)+'\n\nController terminal contract: return the final structured handoff as structured_output. Do not write handoff.json or terminal-receipt.json. The adapter publishes after termination. Checks are reported claims, not independent verification.'];
+  }
+  if(command!=='/usr/local/bin/opencode'||args.at(-2)!=='--'||options[0]!=='run'||options.some(v=>['--format','--session','--continue','--fork','--attach'].includes(v)))throw Error('argv');
+  return [...options,'--',args.at(-1)+'\n\nController terminal contract: before ending this task, write exactly one JSON report to '+CANDIDATE+'. The parent directory already exists. Use the exact schema at '+SCHEMA+'. Do not write handoff.json or terminal-receipt.json; the adapter publishes after termination. This replaces the legacy LUCI.md handoff path. Checks are reported claims; record not-run or unknown honestly.'];
+}
+function claudeReport(bytes) {
+  const envelope=strictJSON(bytes,1048576);
+  if(!envelope||envelope.type!=='result'||envelope.subtype!=='success'||envelope.is_error!==false||!reportValid(envelope.structured_output))throw Error('result');
+  const report=Buffer.from(JSON.stringify(envelope.structured_output)+'\n');
+  strictJSON(report);return report;
+}
+async function capturedClaude(command,args,io) {
+  const chunks=[];let bytes=0,overflow=false;
+  const capture=new Transform({transform(chunk,encoding,done){const part=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk,encoding);bytes+=part.length;if(bytes>1048576){overflow=true;chunks.length=0}else if(!overflow){chunks.push(Buffer.from(part))};done(null,chunk);}});
+  let failed=false;capture.on('error',()=>{failed=true});capture.pipe(io.stdout,{end:false});
+  try{const ok=await settled(command,args,{...io,stdout:capture});if(capture.destroyed)return null;const flushed=finished(capture,{readable:false,cleanup:true});capture.end();await flushed;if(!ok||overflow||failed)return null;return claudeReport(Buffer.concat(chunks));}
+  finally{capture.unpipe(io.stdout);capture.destroy();chunks.length=0;}
 }
 
 async function settled(command, args, io) {
@@ -121,13 +152,16 @@ async function run(args, io = {fs,spawn,process,stdout:process.stdout,stderr:pro
     const contractBytes = readOne(CONTRACT,16384,io.fs), contract = strictJSON(contractBytes);
     const command = args[1], original = args.slice(2);
     if (!/^[0-9a-f]{64}$/.test(args[0] || '') || args[0] !== hash(contractBytes)) return FAILURE;
-    if (contract.version !== 1 || contract.commandDigest !== commandDigest([command,...original]) || contract.schemaDigest !== hash(readOne(SCHEMA,16384,io.fs))) return FAILURE;
+    const schema=readOne(SCHEMA,16384,io.fs), kind=command==='/usr/local/bin/claude'?'claude-code':command==='/usr/local/bin/opencode'?'opencode':'codex';
+    if ((kind==='codex' ? contract.version!==1 || contract.harness!==undefined : contract.version!==2 || contract.harness!==kind) || contract.commandDigest !== commandDigest([command,...original]) || contract.schemaDigest !== hash(schema)) return FAILURE;
     // Exclusive attempt directory is a durable no-replay marker. An interrupted
     // attempt is retained and cannot be repurposed by running this adapter again.
     io.fs.mkdirSync(OUTPUT+'/.codex-terminal',{mode:0o700});
     for (const name of ['handoff.json','terminal-receipt.json']) if (io.fs.existsSync(OUTPUT+'/'+name)) return FAILURE;
-    if (!await settled(command,invocation(command,original),io)) return FAILURE;
-    const bytes = readOne(CANDIDATE,65536,io.fs), report = strictJSON(bytes);
+    let bytes;
+    if(kind==='claude-code'){bytes=await capturedClaude(command,invocation(command,original,schema),io);if(!bytes)return FAILURE;}
+    else {if(!await settled(command,invocation(command,original,schema),io))return FAILURE;bytes=readOne(CANDIDATE,65536,io.fs);}
+    const report = strictJSON(bytes);
     if (!reportValid(report)) return FAILURE;
     const receipt = Buffer.from(JSON.stringify({version:1,contractDigest:hash(contractBytes),reportDigest:hash(bytes)})+'\n');
     exclusive(OUTPUT+'/terminal-receipt.json',receipt,io.fs);
@@ -136,4 +170,4 @@ async function run(args, io = {fs,spawn,process,stdout:process.stdout,stderr:pro
   } catch { return FAILURE; }
 }
 if (require.main === module) run(process.argv.slice(2)).then(code => { process.exitCode = code; },() => { process.exitCode = FAILURE; });
-module.exports = {commandDigest,strictJSON,reportValid,readOne,exclusive,invocation,settled,run,CONTRACT,SCHEMA,CANDIDATE,OUTPUT};
+module.exports = {commandDigest,strictJSON,reportValid,readOne,exclusive,invocation,otherInvocation,claudeReport,capturedClaude,settled,run,CONTRACT,SCHEMA,CANDIDATE,OUTPUT};

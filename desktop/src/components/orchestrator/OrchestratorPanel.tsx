@@ -12,6 +12,7 @@ import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import { Button } from "../fluid/components/button";
 import { WorkflowDialog } from "../common/WorkflowDialog";
 import { AmendmentReview } from "./AmendmentReview";
+import { BlueprintProposalReview } from "./BlueprintProposalReview";
 import { SuggestedTaskSkills } from "./SuggestedTaskSkills";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
@@ -34,7 +35,7 @@ export interface OrchestratorOpenDetail {
 const compactOverviewQuery = "(max-width: 1100px)";
 const stageLabels = { discover: "Discover", design: "Design", develop: "Develop", deploy: "Deploy", distribute: "Distribute" };
 const amendmentEditors = { specification: "definition", "design-plan": "design", plan: "plan" } as const;
-const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan", gtm: "go-to-market workspace" };
+const amendmentLabels = { specification: "definition", "design-plan": "design", plan: "implementation plan", gtm: "go-to-market workspace", "deployment-blueprint": "service blueprint" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
 const readAccessDenied = (cause: unknown) => cause instanceof ApiError && (cause.status === 401 || cause.status === 403);
 const statuses: Record<OrchestratorTurn["status"], string> = {
@@ -533,7 +534,7 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
   async function apply() {
     const current = latest.current;
     const unsaved = Object.values(useCockpit.getState().unsavedProjectDrafts).some(draft => draft.projectId === projectId);
-    if (!canEdit || !review || !current || contextStale || unsaved || working.current || review.revision !== current.revision || review.digest !== current.context.digest) return;
+    if (!canEdit || !review || review.turn.answer?.proposal?.target === "deployment-blueprint" || !current || contextStale || unsaved || working.current || review.revision !== current.revision || review.digest !== current.context.digest) return;
     working.current = true; const ticket = ++generation.current; setBusy("apply"); setError("");
     try {
       const value = await orchestratorApi.apply(projectId, review.turn.id, { expectedRevision: review.revision, expectedContextDigest: review.digest });
@@ -769,10 +770,10 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
                 {turn.questionResolvedBy ? <p>Answered in a later turn.</p> : <div className="orchestrator-actions">{turn.answer.options.map((option, index) => <Button key={index} variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => suggestReply(turn, option)}>{option}</Button>)}<Button variant="ghost" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(turn.id)}>Reply to this question</Button></div>}
               </section>}
               {!turn.answer.question && turn.answer.rationale && <p>{turn.answer.rationale}</p>}
-              {turn.answer.proposal && <div className="orchestrator-proposal"><p>{turn.answer.proposal.summary}</p>{turn.appliedRevision ? <section aria-label="Continue amendment review">
+              {turn.answer.proposal && <div className="orchestrator-proposal"><p>{turn.answer.proposal.summary}</p>{turn.answer.proposal.target === "deployment-blueprint" ? <BlueprintProposalReview turn={turn} scope={scope ?? ""} canEdit={canEdit} blocked={!!busy || contextStale || contextRefreshQueued || !!contextDrafts} /> : turn.appliedRevision ? <section aria-label="Continue amendment review">
                 <p>This amendment saved {amendmentLabels[turn.answer.proposal.target]} draft revision {turn.appliedRevision}. Review the current document and its affected approvals before preparing more work.</p>
                 <p className="orchestrator-muted">Existing builds retain the context they started with. Reviewing this document does not stop or change those agents.</p>
-                <Button variant="secondary" disabled={!!busy || contextStale || contextRefreshQueued || !canRead || (turn.answer.proposal.target !== "plan" && !canEdit)} onClick={() => { const target = turn.answer!.proposal!.target; if (target === "gtm") setLens("distribute"); else edit(amendmentEditors[target]); }}>Open current {amendmentLabels[turn.answer.proposal.target]}</Button>
+                <Button variant="secondary" disabled={!!busy || contextStale || contextRefreshQueued || !canRead || (turn.answer.proposal.target !== "plan" && !canEdit)} onClick={() => { const target = turn.answer!.proposal!.target; if (target === "gtm") setLens("distribute"); else if (target !== "deployment-blueprint") edit(amendmentEditors[target]); }}>Open current {amendmentLabels[turn.answer.proposal.target]}</Button>
               </section> : <Button variant="secondary" disabled={!!busy} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button>}</div>}
               {!!turn.appliedRevision && !!turn.answer.proposal?.suggestedSkillAssignments?.length && <SuggestedTaskSkills key={`${scope}/${turn.id}`} turn={turn} scope={scope} canRead={canRead} canEdit={canEdit} blocked={!!busy || contextStale || contextRefreshQueued || !!contextDrafts} />}
               {turn.answer.nextAction && <p className="orchestrator-muted">Suggested next step: {turn.answer.nextAction}</p>}

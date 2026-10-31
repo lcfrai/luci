@@ -32,6 +32,8 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/distribute/github-releases":                                 "Reads bounded actor-owned original release records; no gh, observation, mutation, recovery or provider calls.",
+	"GET /v1/product/projects/{id}/distribute/github-releases/{publicationId}":                 "Reads one exact private original release journal under current Read; no provider requests or persistence.",
 	"GET /v1/product/projects/{id}/distribute/gtm":                                             "Reads bounded private GTM revisions and current project context without modifying drafts, publishing, contacting providers or compiling model output.",
 	"GET /v1/product/projects/{id}/skills":                                                     "Reads the versioned project skill registry and selections without changing source or dispatching agents.",
 	"GET /v1/product/team-controls":                                                            "Reads one bounded exact team control library revision without import or assessment mutation.",
@@ -303,7 +305,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if strings.Contains(pattern, "/discovery/documents") {
 				status = 401 // Private source history requires an authenticated actor, even for GET/HEAD.
 			}
-			if pattern == "GET /v1/product/team-controls" || strings.Contains(pattern, "/control-assessment") || strings.Contains(pattern, "/distribute/artifacts") || strings.HasSuffix(pattern, "/distribute/gtm") {
+			if pattern == "GET /v1/product/team-controls" || strings.Contains(pattern, "/control-assessment") || strings.Contains(pattern, "/distribute/artifacts") || strings.Contains(pattern, "/distribute/github-releases") || strings.HasSuffix(pattern, "/distribute/gtm") {
 				status = 401 // Team and private artifact reads require an authenticated actor in this fixture.
 			}
 			if strings.Contains(pattern, "/orchestrator/continuations/{continuationId}") {

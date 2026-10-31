@@ -111,6 +111,9 @@ func (a *API) homeAssistance(ctx context.Context, selected map[string]bool) (map
 		if readErr != nil {
 			return out, readErr
 		}
+		if assistance.IsPersonal(job) {
+			continue
+		}
 		if selected[job.ProjectID] {
 			job.Result = nil
 			job.OrchestratorResult = nil
@@ -175,7 +178,7 @@ func (a *API) homePage(ctx context.Context, projects []project.Project, actorID 
 		}
 		for _, session := range sessions {
 			pos, ok := positions[session.ProjectID]
-			if !ok || session.AuthOnly {
+			if !ok || session.AuthOnly || session.IsPersonalAssistant() {
 				continue
 			}
 			row := &rows[pos]

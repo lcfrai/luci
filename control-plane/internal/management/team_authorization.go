@@ -72,6 +72,14 @@ type teamRouteRule struct {
 // data can contain secrets. A newly added API remains unavailable to teams until
 // its actual behavior and ownership scope have been classified here.
 var teamRouteRules = []teamRouteRule{
+	{"GET /v1/product/projects/{projectId}/distribute/github-releases", teamRead},
+	{"GET /v1/product/projects/{projectId}/distribute/github-releases/{publicationId}", teamRead},
+	{"POST /v1/product/projects/{projectId}/distribute/github-releases/review", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/distribute/github-releases/{publicationId}/draft", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/distribute/github-releases/{publicationId}/review", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/distribute/github-releases/{publicationId}/publish", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/distribute/github-releases/{publicationId}/observe", teamRead | teamEdit | teamDeploy | teamSecrets},
+
 	{"GET /v1/product/team-controls", teamRead},
 	{"POST /v1/product/team-controls/preview", teamAdmin},
 	{"POST /v1/product/team-controls/compare", teamAdmin},
@@ -94,6 +102,19 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/projects", teamRead},
 	{"GET /v1/product/home", teamRead},
 	{"GET /v1/product/portfolio", teamRead},
+	// Personal storage is actor-owned. Paid inference and project handoff check
+	// fresh exact compute/destination Edit+Execute+Secrets inside the controller.
+	{"GET /v1/product/personal-luci", teamRead},
+	{"GET /v1/product/personal-luci/export", teamRead},
+	{"PUT /v1/product/personal-luci/preferences", teamRead},
+	{"POST /v1/product/personal-luci/continue", teamRead},
+	{"POST /v1/product/personal-luci/turns", teamRead},
+	{"POST /v1/product/personal-luci/resolve", teamRead},
+	{"GET /v1/product/personal-luci/turns/{turnId}", teamRead},
+	{"POST /v1/product/personal-luci/turns/{turnId}/resolve", teamRead},
+	{"POST /v1/product/personal-luci/turns/{turnId}/cancel", teamRead},
+	{"POST /v1/product/personal-luci/turns/{turnId}/handoff", teamRead},
+	{"POST /v1/product/personal-luci/turns/{turnId}/handoff/resolve", teamRead},
 	{"GET /v1/product/portfolio-goals", teamRead},
 	{"POST /v1/product/portfolio-goals", teamRead},
 	{"POST /v1/product/portfolio-goals/{goalId}/review", teamRead},
@@ -108,12 +129,19 @@ var teamRouteRules = []teamRouteRule{
 	{"POST /v1/product/projects/{projectId}/deployment-blueprint", teamRead},
 	{"GET /v1/product/projects/{projectId}/deployment-blueprint/saved", teamRead},
 	{"PUT /v1/product/projects/{projectId}/deployment-blueprint/saved", teamEdit},
+	{"GET /v1/product/projects/{projectId}/azure-clusters/commissions", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/azure-clusters/review", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/azure-clusters/commissions/{commissionId}/access", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/azure-clusters/commissions/{commissionId}/namespace", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/azure-clusters/commissions/{commissionId}/observe", teamRead | teamEdit | teamDeploy | teamSecrets},
 	{"GET /v1/product/projects/{projectId}/kubernetes/targets", teamRead | teamEdit | teamDeploy},
 	{"PUT /v1/product/projects/{projectId}/kubernetes/targets", teamRead | teamEdit | teamDeploy | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/kubernetes/targets/{targetId}/references/read", teamRead | teamEdit | teamDeploy | teamSecrets},
 	{"GET /v1/product/projects/{projectId}/kubernetes/deployments", teamRead | teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/kubernetes/review", teamRead | teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/kubernetes/deployments/{operationId}/apply", teamRead | teamEdit | teamDeploy},
 	{"POST /v1/product/projects/{projectId}/kubernetes/deployments/{operationId}/observe", teamRead | teamEdit | teamDeploy},
+	{"POST /v1/product/projects/{projectId}/kubernetes/deployments/{operationId}/telemetry/read", teamRead | teamEdit | teamDeploy | teamSecrets},
 	{"PUT /v1/product/home/pins", teamRead},
 	{"POST /v1/product/home/stops/ack", teamRead},
 	{"GET /v1/projects/{projectId}/branches", teamRead},
@@ -167,6 +195,11 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/product/projects/{projectId}/design-plan/history", teamRead},
 	{"POST /v1/product/projects/{projectId}/design-plan/approve", teamEdit},
 	{"GET /v1/product/projects/{projectId}/plan", teamRead},
+	{"POST /v1/product/projects/{projectId}/reuse/catalogue", teamRead},
+	{"GET /v1/product/projects/{projectId}/feedback", teamRead},
+	{"POST /v1/product/projects/{projectId}/feedback/preview", teamRead | teamEdit | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/feedback/import", teamRead | teamEdit | teamSecrets},
+	{"POST /v1/product/projects/{projectId}/feedback/selection", teamRead | teamEdit | teamSecrets},
 	{"GET /v1/product/projects/{projectId}/overview", teamRead},
 	{"GET /v1/product/projects/{projectId}/swarm-queue", teamRead},
 	{"POST /v1/product/projects/{projectId}/plan", teamEdit},
@@ -374,6 +407,8 @@ func classifyTeamRoute(r *http.Request) (TeamRouteScope, teamCapability, bool) {
 		scope.Collection = "portfolio-goals"
 	case "GET /v1/product/portfolio":
 		scope.Collection = "portfolio"
+	case "POST /v1/product/personal-luci/continue", "GET /v1/product/personal-luci", "GET /v1/product/personal-luci/export", "PUT /v1/product/personal-luci/preferences", "POST /v1/product/personal-luci/turns", "POST /v1/product/personal-luci/resolve", "GET /v1/product/personal-luci/turns/{turnId}", "POST /v1/product/personal-luci/turns/{turnId}/resolve", "POST /v1/product/personal-luci/turns/{turnId}/cancel", "POST /v1/product/personal-luci/turns/{turnId}/handoff", "POST /v1/product/personal-luci/turns/{turnId}/handoff/resolve":
+		scope.Collection = "personal-luci"
 	case "GET /v1/sessions":
 		scope.Collection = "sessions"
 	case "GET /v1/machines":

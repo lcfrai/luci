@@ -51,7 +51,7 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		return err
 	}
 	count := 0
-	for _, present := range []bool{proposal.Specification != nil, proposal.DesignPlan != nil, proposal.Plan != nil, proposal.GTM != nil} {
+	for _, present := range []bool{proposal.Specification != nil, proposal.DesignPlan != nil, proposal.Plan != nil, proposal.GTM != nil, proposal.DeploymentBlueprint != nil} {
 		if present {
 			count++
 		}
@@ -60,6 +60,8 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		return ErrOrchestratorInvalid
 	}
 	switch proposal.Target {
+	case "deployment-blueprint":
+		return validateOrchestratorBlueprint(snapshot, proposal.DeploymentBlueprint)
 	case "gtm":
 		return validateOrchestratorGTM(snapshot, proposal.GTM)
 	case "specification":
@@ -101,7 +103,14 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		if next == nil || next.ProjectID != snapshot.ProjectID || next.Revision != snapshot.Plan.Revision || next.BriefRevision != snapshot.Plan.BriefRevision {
 			return ErrOrchestratorInvalid
 		}
-		if err := validatePlan(*next); err != nil {
+		normalized := *next
+		normalized.Tasks = preserveTaskReuse(snapshot.Plan.Tasks, next.Tasks)
+		if currentQuality {
+			if err := validateAssistedTaskReuse(snapshot.Plan.Tasks, normalized.Tasks); err != nil {
+				return err
+			}
+		}
+		if err := validatePlan(normalized); err != nil {
 			return err
 		}
 		if err := validateTaskDesignReferences(next.Tasks, snapshot.DesignPlan); err != nil {
@@ -395,7 +404,7 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		if err != nil {
 			return err
 		}
-		if archived == nil || archived.AppliedRevision < 1 || archived.ApplyIntent != "" {
+		if archived == nil || manualBlueprintTurn(*archived) || archived.AppliedRevision < 1 || archived.ApplyIntent != "" {
 			return ErrOrchestratorConflict
 		}
 		// An archived applied origin can only confirm its immutable receipt.
@@ -416,6 +425,9 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		return s.finishCoordinationApplyLocked(ctx, p, *archived)
 	}
 	turn := &saved.Turns[index]
+	if turn.IsDiscussionOnly() || manualBlueprintTurn(*turn) {
+		return ErrOrchestratorInvalid
+	}
 	if authorize != nil {
 		if err := authorize(p, saved, *turn); err != nil {
 			return err
@@ -538,6 +550,7 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		revoke = true
 	case "plan":
 		plan := *proposal.Plan
+		plan.Tasks = preserveTaskReuse(snapshot.Plan.Tasks, plan.Tasks)
 		plan.Revision = snapshot.Plan.Revision + 1
 		plan.BriefRevision = state.Brief.Revision
 		plan.SpecificationRevision, plan.SpecificationDigest = 0, ""

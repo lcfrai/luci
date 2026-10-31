@@ -11,3 +11,10 @@ const CodexTaskResultSchemaDigest = "202ad6cfee380ee028962f42c93a23c730f47b7d839
 type CodexTaskResultImageObserver interface {
 	ObserveCodexTaskResultImage(context.Context, string) (string, error)
 }
+
+const HarnessTaskResultCapability = "ai.lcfr.harness-task-result"
+const HarnessTaskResultVersion = "claude-structured-opencode-file-v1"
+
+type HarnessTaskResultImageObserver interface {
+	ObserveHarnessTaskResultImage(context.Context, string, string) (string, error)
+}

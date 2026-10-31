@@ -68,6 +68,10 @@ func (s *Server) stopCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 400, "target_invalid", err.Error())
 		return
 	}
+	if err := s.bindManualCloudReleaseMutations(r.Context(), p, target, &row, false, client); err != nil {
+		journeyError(w, http.StatusForbidden, "deployment_authority_changed", "Current authority for this original release could not be confirmed. No stop was attempted.")
+		return
+	}
 	// Persist intent BEFORE a remote mutation. An ambiguous network result is
 	// observed through Refresh instead of automatically issuing another stop.
 	row.Status, row.URL, row.Message = "stopping", "", "Stop requested. Refresh to verify the application actually stopped."
@@ -191,6 +195,12 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	if err != nil {
 		journeyError(w, 500, "release_record_failed", "Could not reserve the historical rebuild; nothing was deployed.")
+		return
+	}
+	if err := s.bindManualCloudReleaseMutations(ctx, p, target, &row, true, client); err != nil {
+		row.Status, row.Message = "failed", "Current deployment authority could not be confirmed. No historical rebuild mutation was attempted."
+		_ = s.storeCloudRelease(row)
+		journeyError(w, http.StatusForbidden, "deployment_authority_changed", row.Message)
 		return
 	}
 	fail := func() {

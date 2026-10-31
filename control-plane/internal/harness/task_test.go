@@ -81,14 +81,22 @@ func TestTaskCapabilityDoesNotLeakMutablePermissionSlices(t *testing.T) {
 func TestTaskNativeDelegationUsesFixedOwnedCompatibilityEntry(t *testing.T) {
 	r := harness.Request{Harness: harness.Codex, Model: "opaque-model", Permission: harness.PermissionBypass, DockerBoundary: true, ReviewedContext: true, NativeDelegation: "codex-native-helpers-2-v1", OpeningPrompt: "Implement only the captured coding task"}
 	command, argv, err := harness.BuildTask(r)
-	if err != nil || command != "/usr/local/bin/node" || len(argv) < 10 || argv[0] != "/usr/local/lib/luci/codex-native-task.cjs" { t.Fatal(command, argv, err) }
-	for _, value := range []string{"agents.enabled=true", "agents.max_concurrent_threads_per_session=2", "features.multi_agent_v2=false"} {
-		if !slices.Contains(argv, value) { t.Fatal("fixed helper policy missing", value, argv) }
+	if err != nil || command != "/usr/local/bin/node" || len(argv) < 10 || argv[0] != "/usr/local/lib/luci/codex-native-task.cjs" {
+		t.Fatal(command, argv, err)
 	}
-	if slices.Contains(argv, "agents.enabled=false") || argv[len(argv)-1] != r.OpeningPrompt || slices.Index(argv, "exec") < 8 { t.Fatal("conflicting policy or changed prompt", argv) }
+	for _, value := range []string{"agents.enabled=true", "agents.max_concurrent_threads_per_session=2", "features.multi_agent_v2=false"} {
+		if !slices.Contains(argv, value) {
+			t.Fatal("fixed helper policy missing", value, argv)
+		}
+	}
+	if slices.Contains(argv, "agents.enabled=false") || argv[len(argv)-1] != r.OpeningPrompt || slices.Index(argv, "exec") < 8 {
+		t.Fatal("conflicting policy or changed prompt", argv)
+	}
 	r.NativeDelegation = ""
 	command, argv, err = harness.BuildTask(r)
-	if err != nil || command != "codex" || !slices.Contains(argv, "agents.enabled=false") || !slices.Contains(argv, "features.multi_agent_v2=false") || slices.Contains(argv, "agents.max_concurrent_threads_per_session=2") { t.Fatal("default task child boundary changed", command, argv, err) }
+	if err != nil || command != "codex" || !slices.Contains(argv, "agents.enabled=false") || !slices.Contains(argv, "features.multi_agent_v2=false") || slices.Contains(argv, "agents.max_concurrent_threads_per_session=2") {
+		t.Fatal("default task child boundary changed", command, argv, err)
+	}
 }
 
 func TestTaskNativeDelegationRejectsUncapturedUnsupportedAndInteractiveRequests(t *testing.T) {
@@ -96,15 +104,23 @@ func TestTaskNativeDelegationRejectsUncapturedUnsupportedAndInteractiveRequests(
 		t.Run(name, func(t *testing.T) {
 			r := harness.Request{Harness: harness.Codex, Permission: harness.PermissionBypass, DockerBoundary: true, ReviewedContext: true, NativeDelegation: "codex-native-helpers-2-v1", OpeningPrompt: "Captured task"}
 			switch name {
-			case "unknown": r.NativeDelegation = "other"
-			case "non-codex": r.Harness = harness.ClaudeCode
-			case "non-docker": r.DockerBoundary = false
-			case "uncaptured": r.ReviewedContext = false
-			case "ask": r.Permission = harness.PermissionAsk
-			case "resume": r.Resume, r.Conversation = sourceConversation, forkConversation
+			case "unknown":
+				r.NativeDelegation = "other"
+			case "non-codex":
+				r.Harness = harness.ClaudeCode
+			case "non-docker":
+				r.DockerBoundary = false
+			case "uncaptured":
+				r.ReviewedContext = false
+			case "ask":
+				r.Permission = harness.PermissionAsk
+			case "resume":
+				r.Resume, r.Conversation = sourceConversation, forkConversation
 			}
 			command, argv, err := harness.BuildTask(r)
-			if err == nil || command != "" || argv != nil { t.Fatal("unsupported helper request produced executable argv", command, argv, err) }
+			if err == nil || command != "" || argv != nil {
+				t.Fatal("unsupported helper request produced executable argv", command, argv, err)
+			}
 		})
 	}
 }
@@ -214,5 +230,32 @@ func TestCodexTaskDisablesUncapturedChildrenOnlyAtRoot(t *testing.T) {
 				t.Fatalf("interactive Codex argv changed with task-only child bounds: %q %v %v", command, argv, err)
 			}
 		})
+	}
+}
+
+func TestOtherDockerTasksNameTheirCanonicalResultProtocolWithoutChangingInteractive(t *testing.T) {
+	for _, id := range []harness.ID{harness.ClaudeCode, harness.OpenCode} {
+		r := harness.Request{Harness: id, Permission: harness.PermissionBypass, ReviewedContext: true, DockerBoundary: true, OpeningPrompt: "saved task"}
+		_, args, err := harness.BuildTask(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		joined := strings.Join(args, "\n")
+		want := "structured_output"
+		if id == harness.OpenCode {
+			want = "/home/dev/.luci-task-output/.codex-terminal/result.json"
+		}
+		if !strings.Contains(joined, want) {
+			t.Fatal("terminal protocol absent", id)
+		}
+		_, direct, err := harness.Build(r)
+		if err != nil || strings.Contains(strings.Join(direct, "\n"), want) {
+			t.Fatal("direct interactive protocol changed", id, err)
+		}
+		r.DockerBoundary = false
+		_, legacy, err := harness.BuildTask(r)
+		if err != nil || strings.Contains(strings.Join(legacy, "\n"), want) {
+			t.Fatal("non-Docker task silently changed", id, err)
+		}
 	}
 }

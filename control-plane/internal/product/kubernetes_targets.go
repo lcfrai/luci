@@ -34,14 +34,15 @@ type KubernetesTargetCredentials struct {
 	Key         string `json:"key,omitempty"`
 }
 type KubernetesTargetDescriptor struct {
-	ID           string `json:"id"`
-	ProjectID    string `json:"projectId"`
-	Name         string `json:"name"`
-	Server       string `json:"server"`
-	Namespace    string `json:"namespace"`
-	NamespaceUID string `json:"namespaceUid"`
-	Revision     int    `json:"revision"`
-	Fingerprint  string `json:"fingerprint"`
+	ID             string `json:"id"`
+	ProjectID      string `json:"projectId"`
+	Name           string `json:"name"`
+	Server         string `json:"server"`
+	Namespace      string `json:"namespace"`
+	NamespaceUID   string `json:"namespaceUid"`
+	Revision       int    `json:"revision"`
+	Fingerprint    string `json:"fingerprint"`
+	CredentialKind string `json:"credentialKind,omitempty"`
 }
 type KubernetesTargetSave struct {
 	ID               string                      `json:"id"`
@@ -53,7 +54,8 @@ type KubernetesTargetSave struct {
 }
 type privateKubernetesTarget struct {
 	KubernetesTargetDescriptor
-	Credentials KubernetesTargetCredentials `json:"credentials"`
+	Credentials  KubernetesTargetCredentials   `json:"credentials"`
+	AzureCluster *AzureClusterCredentialSource `json:"azureCluster,omitempty"`
 }
 type kubernetesTargetLedger struct {
 	Version      int                       `json:"version"`
@@ -106,6 +108,10 @@ func kubernetesClient(target privateKubernetesTarget) (kubernetes.Interface, err
 		return nil, ErrKubernetesReview
 	}
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return errors.New("Cluster redirects are refused.") }
+	if client.Transport == nil {
+		return nil, ErrKubernetesReview
+	}
+	client.Transport = boundedKubernetesTransport{next: client.Transport}
 	return kubernetes.NewForConfigAndClient(config, client)
 }
 
@@ -168,7 +174,7 @@ func (s *Server) readKubernetesTargets(projectID string) (string, kubernetesTarg
 		if !validKubeTarget(target) || ids[target.ID] || target.ProjectID != projectID || target.Fingerprint != reviewDigest(copy) {
 			return "", empty, ErrKubernetesReview
 		}
-		if _, err := kubernetesRESTConfig(target.Server, target.Credentials); err != nil {
+		if err := validateKubernetesTargetCredentials(target); err != nil {
 			return "", empty, ErrKubernetesReview
 		}
 		ids[target.ID] = true
@@ -249,7 +255,7 @@ func (s *Server) SaveKubernetesTarget(ctx context.Context, actor management.Exec
 	for index, target := range ledger.Targets {
 		if target.ID == id {
 			found = index
-			if target.Revision != input.ExpectedRevision {
+			if isAzureClusterTarget(target) || target.Revision != input.ExpectedRevision {
 				return KubernetesTargetDescriptor{}, ErrKubernetesReview
 			}
 		}
@@ -286,7 +292,7 @@ func (s *Server) resolveKubernetesTarget(ctx context.Context, identity deploymen
 		if target.ID != identity.TargetID || target.Fingerprint != identity.TargetFingerprint {
 			continue
 		}
-		client, err := kubernetesClient(target)
+		client, err := s.resolvedKubernetesClient(ctx, identity, target)
 		if err != nil {
 			return deploymentkube.Target{}, ErrKubernetesReview
 		}

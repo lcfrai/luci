@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { emptyGTM } from "../../api/gtmWorkspace";
 import { SuggestedTaskSkillList } from "./SuggestedTaskSkills";
+import { AmendmentImpact } from "./AmendmentImpact";
 import type { OrchestratorTurn, OrchestratorView } from "../../api/orchestrator";
 import { Button } from "../fluid/components/button";
 import { WorkflowDialog, type WorkflowDialogReadAccess } from "../common/WorkflowDialog";
@@ -21,7 +22,7 @@ export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, 
 }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const proposal = turn.answer?.proposal;
-  if (!proposal) return null;
+  if (!proposal || proposal.target === "deployment-blueprint") return null;
   const property = proposal.target === "design-plan" ? "designPlan" : proposal.target;
   const before = (proposal.target === "gtm" ? turn.context.gtm?.content ?? emptyGTM() : turn.context[property as "specification" | "designPlan" | "plan"]) as unknown as Record<string, unknown>;
   const after = proposal[property] as unknown as Record<string, unknown> | null;
@@ -31,6 +32,7 @@ export function AmendmentReview({ turn, view, readAccess, busy, blocked, error, 
     <p>{proposal.summary}</p>
     {turn.answer?.rationale && <p><strong>Why this change: </strong>{turn.answer.rationale}</p>}
     {!!turn.answer?.impact?.length && <div><strong>Affected work</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
+    <AmendmentImpact context={turn.context} proposal={proposal} />
     <div className="orchestrator-amendment" aria-label="Proposed changes">
       {changes.length ? changes.map(key => <section key={key}><h3>{label(key)}</h3><div className="orchestrator-comparison">
         <div><h4>Saved when asked</h4><p>{readable(before[key])}</p></div>

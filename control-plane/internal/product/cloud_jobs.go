@@ -25,20 +25,23 @@ func (e *foundationAdmissionRefusal) Error() string {
 func (e *foundationAdmissionRefusal) Unwrap() error { return e.cause }
 
 type CloudJob struct {
-	ID         string    `json:"id"`
-	PlanID     string    `json:"planId"`
-	Provider   string    `json:"provider"`
-	Name       string    `json:"name"`
-	Region     string    `json:"region"`
-	Domain     string    `json:"domain"`
-	Status     string    `json:"status"`
-	Message    string    `json:"message"`
-	PublicIP   string    `json:"publicIp"`
-	ResourceID string    `json:"resourceId"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
-	Plan       CloudPlan `json:"-"`
-	Owned      bool      `json:"-"`
+	Kind            string                   `json:"kind,omitempty"`
+	DeleteAttempted bool                     `json:"deleteAttempted,omitempty"`
+	Cluster         *AzureClusterObservation `json:"cluster,omitempty"`
+	ID              string                   `json:"id"`
+	PlanID          string                   `json:"planId"`
+	Provider        string                   `json:"provider"`
+	Name            string                   `json:"name"`
+	Region          string                   `json:"region"`
+	Domain          string                   `json:"domain"`
+	Status          string                   `json:"status"`
+	Message         string                   `json:"message"`
+	PublicIP        string                   `json:"publicIp"`
+	ResourceID      string                   `json:"resourceId"`
+	CreatedAt       time.Time                `json:"createdAt"`
+	UpdatedAt       time.Time                `json:"updatedAt"`
+	Plan            CloudPlan                `json:"-"`
+	Owned           bool                     `json:"-"`
 }
 type savedCloudJob struct {
 	Job   CloudJob  `json:"job"`
@@ -65,6 +68,9 @@ func (s *Server) initCloudJobs() error {
 	for _, record := range records {
 		j := record.Job
 		j.Plan = record.Plan
+		if j.Kind != j.Plan.Kind {
+			return errAzureCluster
+		}
 		if j.Plan.Foundation != nil && (!validFoundationPlan(j.Plan) || j.PlanID != j.Plan.ID || j.Provider != "azure") {
 			return errAzureBlueprint
 		}
@@ -189,7 +195,7 @@ func (s *Server) createCloudJob(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "budget_exceeded", "This machine exceeds the reviewed budget. Generate a new plan with a smaller machine or an explicitly increased budget.")
 		return
 	}
-	job := CloudJob{ID: newID("cj-"), PlanID: plan.ID, Provider: plan.Provider, Name: plan.Name, Region: plan.Region, Domain: plan.Domain, Plan: plan, Status: "creating", Message: "Validating your account and checking that this name is unused.", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	job := CloudJob{Kind: plan.Kind, ID: newID("cj-"), PlanID: plan.ID, Provider: plan.Provider, Name: plan.Name, Region: plan.Region, Domain: plan.Domain, Plan: plan, Status: "creating", Message: "Validating your account and checking that this name is unused.", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	s.jobs[job.ID] = job
 	if err := s.saveJobsLocked(); err != nil {
 		delete(s.jobs, job.ID)
@@ -205,6 +211,13 @@ func (s *Server) updateJob(j CloudJob, status, message string) {
 	s.mu.Lock()
 	j.Status = status
 	j.Message = message
+	if j.Kind == "aks" && s.jobs[j.ID].DeleteAttempted {
+		j.DeleteAttempted = true
+		if status != "deleted" {
+			j.Status = "deleting"
+			j.Message = "Deletion was attempted for the original owned group. Observe group absence; no delete or commissioning effect is replayed."
+		}
+	}
 	j.UpdatedAt = time.Now().UTC()
 	s.jobs[j.ID] = j
 	_ = s.saveJobsLocked()
@@ -244,7 +257,12 @@ func (s *Server) provisionCloud(j CloudJob) {
 			admissionRefusal = &foundationAdmissionRefusal{cause: err}
 			return "", admissionRefusal
 		}
-		return s.runner(ctx, exe, args, dir)
+		raw, err := s.cloudJobCommand(ctx, j, exe, args, dir)
+		var refusal *foundationAdmissionRefusal
+		if errors.As(err, &refusal) {
+			admissionRefusal = refusal
+		}
+		return raw, err
 	}
 	if j.Provider == "aws" {
 		if _, err := run("aws", "sts", "get-caller-identity", "--output", "json"); err != nil {
@@ -301,6 +319,13 @@ func (s *Server) provisionCloud(j CloudJob) {
 			s.updateJob(j, "failed", "This resource group exists or could not be checked. Choose a new group name.")
 			return
 		}
+		if j.Plan.Foundation != nil && j.Plan.Foundation.Cluster != nil {
+			child, err := run("az", "group", "exists", "--name", j.Plan.Foundation.Cluster.Fit.NodeResourceGroup)
+			if err != nil || strings.TrimSpace(child) != "false" {
+				s.updateJob(j, "failed", "The planned managed node resource group already exists or cannot be checked; it was not adopted.")
+				return
+			}
+		}
 		raw, err = run("az", "group", "create", "--name", j.Name, "--location", j.Region, "--tags", "managed-by=luci", "luci-job="+j.ID, "--output", "json")
 		if err != nil {
 			s.updateJob(j, "unknown", "Azure group creation returned an error. Refresh status before retrying.")
@@ -315,7 +340,11 @@ func (s *Server) provisionCloud(j CloudJob) {
 		}
 		j.ResourceID = group.ID
 		j.Owned = true
-		s.updateJob(j, "creating", "Resource group created. Validating the machine template.")
+		message := "Resource group created. Validating the machine template."
+		if j.Kind == "aks" {
+			message = "Resource group created. Validating the exact AKS cluster template; workloads are not deployed."
+		}
+		s.updateJob(j, "creating", message)
 		if _, err = run("az", "deployment", "group", "validate", "--resource-group", j.Name, "--template-file", "template.json"); err != nil {
 			s.updateJob(j, "failed", "Azure rejected the template. The empty resource group remains; remove it with Delete resources.")
 			return
@@ -325,7 +354,11 @@ func (s *Server) provisionCloud(j CloudJob) {
 			return
 		}
 	}
-	s.updateJob(j, "provisioning", "Resources are being created. Refresh progress, then connect the server through SSH.")
+	if j.Kind == "aks" {
+		s.updateJob(j, "provisioning", "Cluster and fixed nodes requested. Refresh the original job; access grant, project namespace and workloads remain separate.")
+	} else {
+		s.updateJob(j, "provisioning", "Resources are being created. Refresh progress, then connect the server through SSH.")
+	}
 }
 func (s *Server) jobForRequest(w http.ResponseWriter, r *http.Request) (CloudJob, bool) {
 	s.mu.RLock()
@@ -349,7 +382,11 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 		s.writeFoundationJobResponse(w, r, j, 200, j)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	timeout := 15 * time.Second
+	if j.Kind == "aks" {
+		timeout = 90 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	exe := "aws"
 	stackName := j.Name
@@ -359,7 +396,7 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 	args := []string{"cloudformation", "describe-stacks", "--stack-name", stackName, "--region", j.Region, "--output", "json"}
 	if j.Provider == "azure" {
 		exe = "az"
-		exists, checkErr := s.runner(ctx, "az", []string{"group", "exists", "--name", j.Name}, "")
+		exists, checkErr := s.cloudJobCommand(ctx, j, "az", []string{"group", "exists", "--name", j.Name}, "")
 		if checkErr != nil {
 			problem(w, 502, "provider_unavailable", "Could not check resource-group progress.")
 			return
@@ -373,7 +410,7 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 			problem(w, 409, "resource_not_found", "The resource group is not present. Nothing was created or adopted.")
 			return
 		}
-		groupRaw, groupErr := s.runner(ctx, "az", []string{"group", "show", "--name", j.Name, "--output", "json"}, "")
+		groupRaw, groupErr := s.cloudJobCommand(ctx, j, "az", []string{"group", "show", "--name", j.Name, "--output", "json"}, "")
 		var group struct {
 			ID   string            `json:"id"`
 			Tags map[string]string `json:"tags"`
@@ -384,9 +421,14 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 		}
 		j.ResourceID = group.ID
 		j.Owned = true
+		if j.Kind == "aks" && (j.DeleteAttempted || j.Status == "deleting" || j.Status == "deleted") {
+			s.updateJob(j, "deleting", "The original group still exists after a delete attempt; no deletion or workload operation was repeated.")
+			s.writeFoundationJobResponse(w, r, j, 200, s.jobsSnapshot(j.ID))
+			return
+		}
 		args = []string{"deployment", "group", "show", "--resource-group", j.Name, "--name", j.Name, "--output", "json"}
 	}
-	raw, err := s.runner(ctx, exe, args, "")
+	raw, err := s.cloudJobCommand(ctx, j, exe, args, "")
 	if err != nil {
 		problem(w, 502, "provider_unavailable", "Could not read cloud progress. Your existing resources were not changed.")
 		return
@@ -465,7 +507,26 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 			j.Status = "provisioning"
 		}
 	}
-	s.updateJob(j, j.Status, "Provider status: "+status+". Server installation and application health are checked separately.")
+	if j.Plan.Foundation != nil && j.Plan.Foundation.Cluster != nil {
+		observation, readErr := s.observeAzureCluster(ctx, j)
+		if readErr != nil {
+			j.Status = "unknown"
+			s.updateJob(j, j.Status, "The exact managed-cluster generation could not be confirmed. Existing resources and costs may remain; no operation was replayed.")
+			s.writeFoundationJobResponse(w, r, j, 200, j)
+			return
+		}
+		j.Cluster = &observation
+		if observation.State == "created" {
+			j.Status = "resources_ready"
+		} else if observation.State == "failed" {
+			j.Status = "failed"
+		} else {
+			j.Status = "provisioning"
+		}
+		s.updateJob(j, j.Status, "Cluster generation observed. Bootstrap access, project namespace and usable target are separate explicit steps; workloads and health are not verified.")
+	} else {
+		s.updateJob(j, j.Status, "Provider status: "+status+". Server installation and application health are checked separately.")
+	}
 	s.mu.RLock()
 	j = s.jobs[j.ID]
 	s.mu.RUnlock()
@@ -486,14 +547,14 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "ownership_required", "Type the resource name and refresh its ownership before deleting it.")
 		return
 	}
-	if j.Status == "creating" || j.Status == "deleting" {
+	if j.Status == "creating" || j.Status == "deleting" || j.Kind == "aks" && j.DeleteAttempted {
 		problem(w, 409, "operation_running", "Wait for the current operation before deleting resources.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	if j.Provider == "azure" {
-		raw, err := s.runner(ctx, "az", []string{"group", "show", "--name", j.Name, "--output", "json"}, "")
+		raw, err := s.cloudJobCommand(ctx, j, "az", []string{"group", "show", "--name", j.Name, "--output", "json"}, "")
 		var group struct {
 			ID   string            `json:"id"`
 			Tags map[string]string `json:"tags"`
@@ -540,7 +601,34 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if _, err := s.runner(ctx, exe, args, ""); err != nil {
+	if j.Kind == "aks" {
+		// Durable original intent precedes the one existing provider mutation. A
+		// lost response never restores commissioning or silently repeats deletion.
+		s.mu.Lock()
+		current, exists := s.jobs[j.ID]
+		if !exists || current.DeleteAttempted || current.PlanID != j.PlanID || current.Plan.Foundation == nil || current.Plan.Foundation.PlanDigest != j.Plan.Foundation.PlanDigest {
+			s.mu.Unlock()
+			problem(w, 409, "operation_running", "Read the original retained delete attempt.")
+			return
+		}
+		current.DeleteAttempted = true
+		current.Status = "deleting"
+		current.Message = "Delete intent retained. The provider outcome is unconfirmed until observed."
+		current.UpdatedAt = time.Now().UTC()
+		s.jobs[j.ID] = current
+		saveErr := s.saveJobsLocked()
+		s.mu.Unlock()
+		if saveErr != nil {
+			problem(w, 500, "save_failed", "Delete intent could not be confirmed; no provider delete was called. Read the original record before another action.")
+			return
+		}
+		j = current
+		if _, err := s.authorizeFoundationPlan(ctx, j.Plan, false, true); err != nil {
+			foundationProblem(w, err)
+			return
+		}
+	}
+	if _, err := s.cloudJobCommand(ctx, j, exe, args, ""); err != nil {
 		problem(w, 502, "delete_failed", "Deletion was not confirmed. Check the provider before retrying.")
 		return
 	}

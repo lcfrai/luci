@@ -322,6 +322,9 @@ func (s *FileStore) Update(id string, mutate func(*Session) error) (Session, err
 		// would rename the session with nothing to show why.
 		return Session{}, fmt.Errorf("registry: Update %s: mutate changed the session id to %q", id, working.ID)
 	}
+	if before.IsPersonalAssistant() && (working.PersonalOwner != before.PersonalOwner || working.ContextRef != before.ContextRef) {
+		return Session{}, fmt.Errorf("registry: Update %s: private assistant ownership cannot change", id)
+	}
 	if before.TaskObservationComplete && !sameTaskObservationGeneration(before, working) {
 		// A watermark from an older task binding/outcome must never suppress
 		// observation of a replacement, even when the mutator copied it along.

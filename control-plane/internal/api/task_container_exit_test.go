@@ -35,16 +35,22 @@ func writeControlledTerminalReceipt(t *testing.T, row registry.Session, director
 	}
 }
 
+// Seed the historical original through the supported store creation seam;
+// production Update must keep refusing to rewrite immutable CreatedAt.
+type historicalTaskCreateStore struct {
+	*registry.FileStore
+	createdAt time.Time
+}
+
+func (s *historicalTaskCreateStore) Create(row registry.Session) error {
+	row.CreatedAt = s.createdAt
+	return s.FileStore.Create(row)
+}
+
 func TestTaskContainerExitNormalZeroSurvivesObserverExpiryCleanupAndRestart(t *testing.T) {
-	f, row, _ := settledTaskFixture(t)
-	var err error
-	row, err = f.store.Update(row.ID, func(current *registry.Session) error {
-		current.CreatedAt = current.CreatedAt.Add(-2 * time.Hour)
-		return nil
+	f, row, _ := settledTaskFixture(t, func(f *swarmSessionFixture) {
+		f.env.api.deps.Store = &historicalTaskCreateStore{FileStore: f.store, createdAt: time.Now().UTC().Add(-2 * time.Hour)}
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	if _, valid := taskTerminalObservationDeadline(row.CreatedAt, time.Now()); valid {
 		t.Fatal("fixture did not exceed the original attach observation window")
 	}

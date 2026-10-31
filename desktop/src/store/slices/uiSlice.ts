@@ -18,6 +18,7 @@ import type {
   Worktree,
 } from "../types";
 import type { CockpitState } from "../store";
+import type { BlueprintDraftIntent } from "../../api/orchestratorBlueprint";
 import { initialDataState } from "./dataSlice";
 import { pruneProjectPositions, readProjectNavigation, writeProjectNavigation, type ProjectPosition } from "../../preferences/projectNavigation";
 
@@ -142,6 +143,8 @@ export interface UiSlice {
   projectRunInspection: { scope: string; projectId: ProjectId; runId: string; refresh?: boolean } | null;
   projectRunVerification: { scope: string; projectId: ProjectId; runId: string } | null;
   projectRunDeployment: ProjectRunDeploymentIntent | null;
+  /** Explicit scoped topology proposal transfer; never persisted or auto-saved. */
+  projectBlueprintDraft: BlueprintDraftIntent | null;
   setUnsavedProjectDraft(id: string, draft: UnsavedProjectDraft | null): void;
   cancelNavigation(): void;
   discardDraftsAndNavigate(keepDrafts?: boolean): void;
@@ -184,7 +187,7 @@ type UiState = Pick<
   | "selection" | "lens" | "workspaceSurface" | "layout" | "railCollapsed" | "projectNavigationScope" | "projectCatalogueEpoch" | "projectPositions" | "projectNavigationError"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "paletteOpen" | "pickerOpen" | "contextMenu" | "sessionMenuFor" | "toasts"
-  | "machinesOpen" | "unsavedProjectDrafts" | "pendingNavigation" | "branchManager" | "projectSourceRevisions" | "projectRunInspection" | "projectRunVerification" | "projectRunDeployment"
+  | "machinesOpen" | "unsavedProjectDrafts" | "pendingNavigation" | "branchManager" | "projectSourceRevisions" | "projectRunInspection" | "projectRunVerification" | "projectRunDeployment" | "projectBlueprintDraft"
 >;
 
 /** FROZEN, containers and all — see the note on `initialDataState`. */
@@ -214,6 +217,7 @@ export const initialUiState: UiState = Object.freeze({
   projectRunInspection: null,
   projectRunVerification: null,
   projectRunDeployment: null,
+  projectBlueprintDraft: null,
 });
 
 export const createUiSlice: StateCreator<
@@ -241,7 +245,7 @@ export const createUiSlice: StateCreator<
       tiles: {}, pinned: [], projectDefaults: {}, branchDefaults: {}, projectSourceRevisions: {} } : {}),
       projectNavigationScope: scope, projectCatalogueEpoch: state.projectCatalogueEpoch + 1, projectPositions: positions, projectNavigationError: false,
       selection: { ...NO_SELECTION, projectId: selected }, lens: selected ? positions[selected].lens : "discover", workspaceSurface: "luci",
-      pendingNavigation: null, projectRunInspection: null, projectRunVerification: null, projectRunDeployment: null });
+      pendingNavigation: null, projectRunInspection: null, projectRunVerification: null, projectRunDeployment: null, projectBlueprintDraft: null });
   },
 
   // A project selection clears checkout-specific focus; its own stage is restored.
@@ -310,7 +314,7 @@ export const createUiSlice: StateCreator<
       return { unsavedProjectDrafts: drafts };
     });
   },
-  cancelNavigation: () => set({ pendingNavigation: null, projectRunInspection: null, projectRunVerification: null, projectRunDeployment: null }),
+  cancelNavigation: () => set({ pendingNavigation: null, projectRunInspection: null, projectRunVerification: null, projectRunDeployment: null, projectBlueprintDraft: null }),
   discardDraftsAndNavigate: (keepDrafts = false) => {
     const current = get();
     const destination = current.pendingNavigation;

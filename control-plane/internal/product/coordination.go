@@ -60,7 +60,7 @@ func coordinationIntent(saved *coordinationLedger, turn string) *storedCoordinat
 	return nil
 }
 func coordinationChanges(turn *storedOrchestratorTurn) coordinationCells {
-	if turn == nil || turn.Answer == nil || turn.Answer.Proposal == nil {
+	if turn == nil || turn.Answer == nil || turn.Answer.Proposal == nil || manualBlueprintTurn(*turn) {
 		return nil
 	}
 	answer := restoredOrchestratorAnswer(*turn)
@@ -73,7 +73,7 @@ func coordinationChanges(turn *storedOrchestratorTurn) coordinationCells {
 // records its proposal only; current edit/policy authority is checked at apply.
 // Legacy embeddings without the coordinator authorizer retain their old API.
 func (s *Server) recordCoordinationProposalLocked(p project.Project, turn storedOrchestratorTurn) error {
-	if s.coordinatorAuthorize == nil || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil {
+	if s.coordinatorAuthorize == nil || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || manualBlueprintTurn(turn) {
 		return nil
 	}
 	turn.Answer = restoredOrchestratorAnswer(turn)
@@ -129,7 +129,7 @@ func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
 	}
 	changed := false
 	for _, turn := range turns.Turns {
-		if turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || turn.AppliedRevision > 0 || coordinationIntent(&saved, turn.ID) != nil {
+		if manualBlueprintTurn(turn) || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || turn.AppliedRevision > 0 || coordinationIntent(&saved, turn.ID) != nil {
 			continue
 		}
 		archived, _, lookupErr := s.archivedCoordinationIntent(p, saved, func(id coordinationArchivedIdentity) bool { return id.TurnID == turn.ID })
@@ -434,7 +434,7 @@ func (s *Server) createCoordinationIntent(w http.ResponseWriter, r *http.Request
 		coordinatorPolicyProblem(w, errCoordinatorAuthority)
 		return
 	}
-	if turn == nil || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || turn.AppliedRevision != 0 || turn.ApplyIntent != "" || ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
+	if turn == nil || manualBlueprintTurn(*turn) || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil || turn.AppliedRevision != 0 || turn.ApplyIntent != "" || ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 		orchestratorProblem(w, ErrOrchestratorInvalid)
 		return
 	}

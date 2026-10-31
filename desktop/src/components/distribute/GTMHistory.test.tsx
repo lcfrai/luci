@@ -1,0 +1,19 @@
+import { act, cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, expect, it, vi } from 'vitest';
+import { GTMHistory } from './GTMHistory';
+import { emptyGTM, gtmWorkspaceApi, type GTMHistoryView, type GTMView } from '../../api/gtmWorkspace';
+const source={briefRevision:1,briefDigest:'a'.repeat(64),specificationRevision:2,specificationDigest:'b'.repeat(64),designRevision:1,designDigest:'c'.repeat(64),planRevision:3,planDigest:'d'.repeat(64),checks:'not-selected',release:'not-selected'};
+const view=():GTMView=>({projectId:'p-one',workspace:null,source,sourceDigest:'e'.repeat(64),freshness:'none',history:[{revision:51,digest:'f'.repeat(64),at:'2026-10-31T00:00:00Z'}],requirements:[],archives:[{id:'a'.repeat(64),firstRevision:1,lastRevision:50,revisions:50,bytes:4000}],archivedRevisions:50});
+const history=():GTMHistoryView=>({projectId:'p-one',archiveId:'a'.repeat(64),historical:true,revisions:[{projectId:'p-one',revision:1,source,sourceDigest:'b'.repeat(64),digest:'c'.repeat(64),content:{...emptyGTM(),offer:'The original saved offer'},actor:{id:'owner',displayName:'Owner'},at:'2026-10-31T00:00:00Z'}]});
+afterEach(()=>{cleanup();vi.restoreAllMocks();});
+it('loads history only on explicit choice and keeps the current unsaved editor intact',async()=>{
+ const get=vi.spyOn(gtmWorkspaceApi,'archive').mockResolvedValue(history()),save=vi.spyOn(gtmWorkspaceApi,'save');render(<><textarea aria-label="Current unsaved offer" defaultValue="Keep my unsaved changes"/><GTMHistory projectId="p-one" scope="owner/workspace" view={view()} canRead/></>);expect(get).not.toHaveBeenCalled();const user=userEvent.setup();await user.click(screen.getByText('Saved GTM history (51 revisions)'));await user.click(screen.getByRole('button',{name:'Open revisions 1–50'}));await screen.findByRole('region',{name:'Historical GTM revisions'});
+ expect((screen.getByLabelText('Current unsaved offer') as HTMLTextAreaElement).value).toBe('Keep my unsaved changes');expect(save).not.toHaveBeenCalled();expect(screen.queryByRole('button',{name:/Restore|Apply|Save historical/})).toBeNull();expect(screen.getByRole('button',{name:'Export these historical revisions'})).not.toBeNull();
+});
+it('withholds late old-scope history and aborts the original read on ownership change',async()=>{
+ let resolve!:(value:GTMHistoryView)=>void;let signal:AbortSignal|undefined;vi.spyOn(gtmWorkspaceApi,'archive').mockImplementation((_id,_archive,abort)=>{signal=abort;return new Promise(done=>{resolve=done;});});const mounted=render(<GTMHistory projectId="p-one" scope="old-owner" view={view()} canRead/>);const user=userEvent.setup();await user.click(screen.getByText('Saved GTM history (51 revisions)'));await user.click(screen.getByRole('button',{name:'Open revisions 1–50'}));mounted.rerender(<GTMHistory projectId="p-one" scope="new-owner" view={view()} canRead/>);expect(signal?.aborted).toBe(true);await act(async()=>resolve(history()));expect(screen.queryByRole('region',{name:'Historical GTM revisions'})).toBeNull();
+});
+it('withdraws previously visible history and export when current project read access is lost',async()=>{
+ vi.spyOn(gtmWorkspaceApi,'archive').mockResolvedValue(history());const mounted=render(<GTMHistory projectId="p-one" scope="owner" view={view()} canRead/>);const user=userEvent.setup();await user.click(screen.getByText('Saved GTM history (51 revisions)'));await user.click(screen.getByRole('button',{name:'Open revisions 1–50'}));await screen.findByRole('region',{name:'Historical GTM revisions'});mounted.rerender(<GTMHistory projectId="p-one" scope="owner" view={view()} canRead={false}/>);expect(screen.queryByRole('region',{name:'Historical GTM revisions'})).toBeNull();expect(screen.queryByRole('button',{name:'Export these historical revisions'})).toBeNull();expect(screen.getByText(/Current project read access is required/)).not.toBeNull();
+});

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T01:49:20.809Z",
+  "updatedAt": "2026-10-31T04:38:14.660Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -20,8 +20,7 @@
       ],
       "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
       "remainingWork": [
-        "Strategic research and assumption tracking",
-        "Cross-activity change impact"
+        "Representative roadmap and change-propagation journeys after implementation."
       ]
     },
     {
@@ -48,11 +47,15 @@
       "id": "L100-03",
       "stage": "Discover",
       "title": "Adaptive planning and amendment impact",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Versioned amendments and stale-context handling exist. Join requirement changes to roadmap, wireframes, tasks, deployment and GTM impacts.",
       "dependsOn": "L100-01",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Integrated bounded captured requirement → roadmap/screen/frame/task/dependency/reviewer/GTM impact explanation. Existing amendment intent, structural rebase and renewed work approval retained.",
+      "remainingWork": [
+        "Representative cross-stage amendment and conflict journeys; no service-to-requirement mapping is invented."
+      ]
     },
     {
       "id": "L100-04",
@@ -67,9 +70,7 @@
       "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
       "progress": "Source adds copy/adapt frame variants, width/state coverage navigation and lazy read-only saved Design history through existing revisions; originals, dirty drafts and approval boundaries preserved.",
       "remainingWork": [
-        "Assisted visual iteration using approved product/context",
-        "Reusable semantic component and responsive implementation contract",
-        "Representative visual and usability testing after remaining implementation"
+        "Representative assisted visual iteration, responsive implementation and usability journeys after implementation."
       ]
     },
     {
@@ -86,9 +87,9 @@
         "state": "Approved frame references joined to tasks and captured handoff; focused source cases passed; full TypeScript pending"
       },
       "remainingWork": [
-        "Generated visual iterations and responsive flows",
-        "Reusable design-system libraries"
-      ]
+        "Compile the integrated component library and verify designer-to-agent reuse with actual responsive implementations."
+      ],
+      "currentSourceWork": "Integrated: versioned token-bound component library, cross-project package import, scene copies and agent context. Source peer-reviewed; current batch not compiled or tested."
     },
     {
       "id": "L100-06",
@@ -131,29 +132,33 @@
       "id": "L100-08",
       "stage": "Develop",
       "title": "Parallel teams that integrate their work",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Scheduler, reservations, workspaces, messages, review, repair and integration exist. Close provider event/continuation gaps and prevent duplicated or conflicting work.",
       "dependsOn": "L100-07",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Existing isolated workspaces, durable messages, scoped ordered integration and continuation traced. Rebuilt-task reviewer selection fixed and integrated; matching runtime/image packaging and actual parallel-use testing remain.",
+      "remainingWork": [
+        "Representative parallel implementation → independent review/repair → ordered integration, including conflicts."
+      ]
     },
     {
       "id": "L100-09",
       "stage": "Develop",
       "title": "Harness connectors with consistent event contracts",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Connectors",
       "work": "Codex, Claude Code and OpenCode connections exist. Normalize sessions, streaming output, tool approvals, checkpoints, interruption and resumed work behind existing adapters.",
       "dependsOn": "Existing harness adapters",
       "evidence": "",
       "currentBatch": "30-file structured Codex terminal-result adapter integrated from frozen candidate; source review accepted; image upgrade, >30-minute observation and controller-restart continuity still required.",
       "remainingWork": [
-        "Build/package and commission matching sandbox runtime image; compiled daemon alone is insufficient",
-        "Equivalent normalized result contracts for other supported harnesses",
-        "Representative multi-task/restart/integration journey after implementation"
+        "Build/package the matching sandbox runtime assets; activate/commission the matching immutable image when runtime gates are available.",
+        "Representative multi-harness task/restart/integration journeys after implementation."
       ],
       "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
-      "progress": "Ordinary Codex result contract plus task-only normal-zero PID1 capability, exact immutable Docker terminal identity, durable private registry result and restart/long-running completion observation. Unknown identity holds; nonzero/OOM and original pre-allocation failure use diagnostic paths. Source only."
+      "progress": "Ordinary Codex result contract plus task-only normal-zero PID1 capability, exact immutable Docker terminal identity, durable private registry result and restart/long-running completion observation. Unknown identity holds; nonzero/OOM and original pre-allocation failure use diagnostic paths. Source only.",
+      "currentSourceWork": "Integrated exact Codex, Claude Code and OpenCode completion contracts, preserving original normal-zero/controller identity and image capability requirements. Source peer-reviewed; matching runtime image and new package not built."
     },
     {
       "id": "L100-10",
@@ -163,17 +168,22 @@
       "owner": "Cloud",
       "work": "Azure foundation/microVM source exists. Complete per-agent ownership, elastic placement, quota/backpressure, retained artifacts and host-loss reconciliation.",
       "dependsOn": "L100-08,L100-09",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Existing owned Allocate/Start/Finish/Retire, host-generation recovery and configured slot/spend backpressure traced. This is connected source; live cloud capacity/commissioning is unverified."
     },
     {
       "id": "L100-11",
       "stage": "Develop",
       "title": "Independent review and repair loop",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Review/check-repair/integration continuation already implemented. Make it visible and reliable as ordinary work, with defect-specific repair and bounded retries.",
       "dependsOn": "L100-08",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Existing independent finding→bounded repair→new independent review→integration path traced; no replacement loop needed. Reviewer inclusion and concise role contract now integrated.",
+      "remainingWork": [
+        "Representative reviewer findings, bounded repair and renewed review/integration journey."
+      ]
     },
     {
       "id": "L100-12",
@@ -191,8 +201,7 @@
       ],
       "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
       "remainingWork": [
-        "Personal portfolio briefing and routing",
-        "Capacity allocation integration"
+        "Representative attention prioritization and multiple-project usability with changing real evidence."
       ]
     },
     {
@@ -206,8 +215,7 @@
       "evidence": "",
       "progress": "Reviewed actor/team focus ceilings and exact accepted-upstream dependencies are enforced in the existing queue and final start paths. Includes readable run selection, canonical reserved-task ordering, real persisted queue ownership, current grants and no preemption or second scheduler.",
       "remainingWork": [
-        "Personal orchestrator recommendations and cross-project intent routing",
-        "Representative fairness/dependency/capacity usability and integration testing"
+        "Representative fairness/dependency/capacity usability and integration testing."
       ],
       "currentBatch": "Explicit reviewed actor/team focus ceilings and exact accepted-upstream-run dependencies under implementation in the existing scheduler; existing priority-only path retained.",
       "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
@@ -216,7 +224,7 @@
       "id": "L100-14",
       "stage": "Portfolio",
       "title": "Persistent personal Luci across projects",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Project-scoped conversation and coordination exist. Add coherent personal briefing, cross-project intent routing and project-specific context boundaries.",
       "dependsOn": "L100-12,L100-13",
@@ -226,10 +234,9 @@
         "state": "Private goal-to-owned-work routes joined to Home with current actor/project evidence and dirty-navigation preservation; focused checks pending"
       },
       "remainingWork": [
-        "Persistent private cross-project conversational transcript and briefing",
-        "Intent-to-delivery coordination beyond navigation",
-        "Enforced reviewed capacity allocation"
-      ]
+        "Compile and exercise private portfolio conversation, archived history and explicit project handoffs across account/workspace changes."
+      ],
+      "currentSourceWork": "Integrated: private cross-project conversation, selected context, explicit project handoff, archive/rollover/export, and recovery of reserved turns without jobs. Source peer-reviewed; current batch not compiled or tested."
     },
     {
       "id": "L100-15",
@@ -248,8 +255,7 @@
       "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
       "progress": "Durable versioned private blueprint Save/Load with CAS and dirty-conflict preservation, bounded retained history, plus compiler context linked to existing-cluster setup/review/apply/observe.",
       "remainingWork": [
-        "Remaining service graph lifecycle connectors tracked in L100-16–18",
-        "Representative saved-topology/deployment integration testing"
+        "Compile and exercise assisted topology handoff, dirty-draft preservation and explicit versioned Save."
       ],
       "currentBatch": "Durable project-private blueprint persistence with CAS and recoverable conflicts authored and source reviewed; monotonic bounded-history correction in progress.",
       "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
@@ -265,42 +271,57 @@
       "evidence": "",
       "progress": "Source implements closed explicit Kubernetes target credentials and namespace identity, actor-bound expiring review, Apply and Observe with durable unknown-outcome journal and exact owned UID/resourceVersion. Blueprint and current source/check/authority rechecked. Private ClusterIP workloads do not require public publishing authority. Image provenance remains user-supplied.",
       "remainingWork": [
-        "Cluster and storage/secret lifecycle; registry/image-build provenance and DNS/TLS integration",
-        "Production inference lifecycle and telemetry/product analytics connectors",
-        "Actual authorized cloud/cluster journey; application HTTP health distinct from workload readiness"
+        "Automatic storage/secret, registry/image-build, GPU/plugin and DNS/TLS lifecycle beyond the current owned-cluster/existing-resource flow.",
+        "Actual authorized cloud/cluster journey and application health verification."
       ],
-      "currentBatch": "Owned-resource Kubernetes Apply/Observe adapter under implementation; target registration, UI/API apply integration and commissioning not complete.",
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
+      "currentBatch": "Integrated owned fixed-CPU AKS creation, explicit scoped access grant, namespace creation/import, private Entra target and existing deployment handoff.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "currentSourceWork": "AKS V2 source integrated and independently reviewed, including returned-UID retention, interrupted-create explicit import recovery and sticky delete intent. No cloud effects or commissioning."
     },
     {
       "id": "L100-17",
       "stage": "Deploy",
       "title": "Inference as a project service",
-      "status": "planned",
+      "status": "prototype",
       "owner": "Cloud",
       "work": "Keep managed local development inference separate from customer production inference. Add model/image/resource selection, serving configuration, health and scaling.",
       "dependsOn": "L100-15,L100-16",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Integrated: health probes, Secret/ConfigMap references, existing model PVC bindings and exact owned-workload readiness observations. Source peer-reviewed; current batch not compiled or tested.",
+      "remainingWork": [
+        "Commission the selected immutable inference image/model/PVC and validate actual capacity and readiness.",
+        "Automatic model acquisition, GPU-node/plugin and storage provisioning are not implemented by the current existing-resource path."
+      ]
     },
     {
       "id": "L100-18",
       "stage": "Deploy",
       "title": "Operational telemetry and product analytics",
-      "status": "planned",
+      "status": "prototype",
       "owner": "Platform",
       "work": "OTel traces/metrics/logs and customer product events are different needs. Add deployment instrumentation plus a product-event schema, destinations and dashboards.",
       "dependsOn": "L100-15,L100-16",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Integrated typed Collector deployment/configuration, generated Node instrumentation adapter and dependencies, task handoff, and exact owned workload product-counter read/retention/export. V4 source independently reviewed; current batch uncompiled and untested.",
+      "remainingWork": [
+        "Compile and commission the complete app instrumentation → Collector → configured destination flow.",
+        "Operational logs/traces query UI and authenticated provider-specific customer/revenue connectors remain beyond this counter/export implementation."
+      ]
     },
     {
       "id": "L100-19",
       "stage": "Deploy",
       "title": "Continuous preview, release and recovery",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Delivery",
       "work": "Commit-bound deployment and rollback source exists. Connect branch previews, promotion, release observations and safe recovery; distinguish code rollback from data restore.",
       "dependsOn": "L100-08,L100-15",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Existing check→preview→publication/recovery source traced. Integrated manual create/stop/historical rebuild current-actor/target/config rechecks and truthful data-not-restored UI; current source batch uncompiled/untested.",
+      "remainingWork": [
+        "Representative integration-check → preview → release/recovery journeys, including revoked grants and provider uncertainty.",
+        "Historical commit rebuild uses current runtime configuration and does not restore application data."
+      ]
     },
     {
       "id": "L100-20",
@@ -318,7 +339,8 @@
       "remainingWork": [
         "Creative strategy refinement",
         "Launch publishing and feedback connectors"
-      ]
+      ],
+      "currentSourceWork": "Integrated durable private GTM history continuation with exact global revisions/replay and bounded recovery from interrupted archive writes; lazy history/export preserves current drafts."
     },
     {
       "id": "L100-21",
@@ -343,31 +365,45 @@
       "id": "L100-22",
       "stage": "Distribute",
       "title": "Launch connectors and feedback loop",
-      "status": "planned",
+      "status": "prototype",
       "owner": "GTM",
       "work": "Add approved channel publishing and analytics/revenue imports; translate findings into roadmap changes. No unsolicited outreach or automatic ad spending.",
       "dependsOn": "L100-18,L100-20,L100-21",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Reviewed GitHub release preparation → draft → separate publication with exact tag/source/copy, original-outcome recovery and current authorization is integrated. Selected issue feedback, aggregate CSV metrics/revenue and recoverable GTM history are integrated. No provider operation or current product test has run.",
+      "remainingWork": [
+        "Compile/package the joined source, then exercise explicit draft/publication and interrupted original outcomes under authorized accounts.",
+        "Authenticated provider-specific revenue imports and additional publishing channels remain unimplemented."
+      ]
     },
     {
       "id": "L100-23",
       "stage": "Platform",
       "title": "Reusable solutions through Glasses",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Platform",
-      "work": "Existing Glasses integration/catalogue is the starting point. Add task-level reuse recommendations with licences, provenance and compatibility decisions.",
+      "work": "Task-level Glasses discovery and reuse decisions use public catalogue metadata, retained provenance and explicit licence/compatibility notes. No automatic source acquisition or licence/quality guarantee.",
       "dependsOn": "L100-05,L100-06",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Integrated: explicit public Glasses search/inspection, source/licence snapshots and task-level reuse decisions; exact captured-source membership for model proposals. Source peer-reviewed; no catalogue request, compilation or tests executed.",
+      "remainingWork": [
+        "Compile and exercise explicit Glasses search/inspection/selection → exact task context with current catalogue data.",
+        "Automatic acquisition or installation of catalogue code is deliberately not part of selection."
+      ]
     },
     {
       "id": "L100-24",
       "stage": "Platform",
       "title": "Memory, checkpoints and restart continuity",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Engine",
       "work": "Reuse durable snapshots/events rather than accumulating chat history. Add concise role-specific context refresh, decision summaries and recovery across project sessions.",
       "dependsOn": "L100-07,L100-14",
-      "evidence": ""
+      "evidence": "",
+      "currentSourceWork": "Existing exact context-bound checkpoints, durable continuation/restart fences and concise role briefs traced; personal conversation archive/recovery source integrated. Unknown outcomes remain retained rather than replayed.",
+      "remainingWork": [
+        "Representative crash/restart/unknown-outcome journeys across the joined task, personal-chat and GTM stores."
+      ]
     },
     {
       "id": "L100-25",
@@ -417,7 +453,8 @@
       "remainingWork": [
         "Rendered contrast/reflow across themes, accents, density choices, 320px and zoom",
         "Representative usability and persistence testing"
-      ]
+      ],
+      "currentBatch": "System/light/dark, three accents, three densities, independent surface contrast and clear Home cards are wired. Personal conversation now shares actual theme/density tokens and defined control colours; telemetry caption token corrected. Source reviewed, current rendering pending."
     }
   ],
   "statusDefinitions": {
@@ -590,6 +627,16 @@
       "https://code.claude.com/docs/en/best-practices"
     ],
     "priority": "Implement missing integrated behavior; do not relabel prototypes as complete.",
-    "sourceCut": "2026-10-31 reviewed implementation across strategy, Design, appearance, focus, task completion/recovery, Kubernetes and outcomes. Compilation pending; no product testing."
+    "sourceCut": "2026-10-31 reviewed implementation across strategy, Design, appearance, focus, task completion/recovery, Kubernetes and outcomes. Compilation pending; no product testing.",
+    "currentBuild": {
+      "commit": "f3e5cb816b1ddb329722fe98fa122ac77ed48405",
+      "api": "4f64dca4 compiled",
+      "linuxWorker": "4f64dca4 compiled",
+      "frontend": "f3e5cb81 TypeScript and Vite compiled; only index artifact pinned at this intermediate step",
+      "qualification": "The f3e5 correction changes three test type annotations only. No new product tests or runtime/image activation. Installed 3bd01c06 candidate remains unchanged."
+    },
+    "activeImplementation": [
+      "Format, commit and compile the integrated source; collect complete web output; compile native wrapper and stage matching app/runtime-source package."
+    ]
   }
 }

@@ -8,6 +8,7 @@ const fieldNames: Record<string, string> = {
   fields: "Fields and relationships", privacy: "Privacy and retention", constraint: "Boundaries and requirements",
   glossary: "Glossary terms", meaning: "Meaning in this project", reason: "Why", alternatives: "Alternatives considered",
   questions: "Open questions", screens: "Screens", states: "States and recovery", widths: "Responsive widths",
+  componentLibrary: "Reusable component library", componentId: "Component template", bindings: "Design token bindings",
   accessibility: "Accessibility and interaction", tokens: "Design tokens", assets: "Assets and provenance",
   path: "Project file path", licence: "Licence and source", implementationNotes: "Implementation notes",
   prototypeReleaseId: "Prototype release", prototypeCommit: "Prototype source commit", tasks: "Tasks",
@@ -18,7 +19,7 @@ const fieldNames: Record<string, string> = {
   dependsOn: "Waits for tasks", writePaths: "Intended files and folders",
 };
 const metadata = new Set(["projectId", "version", "revision", "briefRevision", "specificationRevision", "specificationDigest", "sketchRevision", "status", "digest", "updatedAt"]);
-const documentOrder = ["startingPoint", "purpose", "audience", "constraints", "outOfScope", "requirements", "journeys", "roles", "entities", "integrations", "glossary", "decisions", "questions", "screens", "tokens", "assets", "implementationNotes", "prototypeReleaseId", "prototypeCommit", "tasks", "title"];
+const documentOrder = ["startingPoint", "purpose", "audience", "constraints", "outOfScope", "requirements", "journeys", "roles", "entities", "integrations", "glossary", "decisions", "questions", "screens", "tokens", "componentLibrary", "assets", "implementationNotes", "prototypeReleaseId", "prototypeCommit", "tasks", "title"];
 const recordOrder = ["title", "name", "term", "question", "route", "purpose", "priority", "acceptance", "status", "actor", "steps", "requirementIds", "states", "widths", "accessibility"];
 type RecordValue = Record<string, unknown>;
 const isRecord = (value: unknown): value is RecordValue => !!value && typeof value === "object" && !Array.isArray(value);

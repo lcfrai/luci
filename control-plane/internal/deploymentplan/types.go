@@ -58,22 +58,85 @@ type ModelReference struct {
 }
 
 type TelemetryBinding struct {
-	ResourceID string `json:"resourceId"`
-	Endpoint   string `json:"endpoint"` // existing OTLP/HTTP HTTPS receiver, without credentials
+	ResourceID      string                 `json:"resourceId"`
+	Endpoint        string                 `json:"endpoint"` // existing OTLP/HTTP HTTPS receiver, without credentials
+	ClientTLS       *TelemetryTLSReference `json:"clientTLS,omitempty"`
+	Instrumentation *NodeInstrumentation   `json:"instrumentation,omitempty"`
+}
+
+// Keys identify existing private Secrets. Values never enter the blueprint.
+type TelemetryTLSReference struct {
+	ResourceName string `json:"resourceName"`
+	CAKey        string `json:"caKey"`
+	CertKey      string `json:"certKey"`
+	KeyKey       string `json:"keyKey"`
+}
+type TelemetryAuthorizationReference struct {
+	ResourceName string `json:"resourceName"`
+	Key          string `json:"key"`
+}
+type ProductEvent struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+}
+type CollectorConfiguration struct {
+	Profile     string                `json:"profile"` // exact configuration contract, not an image attestation
+	Destination TelemetryDestination  `json:"destination"`
+	ReceiverTLS TelemetryTLSReference `json:"receiverTLS"`
+	Events      []ProductEvent        `json:"events"`
+}
+type TelemetryDestination struct {
+	ResourceID    string                           `json:"resourceId"`
+	Endpoint      string                           `json:"endpoint"`
+	Authorization *TelemetryAuthorizationReference `json:"authorization,omitempty"`
+}
+type NodeInstrumentation struct {
+	Runtime      string            `json:"runtime"`
+	Dependencies map[string]string `json:"dependencies"` // exact versions selected from the application's lockfile
+}
+
+// Runtime references contain names/keys only. Their current namespace UID,
+// resource identity and access compatibility are resolved by deployment review.
+// No secret or configuration value is admitted to a blueprint or artifact.
+type EnvironmentReference struct {
+	Name         string `json:"name"`
+	Kind         string `json:"kind"` // secret or config-map
+	ResourceName string `json:"resourceName"`
+	Key          string `json:"key"`
+}
+
+// Probe has no host, exec, headers, body or alternate port. It always addresses
+// the declared container port; HTTP paths cannot contain query credentials.
+type Probe struct {
+	Kind                string `json:"kind"` // http or tcp
+	Path                string `json:"path,omitempty"`
+	InitialDelaySeconds int    `json:"initialDelaySeconds"`
+	PeriodSeconds       int    `json:"periodSeconds"`
+	TimeoutSeconds      int    `json:"timeoutSeconds"`
+	FailureThreshold    int    `json:"failureThreshold"`
+}
+
+type ServiceHealth struct {
+	Startup   *Probe `json:"startup,omitempty"`
+	Readiness *Probe `json:"readiness,omitempty"`
 }
 
 type Service struct {
-	ID        string            `json:"id"`
-	Kind      string            `json:"kind"`  // app or inference
-	Image     string            `json:"image"` // explicit immutable OCI image@sha256 reference
-	Port      int               `json:"port"`
-	Replicas  int               `json:"replicas"`
-	Resources ResourceBudget    `json:"resources"`
-	Command   []string          `json:"command,omitempty"`
-	Args      []string          `json:"args,omitempty"`
-	Model     *ModelReference   `json:"model,omitempty"`
-	Telemetry *TelemetryBinding `json:"telemetry,omitempty"`
-	DependsOn []string          `json:"dependsOn,omitempty"`
+	ID                 string                  `json:"id"`
+	Kind               string                  `json:"kind"`  // app, inference or collector
+	Image              string                  `json:"image"` // explicit immutable OCI image@sha256 reference
+	Port               int                     `json:"port"`
+	Replicas           int                     `json:"replicas"`
+	Resources          ResourceBudget          `json:"resources"`
+	Command            []string                `json:"command,omitempty"`
+	Args               []string                `json:"args,omitempty"`
+	Model              *ModelReference         `json:"model,omitempty"`
+	Telemetry          *TelemetryBinding       `json:"telemetry,omitempty"`
+	Collector          *CollectorConfiguration `json:"collector,omitempty"`
+	DependsOn          []string                `json:"dependsOn,omitempty"`
+	Environment        []EnvironmentReference  `json:"environment,omitempty"`
+	Health             *ServiceHealth          `json:"health,omitempty"`
+	DeploymentStrategy string                  `json:"deploymentStrategy,omitempty"` // absent retains existing RollingUpdate; recreate is explicit
 }
 
 // ExternalResource is an existing resource reference, not a request to create a
@@ -119,18 +182,19 @@ type Capability struct {
 }
 
 type Plan struct {
-	Version         int             `json:"version"`
-	Digest          string          `json:"digest"`
-	State           string          `json:"state"`
-	Blueprint       Blueprint       `json:"blueprint"`
-	Steps           []Step          `json:"steps"`
-	Decisions       []Decision      `json:"decisions"`
-	Artifacts       []Artifact      `json:"artifacts"`
-	Capabilities    []Capability    `json:"capabilities"`
-	Warnings        []string        `json:"warnings"`
-	ResourceSummary ResourceSummary `json:"resourceSummary"`
-	SourceVerified  bool            `json:"sourceVerified"`
-	EffectsApplied  bool            `json:"effectsApplied"`
+	Version             int             `json:"version"`
+	Digest              string          `json:"digest"`
+	State               string          `json:"state"`
+	Blueprint           Blueprint       `json:"blueprint"`
+	Steps               []Step          `json:"steps"`
+	Decisions           []Decision      `json:"decisions"`
+	Artifacts           []Artifact      `json:"artifacts"`
+	SupportingArtifacts []Artifact      `json:"supportingArtifacts,omitempty"` // never applied as Kubernetes resources
+	Capabilities        []Capability    `json:"capabilities"`
+	Warnings            []string        `json:"warnings"`
+	ResourceSummary     ResourceSummary `json:"resourceSummary"`
+	SourceVerified      bool            `json:"sourceVerified"`
+	EffectsApplied      bool            `json:"effectsApplied"`
 }
 
 // Connector separates planning, fresh observation and authorized mutation.

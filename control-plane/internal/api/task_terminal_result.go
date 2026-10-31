@@ -30,6 +30,7 @@ const taskTerminalSchemaDigest = backend.CodexTaskResultSchemaDigest
 // separate prerequisites in lockStoppedTaskOutput and ObserveTaskCompletion.
 type taskTerminalContract struct {
 	Version                int    `json:"version"`
+	Harness                string `json:"harness,omitempty"`
 	SessionID              string `json:"sessionId"`
 	ProjectID              string `json:"projectId"`
 	RunID                  string `json:"runId"`
@@ -67,16 +68,13 @@ func terminalCommandDigest(command string, args []string) string {
 
 func terminalContract(run product.ProjectRun, row registry.Session, descriptor *registry.ReviewedContext, command string, args []string, image string) (taskTerminalContract, error) {
 	var c taskTerminalContract
-	if row.Harness != "codex" || row.ImplementationContext == nil || descriptor == nil || !reviewedSessionID.MatchString(row.ID) || run.ProjectID != row.ProjectID || run.ID != row.ProjectRunID || run.Swarm == nil || image == "" {
+	if !terminalHarness(row.Harness) || row.ImplementationContext == nil || descriptor == nil || !reviewedSessionID.MatchString(row.ID) || run.ProjectID != row.ProjectID || run.ID != row.ProjectRunID || run.Swarm == nil || image == "" {
 		return c, errors.New("incomplete terminal task identity")
 	}
-	if command != "codex" && command != "/usr/local/bin/codex" && !(command == "/usr/local/bin/node" && len(args) > 0 && args[0] == "/usr/local/lib/luci/codex-native-task.cjs") {
-		return c, errors.New("unsupported terminal command")
-	}
-	// BuildTask's ordinary command is an executable name. Pin it to its installed
-	// image path only after provider/auth arguments have been prepared normally.
-	if command == "codex" {
-		command = "/usr/local/bin/codex"
+	var commandErr error
+	command, commandErr = terminalExecutable(row.Harness, command, args)
+	if commandErr != nil {
+		return c, commandErr
 	}
 	var op *product.ProjectRunOperation
 	for i := range run.Operations {
@@ -109,6 +107,10 @@ func terminalContract(run product.ProjectRun, row registry.Session, descriptor *
 	}
 	b := row.ImplementationContext
 	c = taskTerminalContract{Version: 1, SessionID: row.ID, ProjectID: row.ProjectID, RunID: run.ID, OperationID: op.ID, TaskID: op.TaskID, WorktreeID: op.WorktreeID, Attempt: op.Attempt, Role: role, ReviewOfTaskID: task.ReviewOfTaskID, ReviewOnly: task.ReviewOnly, TaskInputDigest: task.TaskInputDigest, ReviewAssignmentDigest: op.ReviewAssignmentDigest, RequestDigest: op.RequestDigest, ImplementationDigest: taskOutputImplementationDigest(b), ContextDigest: descriptor.Digest, SourceCommit: b.SourceCommit, SourceDigest: b.SourceDigest, SourceDirty: b.SourceDirty, NativeDelegation: profile, Image: image, CommandDigest: terminalCommandDigest(command, args), SchemaDigest: taskTerminalSchemaDigest}
+	if row.Harness != "codex" {
+		c.Version = 2
+		c.Harness = row.Harness
+	}
 	return c, nil
 }
 
@@ -119,10 +121,10 @@ func (a *API) taskTerminalPath(sessionID string) (string, error) {
 	return filepath.Join(a.deps.ConversationsDir, sessionConversationOwner, taskTerminalDirectory, sessionID), nil
 }
 
-// Only fresh Docker Codex tasks use this adapter. Other harnesses retain their
-// existing report protocol. There is no fallback if the image lacks the wrapper.
+// Fresh controller-owned Docker coding/reviewer tasks use this adapter. Direct
+// interactive sessions remain unchanged. Missing capability never falls back.
 func (a *API) prepareTaskTerminal(ctx context.Context, row registry.Session, descriptor *registry.ReviewedContext, command string, args []string, image string) (string, []string, backend.Mount, string, error) {
-	pinnedImage, err := a.taskTerminalImage(ctx, image)
+	pinnedImage, err := a.taskTerminalHarnessImage(ctx, image, row.Harness)
 	if err != nil {
 		return "", nil, backend.Mount{}, "", err
 	}
@@ -134,8 +136,9 @@ func (a *API) prepareTaskTerminal(ctx context.Context, row registry.Session, des
 	if err != nil {
 		return "", nil, backend.Mount{}, "", err
 	}
-	if command == "codex" {
-		command = "/usr/local/bin/codex"
+	command, err = terminalExecutable(row.Harness, command, args)
+	if err != nil {
+		return "", nil, backend.Mount{}, "", err
 	}
 	data, err := json.Marshal(c)
 	if err != nil {
@@ -258,7 +261,7 @@ func (a *API) validateTaskTerminalImage(ctx context.Context, row registry.Sessio
 	if !terminalSession(row) {
 		return nil
 	}
-	id, err := a.taskTerminalImage(ctx, image)
+	id, err := a.taskTerminalHarnessImage(ctx, image, row.Harness)
 	if err != nil || id != image {
 		return errors.New("The structured task image identity changed before allocation")
 	}
@@ -279,7 +282,7 @@ func (a *API) validateTaskTerminalImage(ctx context.Context, row registry.Sessio
 		return errors.New("The original terminal image contract is unavailable")
 	}
 	var contract taskTerminalContract
-	if json.Unmarshal(raw, &contract) != nil || contract.Image != image || contract.SchemaDigest != taskTerminalSchemaDigest {
+	if json.Unmarshal(raw, &contract) != nil || contract.Image != image || contract.SchemaDigest != taskTerminalSchemaDigest || (row.Harness == "codex" && (contract.Version != 1 || contract.Harness != "")) || (row.Harness != "codex" && (contract.Version != 2 || contract.Harness != row.Harness)) {
 		return errors.New("The terminal image contract changed")
 	}
 	return nil
@@ -290,4 +293,37 @@ func taskTerminalSelectedImage(pinned, legacy string) string {
 		return pinned
 	}
 	return legacy
+}
+
+func terminalHarness(value string) bool {
+	return value == "codex" || value == "claude-code" || value == "opencode"
+}
+func terminalExecutable(harness, command string, args []string) (string, error) {
+	executable := map[string]string{"codex": "codex", "claude-code": "claude", "opencode": "opencode"}[harness]
+	if executable == "" {
+		return "", errors.New("unsupported terminal harness")
+	}
+	if command == executable || command == "/usr/local/bin/"+executable {
+		return "/usr/local/bin/" + executable, nil
+	}
+	if harness == "codex" && command == "/usr/local/bin/node" && len(args) > 0 && args[0] == "/usr/local/lib/luci/codex-native-task.cjs" {
+		return command, nil
+	}
+	return "", errors.New("terminal command does not match the selected harness")
+}
+func (a *API) taskTerminalHarnessImage(ctx context.Context, image, harness string) (string, error) {
+	if harness == "codex" {
+		return a.taskTerminalImage(ctx, image)
+	}
+	observer, ok := a.deps.Backend.(backend.HarnessTaskResultImageObserver)
+	if !ok || !terminalHarness(harness) {
+		return "", errors.New("The installed sandbox image cannot advertise this harness result contract. Prepare the matching runtime image before starting this task.")
+	}
+	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	id, err := observer.ObserveHarnessTaskResultImage(bounded, image, harness)
+	if err != nil || bounded.Err() != nil || len(id) != 71 || !strings.HasPrefix(id, "sha256:") || !reviewedDigest.MatchString(strings.TrimPrefix(id, "sha256:")) {
+		return "", errors.New("The installed sandbox image does not advertise the selected harness result contract. No task was started.")
+	}
+	return id, nil
 }

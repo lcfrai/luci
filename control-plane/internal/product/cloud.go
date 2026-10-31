@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"regexp"
 	"strings"
@@ -22,6 +23,7 @@ var domainPattern = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?
 func validDomain(v string) bool { return len(v) <= 253 && domainPattern.MatchString(v) }
 
 type CloudRequest struct {
+	Cluster          *deploymentplan.AzureClusterSpec       `json:"cluster,omitempty"`
 	Foundation       *deploymentplan.AzureFoundationRequest `json:"foundation,omitempty"`
 	Provider         string                                 `json:"provider"`
 	Name             string                                 `json:"name"`
@@ -53,6 +55,7 @@ type PlanCommand struct {
 	Args       []string `json:"args"`
 }
 type CloudPlan struct {
+	Kind             string                 `json:"kind,omitempty"`
 	Foundation       *AzureBlueprintBinding `json:"foundation,omitempty"`
 	MonthlyBudgetUSD float64                `json:"monthlyBudgetUsd"`
 	ID               string                 `json:"id"`
@@ -70,6 +73,9 @@ type CloudPlan struct {
 }
 
 func validateCloud(r CloudRequest) error {
+	if r.Cluster != nil && (r.Provider != "azure" || r.Foundation == nil || r.Domain != "" || !azureSetupUUID.MatchString(r.Cluster.SubscriptionID) || !azureSetupUUID.MatchString(r.Cluster.TenantID)) {
+		return errAzureCluster
+	}
 	if r.Provider != "aws" && r.Provider != "azure" {
 		return errors.New("choose AWS or Azure")
 	}
@@ -79,13 +85,13 @@ func validateCloud(r CloudRequest) error {
 	if !regionPattern.MatchString(r.Region) {
 		return errors.New("enter a valid provider region")
 	}
-	if !validDomain(r.Domain) {
+	if r.Cluster == nil && !validDomain(r.Domain) {
 		return errors.New("enter a domain you control, without https:// or a path")
 	}
-	if r.Size != "small" && r.Size != "standard" && r.Size != "full" {
+	if r.Cluster == nil && r.Size != "small" && r.Size != "standard" && r.Size != "full" {
 		return errors.New("choose small, standard or full data-stack size")
 	}
-	if r.MonthlyBudgetUSD <= 0 || r.MonthlyBudgetUSD > 100000 {
+	if r.MonthlyBudgetUSD <= 0 || r.MonthlyBudgetUSD > 100000 || math.IsNaN(r.MonthlyBudgetUSD) || math.IsInf(r.MonthlyBudgetUSD, 0) {
 		return errors.New("enter your monthly cloud budget in USD")
 	}
 	parts := strings.Fields(r.SSHPublicKey)
@@ -118,7 +124,12 @@ func (s *Server) handleCloudPlan(w http.ResponseWriter, r *http.Request) {
 		foundationProblem(w, err)
 		return
 	}
-	plan, err := s.buildCloudPlan(r.Context(), req)
+	var plan CloudPlan
+	if binding != nil && binding.Cluster != nil {
+		plan, err = s.buildAzureClusterCloudPlan(req, *binding)
+	} else {
+		plan, err = s.buildCloudPlan(r.Context(), req)
+	}
 	if err != nil {
 		problem(w, 500, "plan_failed", err.Error())
 		return

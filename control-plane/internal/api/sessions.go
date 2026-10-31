@@ -1092,6 +1092,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	if req.ContextRef == "luci:personal" {
+		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, "This context is reserved for private Luci requests.", nil)
+		return
+	}
 	if !a.validateProjectRunSessionRequest(w, &req) {
 		return
 	}
@@ -1223,6 +1227,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		sourceSession, err = a.deps.Store.Get(source.id)
 		if err != nil {
 			codexAccountProblem(w, err)
+			return
+		}
+		if sourceSession.IsPersonalAssistant() {
+			httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound, "No session to resume.", nil)
 			return
 		}
 		if !validateProjectRunResume(w, req, sourceSession) {
@@ -1515,8 +1523,8 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	terminalImage := ""
-	if taskWorker && harnessID == harness.ID("codex") && a.deps.Backend.Kind() == backend.KindDocker {
-		terminalOwner := registry.Session{ID: sessionID, ProjectID: projectID, WorktreeID: req.WorktreeID, Harness: "codex", ProjectRunID: req.ProjectRunID, ProjectRunOperationID: req.ProjectRunOperationID, ImplementationContext: implementationContext}
+	if taskWorker && terminalHarness(string(harnessID)) && a.deps.Backend.Kind() == backend.KindDocker {
+		terminalOwner := registry.Session{ID: sessionID, ProjectID: projectID, WorktreeID: req.WorktreeID, Harness: string(harnessID), ProjectRunID: req.ProjectRunID, ProjectRunOperationID: req.ProjectRunOperationID, ImplementationContext: implementationContext}
 		var terminalMount backend.Mount
 		command, argv, terminalMount, terminalImage, err = a.prepareTaskTerminal(r.Context(), terminalOwner, reviewedDescriptor, command, argv, a.sessionImage())
 		if err != nil {
@@ -1677,6 +1685,10 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 			return sessionResumeSource{}, false
 		}
 		a.internal(w, r, "read the session to resume", err)
+		return sessionResumeSource{}, false
+	}
+	if src.IsPersonalAssistant() {
+		httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound, "No session to resume.", nil)
 		return sessionResumeSource{}, false
 	}
 	if src.Harness != string(harnessID) {
@@ -1978,6 +1990,9 @@ func (a *API) handleSessionList(w http.ResponseWriter, r *http.Request) {
 	// Never nil: null and [] are different values to the desktop's decoder.
 	out := make([]sessionJSON, 0, len(all))
 	for _, sess := range all {
+		if sess.IsPersonalAssistant() {
+			continue
+		}
 		if worktreeID != "" && sess.WorktreeID != worktreeID {
 			continue
 		}
@@ -2014,6 +2029,10 @@ func (a *API) sessionByID(w http.ResponseWriter, r *http.Request) (registry.Sess
 		a.internal(w, r, "read the session", err)
 		return registry.Session{}, false
 	}
+	if sess.IsPersonalAssistant() {
+		httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound, "No session with that id.", nil)
+		return registry.Session{}, false
+	}
 	return sess, true
 }
 
@@ -2026,6 +2045,9 @@ func (a *API) handleSessionGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleSessionPatch(w http.ResponseWriter, r *http.Request) {
+	if _, ok := a.sessionByID(w, r); !ok {
+		return
+	}
 	var req sessionPatchRequest
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
@@ -2044,6 +2066,9 @@ func (a *API) handleSessionPatch(w http.ResponseWriter, r *http.Request) {
 	// Renaming an exited session is allowed, per §3.13: the record outlives the
 	// sandbox and the user is naming a transcript.
 	updated, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
+		if sess.IsPersonalAssistant() {
+			return registry.ErrNotFound
+		}
 		sess.Title = title
 		return nil
 	})

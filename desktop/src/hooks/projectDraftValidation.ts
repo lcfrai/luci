@@ -1,6 +1,8 @@
 import type { ProjectSpecification } from "../api/definition";
 import { specificationStrategyDraftValid } from "../api/specificationStrategy";
 import { discoverySourceLinksValid } from "../api/discoveryDocuments";
+import { validTaskReuse } from "../api/taskReuse";
+import { componentLibraryErrors } from '../api/designComponents';
 import type { DesignPlan } from "../api/designPlan";
 import { editableDesignSceneValid, designRasterPinValid } from '../api/designScene';
 import type { CheckCommand, DesignScene, ImplementationTask } from "../api/product";
@@ -17,11 +19,12 @@ export const designPlanDraftValid = (value: unknown): value is DesignPlan => dra
   tokens: [{ name: "", value: "", purpose: "" }], assets: [{ id: "", path: "", purpose: "", licence: "" }],
   implementationNotes: "", prototypeReleaseId: "", prototypeCommit: "", status: "", digest: "", updatedAt: "",
 }) && ((value as DesignPlan).scene === undefined || editableDesignSceneValid((value as DesignPlan).scene)) &&
+  componentLibraryErrors((value as DesignPlan).componentLibrary, (value as DesignPlan).tokens).length === 0 &&
   (value as DesignPlan).assets.every(asset => asset.content === undefined || designRasterPinValid(asset.content));
 export interface PlanDraft { tasks: ImplementationTask[]; title: string }
 const optionalTextList = (value: unknown): boolean => value === undefined || (Array.isArray(value) && value.every(item => typeof item === "string"));
 export const planDraftValid = (value: unknown): value is PlanDraft => draftMatches(value, { title: "", tasks: [{ id: "", title: "", status: "" }] }) &&
-    (value as PlanDraft).tasks.every(task => ["todo", "doing", "done"].includes(task.status) && optionalTextList(task.requirementIds) && optionalTextList(task.designFrameIds) && optionalTextList(task.dependsOn) && optionalTextList(task.writePaths) && (task.acceptance === undefined || typeof task.acceptance === "string"));
+    (value as PlanDraft).tasks.every(task => ["todo", "doing", "done"].includes(task.status) && optionalTextList(task.requirementIds) && optionalTextList(task.designFrameIds) && optionalTextList(task.dependsOn) && optionalTextList(task.writePaths) && (task.acceptance === undefined || typeof task.acceptance === "string") && validTaskReuse(task.reuse, true));
 export const sketchDraftValid = (value: unknown): value is DesignScene => draftMatches(value, { elements: [], appState: {}, files: {} });
 
 /** Browser authoring intent only. Execution consent and runtime settings are never recovered. */

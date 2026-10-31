@@ -94,6 +94,9 @@ func (s *Server) readKubernetesReviews(projectID string) (string, kubernetesRevi
 			return "", empty, ErrKubernetesReview
 		}
 		seen[row.ID] = true
+		if deploymentkube.ValidateReferenceBinding(row.Request) != nil {
+			return "", empty, ErrKubernetesReview
+		}
 	}
 	return path, ledger, nil
 }
@@ -181,6 +184,10 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	if err != nil || plan.State != "compiled-prototype" {
 		return KubernetesReview{}, ErrKubernetesReview
 	}
+	needsReferences := deploymentplan.RuntimeReferenceCount(plan.Blueprint) > 0
+	if err := s.kubernetesAuthority(ctx, actor, false, needsReferences, 0); err != nil {
+		return KubernetesReview{}, err
+	}
 	_, targets, err := s.readKubernetesTargets(actor.ProjectID)
 	if err != nil {
 		return KubernetesReview{}, err
@@ -209,7 +216,7 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	}
 	expected := []deploymentkube.ExpectedResource{}
 	for _, artifact := range plan.Artifacts {
-		if err := s.kubernetesAuthority(ctx, actor, false, false, 0); err != nil {
+		if err := s.kubernetesAuthority(ctx, actor, false, needsReferences, 0); err != nil {
 			return KubernetesReview{}, err
 		}
 		var header struct {
@@ -241,8 +248,13 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 		}
 		expected = append(expected, row)
 	}
+	importedReferences, err := deploymentkube.ReadReferences(ctx, target, plan.Blueprint, func(ctx context.Context) error { return s.kubernetesAuthority(ctx, actor, false, true, 0) })
+	if err != nil {
+		return KubernetesReview{}, ErrKubernetesReview
+	}
 	now := time.Now().UTC()
 	review := KubernetesReview{ID: id, Request: deploymentkube.Request{Identity: identity, Blueprint: plan.Blueprint, ApprovalReference: id, Expected: expected}, Target: selected, BlueprintRevision: saved.Revision, BlueprintDigest: saved.Digest, RunID: input.RunID, CheckID: input.CheckID, RunInputDigest: runDigest, CheckDigest: checkDigest, ContextDigest: contextDigest, MonthlyBudgetUSD: input.MonthlyBudgetUSD, CreatedAt: now.Format(time.RFC3339Nano), ExpiresAt: now.Add(10 * time.Minute).Format(time.RFC3339Nano)}
+	review.Request.References = importedReferences
 	if err := s.authorizeKubernetesReview(ctx, review, false, true); err != nil {
 		return KubernetesReview{}, err
 	}
@@ -287,7 +299,7 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	if err := durableRunJSON(path, ledger); err != nil {
 		return KubernetesReview{}, err
 	}
-	if err := s.kubernetesAuthority(ctx, actor, false, false, 0); err != nil {
+	if err := s.kubernetesAuthority(ctx, actor, false, needsReferences, 0); err != nil {
 		return KubernetesReview{}, err
 	}
 	return review, nil
@@ -295,7 +307,8 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 
 func (s *Server) authorizeKubernetesReview(ctx context.Context, row KubernetesReview, mutation, source bool) error {
 	actor := kubeActor(row.Request.Identity)
-	if err := s.kubernetesAuthority(ctx, actor, mutation, false, row.MonthlyBudgetUSD); err != nil {
+	needsReferences := deploymentplan.RuntimeReferenceCount(row.Request.Blueprint) > 0
+	if err := s.kubernetesAuthority(ctx, actor, mutation, needsReferences, row.MonthlyBudgetUSD); err != nil {
 		return err
 	}
 	if mutation {
@@ -315,7 +328,7 @@ func (s *Server) authorizeKubernetesReview(ctx context.Context, row KubernetesRe
 			return ErrKubernetesReview
 		}
 	}
-	return s.kubernetesAuthority(ctx, actor, mutation, false, row.MonthlyBudgetUSD)
+	return s.kubernetesAuthority(ctx, actor, mutation, needsReferences, row.MonthlyBudgetUSD)
 }
 
 func kubeStatus(row KubernetesReview, operation *deploymentkube.Operation) KubernetesDeploymentStatus {
@@ -338,10 +351,17 @@ func (s *Server) KubernetesDeployments(ctx context.Context, actor management.Exe
 		return nil, err
 	}
 	rows := []KubernetesDeploymentStatus{}
+	needsReferences := false
 	journal := &kubernetesOperationJournal{server: s}
 	for _, row := range ledger.Reviews {
 		if kubeActor(row.Request.Identity) != actor {
 			continue
+		}
+		if deploymentplan.RuntimeReferenceCount(row.Request.Blueprint) > 0 {
+			needsReferences = true
+			if s.kubernetesAuthority(ctx, actor, false, true, 0) != nil {
+				return nil, management.ErrExecutionAuthority
+			}
 		}
 		status := kubeStatus(row, nil)
 		operation, err := journal.Load(ctx, row.Request.Identity)
@@ -352,13 +372,13 @@ func (s *Server) KubernetesDeployments(ctx context.Context, actor management.Exe
 		}
 		rows = append(rows, status)
 	}
-	if err := s.kubernetesAuthority(ctx, actor, false, false, 0); err != nil {
+	if err := s.kubernetesAuthority(ctx, actor, false, needsReferences, 0); err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
-func (s *Server) KubernetesDeploymentAction(ctx context.Context, actor management.ExecutionActorRef, id string, apply, costAcknowledged, imageAcknowledged bool) (KubernetesDeploymentStatus, error) {
+func (s *Server) KubernetesDeploymentAction(ctx context.Context, actor management.ExecutionActorRef, id string, apply, costAcknowledged, imageAcknowledged bool, telemetryAcknowledged ...bool) (KubernetesDeploymentStatus, error) {
 	if !validKubeReceipt(id) {
 		return KubernetesDeploymentStatus{}, ErrKubernetesReview
 	}
@@ -387,6 +407,12 @@ func (s *Server) KubernetesDeploymentAction(ctx context.Context, actor managemen
 			s.kubernetesReviewMu.Unlock()
 			return KubernetesDeploymentStatus{}, ErrKubernetesReview
 		}
+		for _, service := range row.Request.Blueprint.Services {
+			if service.Collector != nil && (len(telemetryAcknowledged) != 1 || !telemetryAcknowledged[0]) {
+				s.kubernetesReviewMu.Unlock()
+				return KubernetesDeploymentStatus{}, ErrKubernetesReview
+			}
+		}
 		row.Applied = true
 		if err = s.authorizeKubernetesReview(ctx, row, true, true); err == nil {
 			*selected = row
@@ -411,7 +437,7 @@ func (s *Server) KubernetesDeploymentAction(ctx context.Context, actor managemen
 	}
 	// The attempted admission and any provider outcome stay retained even when
 	// the client disconnects or this response is withheld. There is no replay.
-	if s.kubernetesAuthority(ctx, actor, false, false, 0) != nil {
+	if s.kubernetesAuthority(ctx, actor, false, deploymentplan.RuntimeReferenceCount(row.Request.Blueprint) > 0, 0) != nil {
 		return KubernetesDeploymentStatus{}, management.ErrExecutionAuthority
 	}
 	if err != nil {

@@ -34,6 +34,8 @@ func (s *Server) registerProjects(mux Registrar) {
 	s.registerDistributeControls(mux)
 	s.registerDistributeArtifacts(mux)
 	s.registerGTMWorkspace(mux)
+	s.registerGitHubPublications(mux)
+	s.registerProjectFeedback(mux)
 	s.registerSkills(mux)
 	s.registerReleases(mux)
 	mux.HandleFunc("POST /v1/product/projects", s.createProductProject)

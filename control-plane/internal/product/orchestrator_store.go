@@ -175,7 +175,10 @@ func decodeOrchestratorLedger(data []byte, out orchestratorLedger) (orchestrator
 		if turn.Answer != nil && validateStoredOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 			return out, ErrOrchestratorInvalid
 		}
-		if !validOrchestratorGTMPending(turn) {
+		if !validOrchestratorFeedback(turn.Context.SelectedFeedback, out.ProjectID) {
+			return out, ErrOrchestratorInvalid
+		}
+		if !validOrchestratorBlueprintContext(turn.Context.DeploymentBlueprint, out.ProjectID) || !validManualBlueprintTurn(turn) || !validOrchestratorGTMPending(turn) {
 			return out, ErrOrchestratorInvalid
 		}
 		seen[turn.ID] = true
@@ -278,6 +281,17 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 			GTM  *OrchestratorGTMContext
 		}{value.Digest, gtm})
 	}
+	feedback, err := s.orchestratorFeedbackLocked(p)
+	if err != nil {
+		return OrchestratorContext{}, err
+	}
+	if feedback != nil {
+		value.SelectedFeedback = feedback
+		value.Digest = reviewDigest(struct {
+			Base     string
+			Feedback *OrchestratorFeedbackContext
+		}{value.Digest, feedback})
+	}
 	coordination, err := s.readCoordination(p)
 	if err != nil {
 		return OrchestratorContext{}, ErrOrchestratorInvalid
@@ -308,6 +322,17 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 	if statusErr == nil {
 		value.SourceKnown, value.SourceDirty, value.SourceCommit = orchestratorSourceStatus(status)
 	}
+	blueprint, blueprintErr := s.orchestratorBlueprintContextLocked(ctx, p, value)
+	if blueprintErr != nil {
+		return OrchestratorContext{}, blueprintErr
+	}
+	if blueprint != nil {
+		value.DeploymentBlueprint = blueprint
+		value.Digest = reviewDigest(struct {
+			Base      string
+			Blueprint *OrchestratorBlueprintContext
+		}{value.Digest, blueprint})
+	}
 	if checks, err := s.readCheckHistory(p.ID); err == nil && len(checks) > 0 {
 		last := checks[0]
 		value.ChecksSummary = fmt.Sprintf("%d recorded check runs; last stored status %s at %s. Reconcile exact-source evidence before treating it as current.", len(checks), last.Status, last.UpdatedAt)
@@ -323,7 +348,12 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		}
 		value.TaskHandoffs = s.projectRuns.orchestratorHandoffs(runs)
 		handoff, _ := json.MarshalIndent(value.TaskHandoffs, "", "  ")
-		value.CurrentRun, value.ActiveRuns = orchestratorRunProjectionWithHandoffs(runs, state, len(handoff))
+		feedbackBytes := 0
+		if value.SelectedFeedback != nil {
+			raw, _ := json.Marshal(value.SelectedFeedback)
+			feedbackBytes = len(raw)
+		}
+		value.CurrentRun, value.ActiveRuns = orchestratorRunProjectionWithHandoffs(runs, state, len(handoff)+feedbackBytes+orchestratorBlueprintBytes(value.DeploymentBlueprint))
 		value.NeedsAttention = projectRunAttentionProjection(runs, state)
 	}
 	return value, nil
@@ -385,6 +415,9 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 		return OrchestratorTurn{}, OrchestratorContext{}, false, err
 	}
 	if previous != nil {
+		if previous.IsDiscussionOnly() != personalDiscussionOnly(ctx) {
+			return OrchestratorTurn{}, OrchestratorContext{}, false, ErrOrchestratorConflict
+		}
 		return previous.OrchestratorTurn, previous.Context, true, nil
 	}
 	// Bound the set that must survive rotation, while always allowing an explicit answer.
@@ -445,11 +478,17 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 		}
 		ref.TeamID = access.Team.ID
 	}
-	if err = s.ensureCoordinatorRecipientLocked(p, ref); err != nil {
-		return OrchestratorTurn{}, snapshot, false, err
+	if !personalDiscussionOnly(ctx) {
+		if err = s.ensureCoordinatorRecipientLocked(p, ref); err != nil {
+			return OrchestratorTurn{}, snapshot, false, err
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	turn := OrchestratorTurn{ID: newID("turn-"), ProjectID: id, Sequence: nextOrchestratorSequence(saved), Actor: actor, Message: req.Message, JobID: jobID, ReplyToTurnID: req.ReplyToTurnID, ContextDigest: snapshot.Digest, Context: snapshot, Status: "reserved", CreatedAt: now, UpdatedAt: now}
+	turn.DiscussionOnly = personalDiscussionOnly(ctx)
+	if turn.DiscussionOnly {
+		turn.ID = newID("turn-discussion-")
+	}
 	saved.Turns = append(saved.Turns, storedOrchestratorTurn{OrchestratorTurn: turn, AdmissionRevision: &req.ExpectedRevision, KeyDigest: key, RequestDigest: digest})
 	saved.Revision++
 	// Reserve room for the bounded terminal answer before model work starts.
@@ -506,6 +545,9 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		if turn.JobID != jobID {
 			return ErrOrchestratorInvalid
 		}
+		if turn.IsDiscussionOnly() && answer != nil && answer.Proposal != nil {
+			return ErrOrchestratorInvalid
+		}
 		// Normalize omitted optional planning against the captured input before
 		// coordination computes intent. Never borrow a later mutable revision.
 		originalAnswerDigest := reviewDigest(answer)
@@ -516,6 +558,10 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 			evidenceExplicitEmpty = proposal.Evidence != nil && len(proposal.Evidence) == 0
 			answer = cloneOrchestratorAnswer(answer)
 			preserveOrchestratorSpecification(answer.Proposal.Specification, turn.Context.Specification)
+		}
+		if status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Plan != nil {
+			answer = cloneOrchestratorAnswer(answer)
+			answer.Proposal.Plan.Tasks = preserveTaskReuse(turn.Context.Plan.Tasks, answer.Proposal.Plan.Tasks)
 		}
 		if terminalOrchestrator(turn.Status) {
 			// An exact completion replay confirms the already persisted outcome.
@@ -534,7 +580,7 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		} else if answer != nil {
 			return ErrOrchestratorInvalid
 		}
-		turn.PlanningNormalized = status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Specification != nil
+		turn.PlanningNormalized = status == "succeeded" && answer != nil && answer.Proposal != nil && (answer.Proposal.Specification != nil || answer.Proposal.Plan != nil)
 		turn.RoadmapExplicitEmpty = roadmapExplicitEmpty
 		turn.EvidenceExplicitEmpty = evidenceExplicitEmpty
 		turn.Status, turn.Answer, turn.FailureCode, turn.UpdatedAt = status, cloneOrchestratorAnswer(answer), failureCode, time.Now().UTC().Format(time.RFC3339Nano)

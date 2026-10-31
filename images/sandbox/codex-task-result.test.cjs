@@ -54,15 +54,17 @@ test('nonzero, unknown exit, interrupted streams and cancellation are never term
   }
 });
 
-function fixture(t,behavior='success') {
+function fixture(t,behavior='success',kind='codex') {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'luci-terminal-unit-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const map=p=>typeof p==='string'&&p.startsWith('/')?path.join(dir,p.slice(1)):p;
   const ioFS={constants:fs.constants};
   for(const name of ['lstatSync','openSync','mkdirSync','existsSync'])ioFS[name]=(p,...args)=>fs[name](map(p),...args);
   for(const name of ['fstatSync','readSync','closeSync','writeFileSync','fsyncSync'])ioFS[name]=fs[name].bind(fs);
-  const args=['exec','--color','never','--dangerously-bypass-approvals-and-sandbox','--','saved task'];
+  const command=kind==='claude-code'?'/usr/local/bin/claude':kind==='opencode'?'/usr/local/bin/opencode':'/usr/local/bin/codex';
+  const args=kind==='claude-code'?['--print','--permission-mode','bypassPermissions','saved task']:kind==='opencode'?['run','--pure','--agent','build','--auto','--','saved task']:['exec','--color','never','--dangerously-bypass-approvals-and-sandbox','--','saved task'];
   const schema=fs.readFileSync(path.join(__dirname,'task-handoff.schema.json'));
-  const contract={version:1,sessionId:'s-12345678',projectId:'p-a',runId:'run-a',operationId:'op-a',taskId:'task-a',worktreeId:'w-a',attempt:1,role:'coding',reviewOfTaskId:'',requestDigest:'a'.repeat(64),implementationDigest:'b'.repeat(64),contextDigest:'c'.repeat(64),sourceCommit:'d'.repeat(40),sourceDigest:'e'.repeat(64),sourceDirty:false,nativeDelegation:'',image:'luci/sandbox:dev',commandDigest:adapter.commandDigest(['/usr/local/bin/codex',...args]),schemaDigest:hash(schema)};
+  const contract={version:1,sessionId:'s-12345678',projectId:'p-a',runId:'run-a',operationId:'op-a',taskId:'task-a',worktreeId:'w-a',attempt:1,role:'coding',reviewOfTaskId:'',requestDigest:'a'.repeat(64),implementationDigest:'b'.repeat(64),contextDigest:'c'.repeat(64),sourceCommit:'d'.repeat(40),sourceDigest:'e'.repeat(64),sourceDirty:false,nativeDelegation:'',image:'luci/sandbox:dev',commandDigest:adapter.commandDigest([command,...args]),schemaDigest:hash(schema)};
+  if(kind!=='codex'){contract.version=2;contract.harness=kind;}
   for(const p of [adapter.CONTRACT,adapter.SCHEMA,adapter.OUTPUT+'/reserved'])fs.mkdirSync(path.dirname(map(p)),{recursive:true});
   const raw=Buffer.from(JSON.stringify(contract)+'\n');fs.writeFileSync(map(adapter.CONTRACT),raw);fs.writeFileSync(map(adapter.SCHEMA),schema);
   let starts=0;
@@ -70,11 +72,13 @@ function fixture(t,behavior='success') {
   const io={fs:ioFS,process:proc,stdout,stderr,spawn:()=>{
     starts++;const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.kill=()=>true;
     queueMicrotask(()=>{
-      if(behavior!=='missing')fs.writeFileSync(map(adapter.CANDIDATE),behavior==='malformed'?'{}':JSON.stringify(report()));
-      child.stdout.end();child.stderr.end();child.emit('close',behavior==='failed'?1:0,null);
+      if(kind==='claude-code'){
+        const output=behavior==='missing'?'':behavior==='malformed'?'{}':behavior==='duplicate'?' {"type":"result","type":"result"}':behavior==='overflow'?'x'.repeat(1048577):JSON.stringify({type:'result',subtype:behavior==='provider-error'?'error_during_execution':'success',is_error:behavior==='provider-error',structured_output:report()});child.stdout.end(output);
+      }else{if(behavior!=='missing')fs.writeFileSync(map(adapter.CANDIDATE),behavior==='malformed'?'{}':JSON.stringify(report()));child.stdout.end();}
+      child.stderr.end();child.emit('close',behavior==='failed'?1:0,null);
     });return child;
   }};
-  return {io,argv:[hash(raw),'/usr/local/bin/codex',...args],map,starts:()=>starts};
+  return {io,argv:[hash(raw),command,...args],map,starts:()=>starts};
 }
 test('valid final file publishes once and its receipt correlates exact raw bytes',async t=>{
   const f=fixture(t);assert.equal(await adapter.run(f.argv,f.io),0);
@@ -97,3 +101,18 @@ test('contract or original argument mismatch refuses before child creation',asyn
   const f=fixture(t);f.argv.at(-1);f.argv[f.argv.length-1]='another prompt';
   assert.equal(await adapter.run(f.argv,f.io),78);assert.equal(f.starts(),0);
 });
+
+test('Claude structured output and OpenCode file normalize only after original zero',async t=>{
+ for(const kind of ['claude-code','opencode']){const f=fixture(t,'success',kind);assert.equal(await adapter.run(f.argv,f.io),0);const raw=fs.readFileSync(f.map(adapter.OUTPUT+'/handoff.json'));assert.equal(adapter.reportValid(adapter.strictJSON(raw)),true);const receipt=JSON.parse(fs.readFileSync(f.map(adapter.OUTPUT+'/terminal-receipt.json')));assert.equal(receipt.reportDigest,hash(raw));assert.equal(receipt.contractDigest,f.argv[0]);assert.equal(await adapter.run(f.argv,f.io),78);assert.equal(f.starts(),1);}
+});
+test('other harnesses reject missing malformed provider-error overflow and nonzero without output',async t=>{
+ for(const kind of ['claude-code','opencode'])for(const behavior of (kind==='claude-code'?['missing','malformed','duplicate','overflow','provider-error','failed']:['missing','malformed','failed'])){const f=fixture(t,behavior,kind);assert.equal(await adapter.run(f.argv,f.io),78,kind+':'+behavior);assert.equal(fs.existsSync(f.map(adapter.OUTPUT+'/handoff.json')),false);assert.equal(f.starts(),1);}
+});
+test('other harness invocation preserves opaque prompts and rejects replay or output overrides',()=>{
+ const schema=fs.readFileSync(path.join(__dirname,'task-handoff.schema.json'));
+ const claude=adapter.invocation('/usr/local/bin/claude',['--print','--model','selected','opaque --json-schema'],schema);assert.equal(claude.at(-2),'--');assert.ok(claude.at(-1).startsWith('opaque --json-schema'));assert.equal(claude.filter(x=>x==='--json-schema').length,1);
+ const oc=adapter.invocation('/usr/local/bin/opencode',['run','--pure','--agent','build','--auto','--','opaque --session'],schema);assert.ok(oc.at(-1).includes(adapter.CANDIDATE));assert.equal(oc.includes('--format'),false);
+ for(const args of [['--print','--resume','old','prompt'],['--print','--output-format','text','prompt']])assert.throws(()=>adapter.invocation('/usr/local/bin/claude',args,schema));
+ assert.throws(()=>adapter.invocation('/usr/local/bin/opencode',['run','--session','old','--','prompt'],schema));
+});
+test('version and harness mismatch cannot relabel an old contract',async t=>{const f=fixture(t,'success','opencode');const raw=JSON.parse(fs.readFileSync(f.map(adapter.CONTRACT)));raw.harness='claude-code';const bytes=Buffer.from(JSON.stringify(raw)+'\n');fs.writeFileSync(f.map(adapter.CONTRACT),bytes);f.argv[0]=hash(bytes);assert.equal(await adapter.run(f.argv,f.io),78);assert.equal(f.starts(),0);});

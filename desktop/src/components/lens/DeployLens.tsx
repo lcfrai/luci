@@ -36,6 +36,7 @@ export function DeploymentWorkspace({ projectId }: { projectId: string }) {
 }
 function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; scope: string | null }) {
   const pending = useCockpit(state => state.projectRunDeployment);
+  const blueprintDraft = useCockpit(state => state.projectBlueprintDraft);
   const matches = (value: ProjectRunDeploymentIntent | null) => !!scope && value?.scope === scope && value.projectId === projectId;
   const [intent, setIntent] = useState<ProjectRunDeploymentIntent | null>(() => matches(pending) ? pending : null);
   const [view, setView] = useState<"platform" | "publishing" | "blueprint">(() => matches(pending) ? "publishing" : "platform");
@@ -49,6 +50,9 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
     setIntent(pending); setView("publishing");
     useCockpit.setState(state => state.projectRunDeployment === pending ? { projectRunDeployment: null } : {});
   }, [pending, scope, projectId, locked]);
+  useEffect(() => {
+    if (!locked && scope && blueprintDraft?.scope === scope && blueprintDraft.projectId === projectId) setView("blueprint");
+  }, [blueprintDraft, scope, projectId, locked]);
   return <div className="deployment-workspace">
     {view === "platform" && <div className="deployment-heading"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /></div>}
     {!intent && <DeploymentOverview projectId={projectId} scope={scope} disabled={locked} onInspect={target => {
@@ -599,16 +603,16 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
                       )
                     }
                   >
-                    Roll back to this release
+                    Rebuild this historical commit
                   </Button>
                 )}
             </div>
             {release.target !== "local" &&
               release.target !== "github-pages" && (
                 <small>
-                  Rollback rebuilds this selected release’s exact commit and
-                  historical brief. Provider progress and health must be checked
-                  before it is ready.
+                  Rebuilds this selected release’s exact commit and historical
+                  brief with current runtime configuration. Application data is
+                  not restored. Check provider progress and health before it is ready.
                 </small>
               )}
           </li>

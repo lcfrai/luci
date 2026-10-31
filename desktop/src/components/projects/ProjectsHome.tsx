@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ProjectOverviewBoard } from "./ProjectOverviewBoard";
 import { PortfolioAttention } from "./PortfolioAttention";
 import { PortfolioGoals } from "./PortfolioGoals";
+import { PersonalLuci } from "./PersonalLuci";
 import { useProjectHome } from "./ProjectHomeProvider";
 import { Input } from "../ui/input";
 import { Button } from "../fluid/components/button";
@@ -28,6 +29,7 @@ export function ProjectsHome() {
   );
   return (
     <section className="projects-home">
+      <PersonalLuci projects={projects.filter(project => !visibleIDs || visibleIDs.has(project.id))} />
       <header className="projects-heading">
         <div>
           <h1 tabIndex={-1}>Your projects</h1>

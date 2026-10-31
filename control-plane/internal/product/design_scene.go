@@ -27,19 +27,20 @@ type DesignSceneFrame struct {
 	Nodes      []DesignSceneNode `json:"nodes"`
 }
 type DesignSceneNode struct {
-	ID       string              `json:"id"`
-	Kind     string              `json:"kind" enum:"rectangle,text,button,input,image,divider"`
-	Name     string              `json:"name"`
-	X        int                 `json:"x"`
-	Y        int                 `json:"y"`
-	Width    int                 `json:"width"`
-	Height   int                 `json:"height"`
-	Text     string              `json:"text"`
-	AssetID  string              `json:"assetId"`
-	Hidden   bool                `json:"hidden"`
-	Locked   bool                `json:"locked"`
-	Style    DesignSceneStyle    `json:"style"`
-	Behavior DesignSceneBehavior `json:"behavior"`
+	ComponentID string              `json:"componentId,omitempty"`
+	ID          string              `json:"id"`
+	Kind        string              `json:"kind" enum:"rectangle,text,button,input,image,divider"`
+	Name        string              `json:"name"`
+	X           int                 `json:"x"`
+	Y           int                 `json:"y"`
+	Width       int                 `json:"width"`
+	Height      int                 `json:"height"`
+	Text        string              `json:"text"`
+	AssetID     string              `json:"assetId"`
+	Hidden      bool                `json:"hidden"`
+	Locked      bool                `json:"locked"`
+	Style       DesignSceneStyle    `json:"style"`
+	Behavior    DesignSceneBehavior `json:"behavior"`
 }
 type DesignSceneStyle struct {
 	Fill        string `json:"fill"`
@@ -121,6 +122,20 @@ func validateDesignScene(plan ProjectDesignPlan) error {
 				return errors.New("Scene components need unique IDs, bounded plain text and integer geometry within their frame.")
 			}
 			ids[node.ID] = true
+			if node.ComponentID != "" {
+				found := false
+				if plan.ComponentLibrary != nil {
+					for _, item := range plan.ComponentLibrary.Items {
+						if item.ID == node.ComponentID && item.Kind == node.Kind {
+							found = true
+							break
+						}
+					}
+				}
+				if !found {
+					return errors.New("A component instance must reference an existing library component of the same kind.")
+				}
+			}
 			switch node.Kind {
 			case "rectangle", "text", "button", "input", "image", "divider":
 			default:
@@ -151,6 +166,9 @@ func validateDesignScene(plan ProjectDesignPlan) error {
 	return nil
 }
 func designSceneOmission(old, next ProjectDesignPlan) error {
+	if old.ComponentLibrary != nil && next.ComponentLibrary == nil {
+		return errors.New("Preserve the saved component library, or explicitly clear its items and detach their scene instances in a new draft.")
+	}
 	if old.Scene != nil && next.Scene == nil {
 		return errors.New("This design already has a scene. Preserve it in the amendment, or explicitly remove its frames in a new draft.")
 	}

@@ -1,0 +1,9 @@
+# Renewed task selections retain independent review
+
+Accepted amendment impact expands source dependencies, while reviewer tasks intentionally have no DependsOn edges. Their separate ReviewOfTaskID must therefore be included explicitly when a selected coding task or newly rebuilt prerequisite needs its saved independent reviewer.
+
+This source adds the same bounded, sorted reviewer closure after the initial impact selection and after exact prerequisite reuse/rebuild selection. The current engine supports one independent reviewer per candidate. It preserves an explicitly selected reviewer; otherwise it adds the first saved reviewer in deterministic saved-plan order. Multiple explicitly selected reviewers for one coding task produce a precise review-required error, never silently dropped work. Reviewer-only selections stay reviewer-only, and unrelated work stays untouched. Multiple selected coding tasks each retain their own reviewer. Existing graph/identity/cycle checks remain. No role, task status, current grant, approval or runtime result is invented. The renewed full task set still requires the existing exact current orchestration contract approval before dispatch, followed by original scheduler, handoff, independent finding, repair, integration and combined-check gates.
+
+The concise immutable selected-task brief now carries optional exact role/reviewOfTaskId fields. Explicit roles receive a short distinction between reviewer no-edit scope and coding work. Missing legacy roles remain omitted and receive no new guidance, preserving their selected-task JSON bytes. Full plan/design/definition, selected immutable skills and existing optional reuse decisions remain intact. A role is an assignment, not evidence of acceptance or current permission.
+
+All authored regressions are unrun. This source does not launch agents, alter scheduler limits, approve a contract, widen permissions or infer a passed review.

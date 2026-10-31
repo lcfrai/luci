@@ -64,6 +64,7 @@ type Options struct {
 	CheckCPUMillis          int
 	Configure               func(string) error
 	Runner                  Runner
+	GitHubIssuesRunner      GitHubIssuesRunner
 }
 
 type Server struct {
@@ -71,6 +72,7 @@ type Server struct {
 	distributePDFWorkAdmission      func(context.Context) (func(), error)
 	teamControlsMu                  sync.Mutex
 	portfolioGoalsMu                sync.Mutex
+	personalMu                      sync.Mutex
 	kubernetesTargetMu              sync.Mutex
 	kubernetesReviewMu              sync.Mutex
 	coordinatorAuthorize            func(context.Context, string) error
@@ -155,6 +157,11 @@ type Server struct {
 	setupChoice                     SetupChoice
 	stateDir                        string
 	runner                          Runner
+	githubReleasesMu                sync.Mutex
+	githubReleaseRunner             GitHubReleaseRunner
+	feedbackMu                      sync.Mutex
+	feedbackAuthorize               ProjectFeedbackAuthorizer
+	githubIssuesRunner              GitHubIssuesRunner
 	nativeInfo                      bool
 	configure                       func(string) error
 	sandboxImage                    string
@@ -199,6 +206,10 @@ func New(opts Options) (*Server, error) {
 	if s.runner == nil {
 		s.nativeInfo = true
 		s.runner = RunCommand
+	}
+	s.githubIssuesRunner = opts.GitHubIssuesRunner
+	if s.githubIssuesRunner == nil {
+		s.githubIssuesRunner = nativeGitHubIssuesRunner{projectsRoot: s.projectRoot}
 	}
 	if s.sandboxImage == "" {
 		s.sandboxImage = "luci/sandbox:dev"

@@ -391,6 +391,14 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		}
 		journeyJSON(w, http.StatusBadGateway, row)
 	}
+	if reservedID == "" {
+		if err := s.bindManualCloudReleaseMutations(ctx, p, target, &row, true, client); err != nil {
+			row.Status, row.Message = "failed", "Current deployment authority could not be confirmed. No provider mutation was attempted."
+			_ = s.storeCloudRelease(row)
+			journeyError(w, http.StatusForbidden, "deployment_authority_changed", row.Message)
+			return
+		}
+	}
 	if err := client.Check(ctx); err != nil {
 		// No remote mutation has been attempted, so an explicit repeat after
 		// repairing credentials can safely reserve a new attempt.

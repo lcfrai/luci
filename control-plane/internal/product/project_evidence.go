@@ -69,6 +69,7 @@ func snapshotProjectTasks(tasks []ProjectTask) []ProjectTask {
 		copy[i].DesignFrameIDs = append([]string(nil), copy[i].DesignFrameIDs...)
 		copy[i].DependsOn = append([]string(nil), copy[i].DependsOn...)
 		copy[i].WritePaths = append([]string(nil), copy[i].WritePaths...)
+		copy[i].Reuse = snapshotTaskReuse(copy[i].Reuse)
 	}
 	return copy
 }

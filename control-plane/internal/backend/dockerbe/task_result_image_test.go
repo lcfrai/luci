@@ -52,3 +52,16 @@ func TestCodexTaskResultImageRequiresExactAdvertisedCapabilityWithoutExecution(t
 	// No client mutation, build, pull, container or CLI method is implemented by
 	// this probe. Any such accidental call would fail instead of faking success.
 }
+
+func TestOtherHarnessImagesNeedTheirSeparateExactCapability(t *testing.T) {
+	for _, harness := range []string{"claude-code", "opencode"} {
+		for _, version := range []string{"", backend.HarnessTaskResultVersion, "unknown"} {
+			p := &terminalImageProbe{row: image.InspectResponse{ID: "sha256:" + strings.Repeat("a", 64), Os: "linux", Architecture: "amd64", Config: &container.Config{Labels: map[string]string{backend.CodexTaskResultCapability: "v1", backend.CodexTaskResultSchemaLabel: backend.CodexTaskResultSchemaDigest, backend.TaskNormalZeroCapability: "v1", backend.HarnessTaskResultCapability: version}}}}
+			b := &Backend{api: p}
+			id, err := b.ObserveHarnessTaskResultImage(context.Background(), "luci/sandbox:dev", harness)
+			if p.calls != 1 || (err == nil) != (version == backend.HarnessTaskResultVersion) || err == nil && id != p.row.ID {
+				t.Fatal(harness, version, id, err, p.calls)
+			}
+		}
+	}
+}

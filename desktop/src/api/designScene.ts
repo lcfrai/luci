@@ -8,6 +8,7 @@ export interface DesignNodeStyle {
   fontWeight: number; fontFamily: 'system' | 'serif' | 'mono'; textAlign: 'left' | 'center' | 'right'; padding: number; opacity: number;
 }
 export interface DesignSceneNode {
+  componentId?: string;
   id: string; kind: DesignNodeKind; name: string; x: number; y: number; width: number; height: number;
   text: string; assetId: string; hidden: boolean; locked: boolean; style: DesignNodeStyle;
   behavior: {kind: 'none' | 'navigate'; targetFrameId: string};
@@ -49,7 +50,7 @@ export function designRasterPinValid(pin: unknown): pin is DesignRasterPin {
     integer(value.width, 1, 4096) && integer(value.height, 1, 4096) && value.width * value.height <= 16 * 1024 * 1024;
 }
 /** Shared document validation; only approved scalar render properties cross the canvas boundary. */
-export function designSceneErrors(scene: unknown, plan?: Pick<DesignPlan, 'screens' | 'assets'>): string[] {
+export function designSceneErrors(scene: unknown, plan?: Pick<DesignPlan, 'screens' | 'assets' | 'componentLibrary'>): string[] {
   const invalid = (message: string) => [message];
   if (!scene || typeof scene !== 'object' || Array.isArray(scene)) return invalid('The design scene is not a versioned document.');
   const value = scene as EditableDesignScene;
@@ -63,10 +64,11 @@ export function designSceneErrors(scene: unknown, plan?: Pick<DesignPlan, 'scree
     if (plan && (!screen || frame.state !== '' && !screen.states.includes(frame.state))) return invalid(`Frame ${frame.name} references a removed screen or state. Update the scene and screen plan together.`);
     ids.add(frame.id); count += frame.nodes.length;
     for (const node of frame.nodes) {
-      if (!node || !fields(node, ['id', 'kind', 'name', 'x', 'y', 'width', 'height', 'text', 'assetId', 'hidden', 'locked', 'style', 'behavior']) || !id(node.id) || ids.has(node.id) || !DESIGN_NODE_KINDS.includes(node.kind) || !text(node.name, 200) || !node.name.trim() ||
+      if (!node || !fields(node, ['id', 'kind', 'name', 'x', 'y', 'width', 'height', 'text', 'assetId', 'hidden', 'locked', 'style', 'behavior', 'componentId']) || !id(node.id) || ids.has(node.id) || !DESIGN_NODE_KINDS.includes(node.kind) || !text(node.name, 200) || !node.name.trim() ||
           !integer(node.x, 0, frame.width) || !integer(node.y, 0, frame.height) || !integer(node.width, 1, frame.width) || !integer(node.height, 1, frame.height) || node.x + node.width > frame.width || node.y + node.height > frame.height ||
           !text(node.text, 4000) || !text(node.assetId, 80) || typeof node.hidden !== 'boolean' || typeof node.locked !== 'boolean') return invalid('Components need unique IDs, plain text and integer geometry within their frame.');
       ids.add(node.id);
+      if (node.componentId !== undefined && (!id(node.componentId) || plan && !plan.componentLibrary?.items.some(item => item.id === node.componentId && item.kind === node.kind))) return invalid('A component instance needs an existing library component of the same kind.');
       const style = node.style;
       if (!style || !fields(style, ['fill', 'stroke', 'strokeWidth', 'radius', 'color', 'fontSize', 'fontWeight', 'fontFamily', 'textAlign', 'padding', 'opacity']) ||
           !color(style.fill) || !color(style.stroke) || !color(style.color) || !integer(style.strokeWidth, 0, 16) || !integer(style.radius, 0, 64) || !integer(style.fontSize, 8, 96) ||

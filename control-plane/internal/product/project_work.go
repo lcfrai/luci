@@ -21,16 +21,17 @@ type ProjectPlan struct {
 	DesignPlanDigest      string        `json:"designPlanDigest,omitempty"`
 }
 type ProjectTask struct {
-	ID             string   `json:"id"`
-	Title          string   `json:"title"`
-	Status         string   `json:"status"`
-	Role           string   `json:"role,omitempty"`
-	ReviewOfTaskID string   `json:"reviewOfTaskId,omitempty"`
-	RequirementIDs []string `json:"requirementIds,omitempty"`
-	DesignFrameIDs []string `json:"designFrameIds,omitempty"`
-	DependsOn      []string `json:"dependsOn,omitempty"`
-	WritePaths     []string `json:"writePaths,omitempty"`
-	Acceptance     string   `json:"acceptance,omitempty"`
+	ID             string               `json:"id"`
+	Title          string               `json:"title"`
+	Status         string               `json:"status"`
+	Role           string               `json:"role,omitempty"`
+	ReviewOfTaskID string               `json:"reviewOfTaskId,omitempty"`
+	RequirementIDs []string             `json:"requirementIds,omitempty"`
+	DesignFrameIDs []string             `json:"designFrameIds,omitempty"`
+	DependsOn      []string             `json:"dependsOn,omitempty"`
+	WritePaths     []string             `json:"writePaths,omitempty"`
+	Acceptance     string               `json:"acceptance,omitempty"`
+	Reuse          *[]TaskReuseDecision `json:"reuse,omitempty"`
 }
 
 func (s *Server) registerProjectWork(mux Registrar) {
@@ -71,6 +72,9 @@ func validatePlan(p ProjectPlan) error {
 			return err
 		}
 		if err := validateTaskDesignFrameIDs(task.DesignFrameIDs); err != nil {
+			return err
+		}
+		if err := validateTaskReuse(task.Reuse); err != nil {
 			return err
 		}
 		ids[task.ID] = true
@@ -122,6 +126,11 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 	plan := currentPlan(state, p.ID)
 	if plan.Revision != req.ExpectedRevision {
 		problem(w, 409, "revision_conflict", "The plan changed. Reload before saving.")
+		return
+	}
+	req.Tasks = preserveTaskReuse(plan.Tasks, req.Tasks)
+	if err := validatePlan(ProjectPlan{Tasks: req.Tasks}); err != nil {
+		problem(w, 400, "invalid_plan", err.Error())
 		return
 	}
 	plan.SpecificationRevision, plan.SpecificationDigest = 0, ""

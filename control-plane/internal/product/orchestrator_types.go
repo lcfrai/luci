@@ -86,9 +86,11 @@ type OrchestratorGTMContext struct {
 }
 
 type OrchestratorContext struct {
-	Skills        *OrchestratorSkillsContext `json:"skills,omitempty"`
-	GTM           *OrchestratorGTMContext    `json:"gtm,omitempty"`
-	TeamStandards *OrchestrationStandards    `json:"teamStandards,omitempty"`
+	DeploymentBlueprint *OrchestratorBlueprintContext `json:"deploymentBlueprint,omitempty"`
+	SelectedFeedback    *OrchestratorFeedbackContext  `json:"selectedFeedback,omitempty"`
+	Skills              *OrchestratorSkillsContext    `json:"skills,omitempty"`
+	GTM                 *OrchestratorGTMContext       `json:"gtm,omitempty"`
+	TeamStandards       *OrchestrationStandards       `json:"teamStandards,omitempty"`
 	// Optional to preserve earlier immutable snapshot digests.
 	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
 	TeamIntents  *OrchestratorTeamIntents  `json:"teamIntents,omitempty"`
@@ -110,13 +112,14 @@ type OrchestratorContext struct {
 	ReleasesSummary string                   `json:"releasesSummary"`
 }
 type OrchestratorProposal struct {
-	SuggestedSkillAssignments []OrchestratorSkillSuggestion `json:"suggestedSkillAssignments,omitempty"`
-	GTM                       *GTMContent                   `json:"gtm,omitempty"`
-	Target                    string                        `json:"target"`
-	Summary                   string                        `json:"summary"`
-	Specification             *ProjectSpecification         `json:"specification"`
-	DesignPlan                *ProjectDesignPlan            `json:"designPlan"`
-	Plan                      *ProjectPlan                  `json:"plan"`
+	DeploymentBlueprint       *OrchestratorBlueprintProposal `json:"deploymentBlueprint,omitempty"`
+	SuggestedSkillAssignments []OrchestratorSkillSuggestion  `json:"suggestedSkillAssignments,omitempty"`
+	GTM                       *GTMContent                    `json:"gtm,omitempty"`
+	Target                    string                         `json:"target"`
+	Summary                   string                         `json:"summary"`
+	Specification             *ProjectSpecification          `json:"specification"`
+	DesignPlan                *ProjectDesignPlan             `json:"designPlan"`
+	Plan                      *ProjectPlan                   `json:"plan"`
 }
 type OrchestratorAnswer struct {
 	Summary    string                `json:"summary"`
@@ -137,6 +140,7 @@ type OrchestratorTurnRequest struct {
 	RouteDigest           string `json:"-"`
 }
 type OrchestratorTurn struct {
+	DiscussionOnly     bool                `json:"discussionOnly,omitempty"`
 	ID                 string              `json:"id"`
 	ProjectID          string              `json:"projectId"`
 	Sequence           int                 `json:"sequence"`

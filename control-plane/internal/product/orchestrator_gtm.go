@@ -95,6 +95,9 @@ func validateOrchestratorGTM(snapshot OrchestratorContext, content *GTMContent) 
 	if snapshot.GTM == nil || content == nil || !hexDigest(snapshot.GTM.SourceDigest) || validateGTM(*content) != nil {
 		return ErrOrchestratorInvalid
 	}
+	if err := preserveGTMMetricImports(snapshot.GTM.Content.MetricImports, content.MetricImports); err != nil {
+		return err
+	}
 	requirements, artifacts := map[string]bool{}, map[string]bool{}
 	for _, r := range snapshot.Specification.Requirements {
 		requirements[r.ID] = true
@@ -244,10 +247,12 @@ func (s *Server) confirmArchivedOrchestratorGTMLocked(ctx context.Context, p pro
 	if err != nil {
 		return err
 	}
-	for _, row := range ledger.Revisions {
-		if row.RequestKeyDigest == turn.ApplyGTM.RequestKeyDigest && reviewDigest(row) == turn.ApplyTargetDigest {
-			return nil
-		}
+	original, err := s.gtmRevisionByRequest(p, ledger, turn.ApplyGTM.RequestKeyDigest)
+	if err != nil {
+		return err
+	}
+	if original != nil && reviewDigest(*original) == turn.ApplyTargetDigest {
+		return nil
 	}
 	return ErrOrchestratorConflict
 }
@@ -270,13 +275,15 @@ func (s *Server) resumeOrchestratorGTMLocked(ctx context.Context, p project.Proj
 	if err != nil {
 		return err
 	}
-	for _, row := range ledger.Revisions {
-		if row.RequestKeyDigest == turn.ApplyGTM.RequestKeyDigest {
-			if reviewDigest(row) != turn.ApplyTargetDigest {
-				return ErrOrchestratorConflict
-			}
-			return s.finishOrchestratorGTMLocked(ctx, p, saved, index)
+	original, err := s.gtmRevisionByRequest(p, ledger, turn.ApplyGTM.RequestKeyDigest)
+	if err != nil {
+		return err
+	}
+	if original != nil {
+		if reviewDigest(*original) != turn.ApplyTargetDigest {
+			return ErrOrchestratorConflict
 		}
+		return s.finishOrchestratorGTMLocked(ctx, p, saved, index)
 	}
 	if turn.AppliedRevision > 0 {
 		return ErrOrchestratorConflict

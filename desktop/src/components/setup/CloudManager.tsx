@@ -175,7 +175,7 @@ export function CloudManager({
       )}
       {mode !== "existing" && plan && !created && (
         <section className="setup-plan">
-          <h2>{foundationOnly ? "Create this Azure VM foundation" : "Create this cloud home"}</h2>
+          <h2>{plan.kind === "aks" ? "Create this AKS cluster" : foundationOnly ? "Create this Azure VM foundation" : "Create this cloud home"}</h2>
           <p>
             Provision <strong>{plan.name}</strong> in{" "}
             {plan.provider.toUpperCase()} · {plan.region}. Charges continue
@@ -250,10 +250,11 @@ export function CloudManager({
                 </span>
               </div>
               <p>{job.message}</p>
+              {job.kind === "aks" && <p>Cluster creation does not grant namespace access or deploy workloads. Continue its separate access and namespace review in Deploy. The retained resource-group Delete action still applies to this cluster and managed resources.</p>}
               <small>
-                {job.provider.toUpperCase()} · {job.region} · {job.domain}
+                {job.provider.toUpperCase()} · {job.region} · {job.kind === "aks" ? "Managed Kubernetes cluster" : job.domain}
               </small>
-              {job.publicIp && (
+              {job.kind !== "aks" && job.publicIp && (
                 <p>
                   DNS A record: <code>{job.domain}</code> →{" "}
                   <code>{job.publicIp}</code>
@@ -271,7 +272,7 @@ export function CloudManager({
                 >
                   Check progress
                 </Button>
-                {job.publicIp && job.status !== "deleted" && (
+                {job.kind !== "aks" && job.publicIp && job.status !== "deleted" && (
                   <>
                     <Button type="button"
                       variant="secondary"

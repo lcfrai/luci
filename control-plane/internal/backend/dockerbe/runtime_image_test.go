@@ -562,6 +562,9 @@ func TestRuntimeImageContextAcceptsActualBundledSandboxRecipeAndBindsHelper(t *t
 		t.Fatal("actual bundled helper or entrypoint was omitted or changed")
 	}
 	dockerfile := files["images/sandbox/Dockerfile"]
+	if !strings.Contains(dockerfile, `LABEL ai.lcfr.harness-task-result="`+backend.HarnessTaskResultVersion+`"`) {
+		t.Fatal("other harness capability omitted")
+	}
 	for _, instruction := range []string{
 		"COPY sandboxd ./sandboxd",
 		"COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs",

@@ -1,8 +1,8 @@
 @import "../../styles/tokens.css";
-.distribute-workspace{max-width:1100px;margin-inline:auto;display:grid;gap:1.25rem}
+.distribute-workspace{max-width:1100px;margin-inline:auto;display:grid;gap:var(--layout-gap)}
 .distribute-workspace > .journey-header { flex-wrap: wrap; }
 .distribute-workspace > .journey-header > .journey-actions { flex-shrink: 0; }
-.distribute-card{border:1px solid var(--line-soft);border-radius:10px;padding:1rem;display:grid;gap:.75rem;background:var(--surface)}
+.distribute-card{border:1px solid var(--line-soft);border-radius:10px;padding:var(--panel-padding);display:grid;gap:.75rem;background:var(--surface)}
 .distribute-card h2,.distribute-control h3{margin:0}
 .distribute-card details{padding:.5rem 0}
 .distribute-card summary{cursor:pointer;font-weight:600}
@@ -13,3 +13,6 @@
 .distribute-control{display:grid;gap:.45rem;padding:.75rem;border:1px solid var(--line-soft);border-radius:10px}
 .distribute-control p{margin:.15rem 0}
 .distribute-evidence{display:grid;gap:.5rem;padding:.75rem;border:1px solid var(--line-soft);border-radius:10px}
+
+.distribute-team-secondary{display:grid;gap:.75rem}
+.distribute-team-secondary>div:not([hidden]){display:grid;gap:var(--layout-gap)}

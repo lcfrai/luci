@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"errors"
 
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
@@ -42,7 +43,12 @@ func (s *Server) acceptedCoordinatorReview(ctx context.Context, p project.Projec
 	if err != nil || frontier != last || stateErr != nil || policyErr != nil || policy.ExecutionMode != "reviewed-tasks" {
 		return out
 	}
-	selected := coordinatorAffectedTaskIDs(currentPlan(state, p.ID).Tasks, events)
+	selected, selectionErr := coordinatorAffectedTaskSelection(currentPlan(state, p.ID).Tasks, events)
+	if selectionErr != nil {
+		out.Status = "review-required"
+		out.Reason = selectionErr.Error()
+		return out
+	}
 	if len(selected) == 0 {
 		out.Reason = "The changed task is missing from the current approved plan. Review the plan before continuing."
 		return out
@@ -79,6 +85,11 @@ func (s *Server) acceptedCoordinatorReview(ctx context.Context, p project.Projec
 	}
 	expanded, err := s.coordinatorExpandAffectedPrerequisites(ctx, p, state, selected)
 	if err != nil {
+		if errors.Is(err, errCoordinatorReviewerSelection) {
+			out.Status = "review-required"
+			out.Reason = err.Error()
+			return out
+		}
 		out.Reason = "The exact source or prerequisite evidence is unavailable. Review project source and retained work."
 		return out
 	}

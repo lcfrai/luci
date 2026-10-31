@@ -3,7 +3,6 @@ package deploymentplan
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // Kubernetes accepts JSON manifests. Keeping them as JSON avoids a YAML
@@ -13,11 +12,7 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 	projectLabel := digest([]byte(b.ProjectID))[:12]
 	names := map[string]bool{}
 	for _, s := range b.Services {
-		name := s.ID
-		if len(name) > 49 {
-			name = strings.TrimRight(name[:49], "-")
-		}
-		name += "-" + digest([]byte(b.ProjectID + "\x00" + s.ID))[:12]
+		name := ResourceName(b.ProjectID, s.ID)
 		if names[name] {
 			return nil, fmt.Errorf("generated Kubernetes resource name collision")
 		}
@@ -45,11 +40,40 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 		if len(s.Args) > 0 {
 			container["args"] = s.Args
 		}
+		environment := []any{}
+		for _, ref := range s.Environment {
+			source := "secretKeyRef"
+			if ref.Kind == "config-map" {
+				source = "configMapKeyRef"
+			}
+			environment = append(environment, map[string]any{"name": ref.Name, "valueFrom": map[string]any{source: map[string]any{"name": ref.ResourceName, "key": ref.Key, "optional": false}}})
+		}
 		if s.Telemetry != nil {
-			container["env"] = []any{
-				map[string]string{"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": s.Telemetry.Endpoint},
+			environment = append(environment, []any{
+				map[string]string{"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": TelemetryEndpoint(b, s)},
 				map[string]string{"name": "OTEL_EXPORTER_OTLP_PROTOCOL", "value": "http/protobuf"},
 				map[string]string{"name": "OTEL_SERVICE_NAME", "value": name},
+			}...)
+		}
+		if len(environment) > 0 {
+			container["env"] = environment
+		}
+		if s.Health != nil {
+			for _, probe := range []struct {
+				name  string
+				value *Probe
+			}{{"startupProbe", s.Health.Startup}, {"readinessProbe", s.Health.Readiness}} {
+				if probe.value == nil {
+					continue
+				}
+				value := probe.value
+				result := map[string]any{"initialDelaySeconds": value.InitialDelaySeconds, "periodSeconds": value.PeriodSeconds, "timeoutSeconds": value.TimeoutSeconds, "failureThreshold": value.FailureThreshold, "successThreshold": 1}
+				if value.Kind == "http" {
+					result["httpGet"] = map[string]any{"path": value.Path, "port": s.Port, "scheme": "HTTP"}
+				} else {
+					result["tcpSocket"] = map[string]any{"port": s.Port}
+				}
+				container[probe.name] = result
 			}
 		}
 		podSpec := map[string]any{"automountServiceAccountToken": false, "containers": []any{container}}
@@ -61,13 +85,22 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 			container["volumeMounts"] = []any{mount}
 			podSpec["volumes"] = []any{map[string]any{"name": "model", "persistentVolumeClaim": map[string]any{"claimName": s.Model.ClaimName, "readOnly": true}}}
 		}
+		if err := configureTelemetryContainer(b, s, planDigest, container, podSpec); err != nil {
+			return nil, err
+		}
 		deployment := map[string]any{
 			"apiVersion": "apps/v1", "kind": "Deployment", "metadata": metadata(),
 			"spec": map[string]any{"replicas": s.Replicas, "selector": map[string]any{"matchLabels": labels}, "template": map[string]any{"metadata": map[string]any{"labels": labels, "annotations": annotations}, "spec": podSpec}},
 		}
+		if s.DeploymentStrategy == "recreate" {
+			deployment["spec"].(map[string]any)["strategy"] = map[string]any{"type": "Recreate"}
+		}
 		service := map[string]any{
 			"apiVersion": "v1", "kind": "Service", "metadata": metadata(),
 			"spec": map[string]any{"type": "ClusterIP", "selector": labels, "ports": []any{map[string]any{"name": "service", "port": s.Port, "targetPort": "service", "protocol": "TCP"}}},
+		}
+		if s.Collector != nil {
+			service["spec"].(map[string]any)["ports"] = []any{map[string]any{"name": "service", "port": s.Port, "targetPort": "service", "protocol": "TCP"}, map[string]any{"name": "metrics", "port": CollectorMetricsPort, "targetPort": "metrics", "protocol": "TCP"}}
 		}
 		for _, item := range []struct {
 			suffix string

@@ -381,6 +381,16 @@ func (g *Gateway) routeTeamWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer finish()
+	if scope.Collection == "personal-luci" {
+		capture := newTeamCapture()
+		g.route(capture, inner)
+		if inner.Context().Err() != nil {
+			fail(w, 403, "team_access_changed", "Workspace access changed. The private response was withheld; saved changes were not rolled back.")
+			return
+		}
+		g.recheckTeamPersonal(w, capture, teamID, actor.ID)
+		return
+	}
 	if scope.Collection == "portfolio-goals" {
 		capture := newTeamCapture()
 		g.route(capture, inner)

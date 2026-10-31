@@ -13,6 +13,7 @@ import (
 // Credentials enter only the explicit target setup body. Neither provider
 // errors nor request bodies are logged or returned by this boundary.
 func (a *API) handleKubernetesDeployment(w http.ResponseWriter, r *http.Request) {
+	r = r.WithContext(product.WithKubernetesTargetResolution(r.Context()))
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	actor, err := management.CaptureDeploymentActor(r.Context(), r.PathValue("id"))
@@ -44,6 +45,13 @@ func (a *API) handleKubernetesDeployment(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		value, err = a.deps.Product.SaveKubernetesTarget(r.Context(), actor, input)
+	case "POST /v1/product/projects/{id}/kubernetes/targets/{targetId}/references/read":
+		var input product.KubernetesReferenceRead
+		if !decode(&input) {
+			httpx.WriteProblem(w, 400, "kubernetes_invalid", "Choose one existing resource kind and optional exact name.", nil)
+			return
+		}
+		value, err = a.deps.Product.ReadKubernetesReferences(r.Context(), actor, r.PathValue("targetId"), input)
 	case "GET /v1/product/projects/{id}/kubernetes/deployments":
 		var rows []product.KubernetesDeploymentStatus
 		rows, err = a.deps.Product.KubernetesDeployments(r.Context(), actor)
@@ -57,16 +65,24 @@ func (a *API) handleKubernetesDeployment(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		value, err = a.deps.Product.ReviewKubernetesDeployment(r.Context(), actor, input)
+	case "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/telemetry/read":
+		var input struct{}
+		if !decode(&input) {
+			httpx.WriteProblem(w, 400, "kubernetes_invalid", "Read only the exact retained Collector operation.", nil)
+			return
+		}
+		value, err = a.deps.Product.ReadKubernetesTelemetry(r.Context(), actor, r.PathValue("operationId"))
 	case "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/apply", "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/observe":
 		var input struct {
 			AcknowledgeCost            bool `json:"acknowledgeCost"`
 			AcknowledgeImageProvenance bool `json:"acknowledgeImageProvenance"`
+			AcknowledgeTelemetry       bool `json:"acknowledgeTelemetry"`
 		}
 		if !decode(&input) {
 			httpx.WriteProblem(w, 400, "kubernetes_invalid", "Provide the explicit action acknowledgement.", nil)
 			return
 		}
-		value, err = a.deps.Product.KubernetesDeploymentAction(r.Context(), actor, r.PathValue("operationId"), r.Pattern == "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/apply", input.AcknowledgeCost, input.AcknowledgeImageProvenance)
+		value, err = a.deps.Product.KubernetesDeploymentAction(r.Context(), actor, r.PathValue("operationId"), r.Pattern == "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/apply", input.AcknowledgeCost, input.AcknowledgeImageProvenance, input.AcknowledgeTelemetry)
 	default:
 		httpx.WriteProblem(w, 404, "not_found", "This cluster operation is unavailable.", nil)
 		return

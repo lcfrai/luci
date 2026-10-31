@@ -66,8 +66,16 @@ func (s *Server) acceptedEventApprovedContract(ctx context.Context, p project.Pr
 // An accepted intent selects work from the current approved plan. A removed
 // task is a blocker, never a reason to broaden execution silently.
 func coordinatorAffectedTaskIDs(tasks []ProjectTask, events []CoordinationEventObservation) []string {
-	if len(events) == 0 {
+	selected, err := coordinatorAffectedTaskSelection(tasks, events)
+	if err != nil {
 		return nil
+	}
+	return selected
+}
+
+func coordinatorAffectedTaskSelection(tasks []ProjectTask, events []CoordinationEventObservation) ([]string, error) {
+	if len(events) == 0 {
+		return nil, nil
 	}
 	known, selected := map[string]bool{}, map[string]bool{}
 	for _, task := range tasks {
@@ -82,7 +90,7 @@ func coordinatorAffectedTaskIDs(tasks []ProjectTask, events []CoordinationEventO
 	}
 	for id := range selected {
 		if !known[id] {
-			return nil // A removed/renamed task needs explicit review.
+			return nil, ErrProjectRunInvalid // A removed/renamed task needs explicit review.
 		}
 	}
 	if all {
@@ -108,18 +116,20 @@ func coordinatorAffectedTaskIDs(tasks []ProjectTask, events []CoordinationEventO
 			}
 		}
 	}
-	if len(selected) == 0 || len(selected) > 200 {
-		return nil
+	if len(selected) == 0 {
+		return nil, nil
+	}
+	if len(selected) > 200 {
+		return nil, ErrProjectRunInvalid
 	}
 	out := make([]string, 0, len(selected))
 	for id := range selected {
 		if !known[id] {
-			return nil
+			return nil, ErrProjectRunInvalid
 		}
 		out = append(out, id)
 	}
-	sort.Strings(out)
-	return out
+	return coordinatorIncludeSelectedReviewers(tasks, out)
 }
 
 // The request is sorted for durable replay while captured task order follows
@@ -274,7 +284,10 @@ func (s *Server) continueAcceptedCoordinatorEvent(ctx context.Context, p project
 	if policy.ExecutionMode != "reviewed-tasks" {
 		return false, nil
 	}
-	selected := coordinatorAffectedTaskIDs(currentPlan(state, p.ID).Tasks, events)
+	selected, selectionErr := coordinatorAffectedTaskSelection(currentPlan(state, p.ID).Tasks, events)
+	if selectionErr != nil {
+		return false, selectionErr
+	}
 	if len(selected) == 0 {
 		return false, nil
 	}

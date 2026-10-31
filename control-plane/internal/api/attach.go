@@ -95,6 +95,10 @@ func (a *API) handleAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sess.IsPersonalAssistant() {
+		httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound, "No session with that id.", nil)
+		return
+	}
 	// 4. The sandbox, as the record sees it and as the backend sees it.
 	if sess.Status == registry.StatusExited || sess.SandboxID == "" {
 		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeSandboxNotRunning,

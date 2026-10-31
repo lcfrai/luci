@@ -1,5 +1,7 @@
 import { productApi, type Brief, type ImplementationPlan } from "./product";
+import { validBlueprintProposal, validOrchestratorBlueprintContext, type OrchestratorBlueprintContext, type OrchestratorBlueprintProposal } from "./orchestratorBlueprint";
 import { gtmDraftValid, type GTMContent } from "./gtmWorkspace";
+import { validCapturedFeedbackContext, type OrchestratorFeedbackContext } from "./projectFeedback";
 import type { ProjectSpecification } from "./definition";
 import type { DesignPlan } from "./designPlan";
 import type { ProjectRun } from "./projectRuns";
@@ -26,8 +28,10 @@ export interface OrchestratorGTMContext {
   artifactLinks: { id: string; revision: number; digest: string }[]; artifactsOmitted: number;
 }
 export interface OrchestratorContext {
+  deploymentBlueprint?: OrchestratorBlueprintContext;
   skills?: OrchestratorSkillsContext;
   gtm?: OrchestratorGTMContext;
+  selectedFeedback?: OrchestratorFeedbackContext;
   projectId: string; digest: string; brief: Brief; specification: ProjectSpecification;
   designPlan: DesignPlan; plan: ImplementationPlan; sketchRevision: number;
   sourceCommit: string; sourceDirty: boolean; sourceKnown: boolean;
@@ -37,8 +41,9 @@ export interface OrchestratorContext {
   checksSummary: string; releasesSummary: string;
 }
 export interface OrchestratorProposal {
+  deploymentBlueprint?: OrchestratorBlueprintProposal | null;
   suggestedSkillAssignments?: OrchestratorSkillSuggestion[];
-  target: "specification" | "design-plan" | "plan" | "gtm"; summary: string;
+  target: "specification" | "design-plan" | "plan" | "gtm" | "deployment-blueprint"; summary: string;
   gtm?: GTMContent | null;
   specification: ProjectSpecification | null; designPlan: DesignPlan | null; plan: ImplementationPlan | null;
 }
@@ -129,6 +134,8 @@ function verifiedView(value: OrchestratorView, projectId: string): OrchestratorV
       value.turns.some(turn => turn.projectId !== projectId || turn.context?.projectId !== projectId) ||
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
       !validOrchestratorSkillsContext(value.context.skills, projectId) || value.turns.some(turn => !validOrchestratorSkillsContext(turn.context.skills, projectId) || !validSuggestedTaskSkills(turn.context, turn.answer?.proposal)) ||
+      !validCapturedFeedbackContext(value.context.selectedFeedback, projectId) || value.turns.some(turn => !validCapturedFeedbackContext(turn.context.selectedFeedback, projectId)) ||
+      !validOrchestratorBlueprintContext(value.context.deploymentBlueprint, projectId) || value.turns.some(turn => !validOrchestratorBlueprintContext(turn.context.deploymentBlueprint, projectId) || !validBlueprintProposal(turn.context, turn.answer?.proposal) || turn.answer?.proposal?.target === "deployment-blueprint" && !!turn.appliedRevision) ||
       !validActiveRuns(value.context) || !validActivity(value.activity) || !validGTMContext(value.context.gtm) ||
       value.turns.some(turn => !validGTMContext(turn.context.gtm) || turn.answer?.proposal?.target === "gtm" && (!turn.context.gtm || !gtmDraftValid(turn.answer.proposal.gtm) || turn.answer.proposal.specification !== null || turn.answer.proposal.designPlan !== null || turn.answer.proposal.plan !== null)) ||
       value.activity?.findings?.some(finding => finding.projectId !== projectId) ||
@@ -176,6 +183,7 @@ function verifiedJob(value: OrchestratorJob, projectId: string): OrchestratorJob
     throw new Error("The assistance response belongs to a different conversation. Refresh before continuing.");
   }
   if (!validOrchestratorSkillsContext(value.orchestratorContext.skills, projectId) || !validSuggestedTaskSkills(value.orchestratorContext, value.orchestratorResult?.proposal)) throw new Error("The assistance skill recommendations could not be verified.");
+  if (!validOrchestratorBlueprintContext(value.orchestratorContext.deploymentBlueprint, projectId) || !validBlueprintProposal(value.orchestratorContext, value.orchestratorResult?.proposal)) throw new Error("The assistance topology proposal could not be verified.");
   return value;
 }
 export const orchestratorApi = {

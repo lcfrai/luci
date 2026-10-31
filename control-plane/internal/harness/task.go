@@ -86,10 +86,21 @@ func BuildTask(r Request) (command string, argv []string, err error) {
 		argv = append(argv, "--", r.OpeningPrompt)
 	case ClaudeCode:
 		argv = append([]string{"--print"}, claudeArgv(r)...)
+		if r.DockerBoundary && r.ReviewedContext {
+			for i := 0; i+1 < len(argv); i++ {
+				if argv[i] == "--append-system-prompt" {
+					argv[i+1] += "\nFor this controller-owned Claude task, return the final handoff as schema-constrained structured_output. Do not write handoff.json or terminal-receipt.json; the terminal adapter publishes after termination. This replaces the legacy handoff file instruction in LUCI.md. Checks remain reported claims."
+					break
+				}
+			}
+		}
 	case OpenCode:
 		prompt := r.OpeningPrompt
 		if r.ReviewedContext {
 			prompt = ReviewedContextPrompt + "\n\n" + prompt
+			if r.DockerBoundary {
+				prompt += "\nFor this controller-owned OpenCode task, write the final JSON handoff candidate to /home/dev/.luci-task-output/.codex-terminal/result.json using /usr/local/lib/luci/task-handoff.schema.json. Do not write handoff.json or terminal-receipt.json; the terminal adapter publishes after termination. This replaces the legacy LUCI.md report path. The report is a claim, not proof of successful checks."
+			}
 		}
 		argv = []string{"run", "--pure", "--agent", "build", "--auto"}
 		if r.Model != "" && r.Model != "default" {

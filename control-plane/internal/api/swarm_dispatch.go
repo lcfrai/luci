@@ -331,7 +331,7 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 	}
 	mounts = append(mounts, mount)
 	terminalImage := image
-	if route.Harness == "codex" && a.deps.Backend.Kind() == backend.KindDocker {
+	if terminalHarness(route.Harness) && a.deps.Backend.Kind() == backend.KindDocker {
 		terminalOwner := candidate
 		terminalOwner.ID = admission.SessionID
 		var terminalMount backend.Mount

@@ -16,6 +16,7 @@ var errAzureBlueprint = errors.New("The blueprint, current project context, sele
 // Only the server creates this binding. Client digests are equality checks,
 // never actor/grant assertions. Optional absence preserves legacy CloudPlan JSON.
 type AzureBlueprintBinding struct {
+	Cluster       *AzureClusterBinding                  `json:"cluster,omitempty"`
 	Version       int                                   `json:"version"`
 	Request       deploymentplan.AzureFoundationRequest `json:"request"`
 	Actor         management.ExecutionActorRef          `json:"actor"`
@@ -42,6 +43,12 @@ func validFoundationPlan(plan CloudPlan) bool {
 	if b.Version != 1 || plan.Provider != "azure" || b.Actor.Local || b.Actor.UserID == "" || b.Actor.ProjectID != b.Request.Blueprint.ProjectID || !hexDigest(b.ContextDigest) || !hexDigest(b.PlanDigest) || b.PlanDigest != foundationPlanDigest(plan) {
 		return false
 	}
+	if b.Cluster != nil {
+		return validAzureClusterPlan(plan)
+	}
+	if plan.Kind != "" {
+		return false
+	}
 	fit, err := deploymentplan.AzureFoundation(b.Request, b.Fit.Tier)
 	return err == nil && fit.Fits && reviewDigest(fit) == reviewDigest(b.Fit)
 }
@@ -50,6 +57,10 @@ func validFoundationPlan(plan CloudPlan) bool {
 // observation/cleanup after new allocations are suspended. New foundations also
 // require current provisioning/public-exposure policy and the current budget.
 func (s *Server) foundationAuthority(ctx context.Context, actor management.ExecutionActorRef, allocate bool, budget float64) (context.Context, error) {
+	return s.foundationAuthorityProfile(ctx, actor, allocate, budget, true, false)
+}
+
+func (s *Server) foundationAuthorityProfile(ctx context.Context, actor management.ExecutionActorRef, allocate bool, budget float64, public, secrets bool) (context.Context, error) {
 	if s.coordinatorDeploymentAuthorize == nil || actor.UserID == "" || actor.Local || actor.ProjectID == "" {
 		return ctx, management.ErrExecutionAuthority
 	}
@@ -62,7 +73,10 @@ func (s *Server) foundationAuthority(ctx context.Context, actor management.Execu
 	if err != nil || captured != actor {
 		return ctx, management.ErrExecutionAuthority
 	}
-	if allocate && (!authority.Policy.AllowCloudProvisioning || !authority.Policy.AllowPublicPublishing || budget <= 0 || budget > authority.Policy.MonthlyBudgetUSD) {
+	if secrets && actor.TeamID != "" && (authority.Team == nil || !authority.Team.Permissions.Secrets) {
+		return ctx, management.ErrExecutionAuthority
+	}
+	if allocate && (!authority.Policy.AllowCloudProvisioning || public && !authority.Policy.AllowPublicPublishing || budget <= 0 || budget > authority.Policy.MonthlyBudgetUSD) {
 		return ctx, management.ErrExecutionAuthority
 	}
 	return current, nil
@@ -101,6 +115,9 @@ func (s *Server) foundationContextLocked(p project.Project, blueprint deployment
 }
 
 func (s *Server) prepareFoundationBinding(ctx context.Context, request CloudRequest) (*AzureBlueprintBinding, error) {
+	if request.Cluster != nil {
+		return s.prepareAzureClusterBinding(ctx, request)
+	}
 	if request.Foundation == nil {
 		return nil, nil
 	}
@@ -160,7 +177,11 @@ func (s *Server) authorizeFoundationPlan(ctx context.Context, plan CloudPlan, al
 			return project.Project{}, management.ErrExecutionAuthority
 		}
 	}
-	if _, err := s.foundationAuthority(ctx, b.Actor, allocate, plan.MonthlyBudgetUSD); err != nil {
+	public, secrets := true, false
+	if b.Cluster != nil {
+		public, secrets = !b.Cluster.Fit.Spec.PrivateAPI, true
+	}
+	if _, err := s.foundationAuthorityProfile(ctx, b.Actor, allocate, plan.MonthlyBudgetUSD, public, secrets); err != nil {
 		return project.Project{}, err
 	}
 	return s.resolveProject(b.Actor.ProjectID)
@@ -173,6 +194,16 @@ func (s *Server) recheckFoundationContextLocked(p project.Project, plan CloudPla
 	digest, err := s.foundationContextLocked(p, plan.Foundation.Request.Blueprint)
 	if err != nil || digest != plan.Foundation.ContextDigest {
 		return errAzureBlueprint
+	}
+	if plan.Foundation.Cluster != nil {
+		_, ledger, readErr := s.readDeploymentBlueprintLedger(p)
+		if readErr != nil || len(ledger.Revisions) == 0 {
+			return errAzureCluster
+		}
+		latest := ledger.Revisions[len(ledger.Revisions)-1]
+		if latest.Revision != plan.Foundation.Cluster.BlueprintRevision || latest.Digest != plan.Foundation.Cluster.BlueprintDigest || latest.PlanDigest != plan.Foundation.Request.ExpectedBlueprintDigest {
+			return errAzureCluster
+		}
 	}
 	return nil
 }

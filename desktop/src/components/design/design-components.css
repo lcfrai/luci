@@ -1,0 +1,9 @@
+.design-component-library { padding: var(--panel-padding); border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--surface); }
+.design-component-library > summary { cursor: pointer; font-weight: 600; }
+.design-component-library p { max-width: 78ch; }
+.design-component-actions { display: flex; align-items: end; gap: var(--layout-gap); flex-wrap: wrap; margin-block: var(--layout-gap); }
+.design-component-actions > label { min-width: min(100%, 14rem); flex: 1; }
+.design-component-fields { display: grid; gap: var(--layout-gap); min-width: 0; margin-block: var(--layout-gap); padding: var(--panel-padding); border: 1px solid var(--line-strong); }
+.design-component-bindings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--layout-gap); }
+.design-component-import { border-block-start: 1px solid var(--line-strong); margin-block-start: var(--layout-gap); padding-block-start: var(--layout-gap); }
+.design-component-import li { overflow-wrap: anywhere; }

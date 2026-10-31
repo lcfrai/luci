@@ -19,6 +19,7 @@ import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import { PrototypeReview, prototypeScreenRoute, type OpenPrototypeSource } from "./PrototypeReview";
 import { DesignSceneCanvas } from './DesignSceneCanvas';
+import { componentLibraryErrors } from '../../api/designComponents';
 import { DesignAssetBinding } from './DesignAssetBinding';
 import { DesignHistory } from './DesignHistory';
 import { designSceneErrors } from '../../api/designScene';
@@ -285,7 +286,7 @@ function ProjectDesignWorkspace({ projectId, scope, view: chosenView, setView }:
   const reviewPlan = plan && { ...plan, screens: plan.screens.map(screen => ({ ...screen, widths: responsiveWidths(screen.widths).values })) };
   const reviewScreen = reviewPlan?.screens.find(screen => screen.id === reviewScreenId) ?? reviewPlan?.screens[0];
   const invalidWidths = !!plan?.screens.some(screen => responsiveWidths(screen.widths).error);
-  const sceneNeeds = reviewPlan?.scene ? designSceneErrors(reviewPlan.scene, reviewPlan) : [];
+  const sceneNeeds = [...(reviewPlan?.scene ? designSceneErrors(reviewPlan.scene, reviewPlan) : []), ...(reviewPlan ? componentLibraryErrors(reviewPlan.componentLibrary, reviewPlan.tokens) : [])];
   const unavailableLinks = !!spec && !!plan?.screens.some(screen => screen.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id)));
   const draftNeeds = plan?.screens.flatMap((screen, index) => !screen.name.trim() ? [`Name screen ${index + 1} so you can save this draft.`] : screen.states.some(state => !state.trim()) ? [`Finish or remove empty state lines for ${screen.name} before saving.`] : []) ?? [];
   const approvalNeeds = !plan?.screens.length ? ["Describe at least one screen, or ask Luci to help plan the experience."] : plan.screens.flatMap((screen, index) => {
@@ -330,7 +331,7 @@ function ProjectDesignWorkspace({ projectId, scope, view: chosenView, setView }:
       {approvalNeeds.length > 0 && plan.screens.length > 0 && <section className="design-review-needs" aria-label="Design decisions still needed"><h3>Before approving this handoff</h3><ul>{approvalNeeds.map(message => <li key={message}>{message}</li>)}</ul><p>Record these details in Screens and states. Saving a draft does not approve it or start a build.</p></section>}
       <div id={`${tabsId}-panel-0`} role="tabpanel" aria-labelledby={`${tabsId}-tab-0`} hidden={view !== 'canvas'} tabIndex={-1}>
         <DesignSceneCanvas plan={reviewPlan!} canRead={canRead && !documentUnavailable} canEdit={canEdit && !draft.pending} busy={editorBusy || refreshingSketch} active={view === 'canvas'} workScope={workScope} savedAssets={savedPlan.current?.assets ?? []}
-          canAsk={!dirty && !draft.pending && !sketchDirty && !sketchBusy} onChange={scene => patch({scene})} onPlan={() => selectView('screens')}
+          canAsk={!dirty && !draft.pending && !sketchDirty && !sketchBusy} onChange={scene => patch({scene})} onDocumentChange={value => patch(value)} onPlan={() => selectView('screens')}
           onAsk={message => window.dispatchEvent(new CustomEvent('luci:orchestrator-open', {detail: {projectId, scope, message}}))} />
       </div>
       <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>

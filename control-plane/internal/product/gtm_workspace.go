@@ -56,6 +56,7 @@ type GTMArtifactLink struct {
 	Digest   string `json:"digest"`
 }
 type GTMContent struct {
+	MetricImports      *[]GTMMetricImport    `json:"metricImports,omitempty"`
 	CommercialModel    *CommercialModelInput `json:"commercialModel,omitempty"`
 	Positioning        string                `json:"positioning"`
 	Offer              string                `json:"offer"`
@@ -86,11 +87,13 @@ type GTMWorkspace struct {
 	RequestDigest      string                   `json:"requestDigest"`
 }
 type gtmLedger struct {
-	Version      int            `json:"version"`
-	ProjectID    string         `json:"projectId"`
-	AccountScope string         `json:"accountScope"`
-	ProjectScope string         `json:"projectScope"`
-	Revisions    []GTMWorkspace `json:"revisions"`
+	FirstRevision int            `json:"firstRevision,omitempty"`
+	Archives      []GTMArchive   `json:"archives,omitempty"`
+	Version       int            `json:"version"`
+	ProjectID     string         `json:"projectId"`
+	AccountScope  string         `json:"accountScope"`
+	ProjectScope  string         `json:"projectScope"`
+	Revisions     []GTMWorkspace `json:"revisions"`
 }
 type GTMSummary struct {
 	Revision int    `json:"revision"`
@@ -102,14 +105,16 @@ type GTMRequirement struct {
 	Title string `json:"title"`
 }
 type GTMView struct {
-	CommercialModel *CommercialModelProjection `json:"commercialModel,omitempty"`
-	ProjectID       string                     `json:"projectId"`
-	Workspace       *GTMWorkspace              `json:"workspace"`
-	Source          DistributeArtifactSource   `json:"source"`
-	SourceDigest    string                     `json:"sourceDigest"`
-	Freshness       string                     `json:"freshness"`
-	History         []GTMSummary               `json:"history"`
-	Requirements    []GTMRequirement           `json:"requirements"`
+	Archives          []GTMArchiveChoice         `json:"archives,omitempty"`
+	ArchivedRevisions int                        `json:"archivedRevisions,omitempty"`
+	CommercialModel   *CommercialModelProjection `json:"commercialModel,omitempty"`
+	ProjectID         string                     `json:"projectId"`
+	Workspace         *GTMWorkspace              `json:"workspace"`
+	Source            DistributeArtifactSource   `json:"source"`
+	SourceDigest      string                     `json:"sourceDigest"`
+	Freshness         string                     `json:"freshness"`
+	History           []GTMSummary               `json:"history"`
+	Requirements      []GTMRequirement           `json:"requirements"`
 }
 
 func gtmDigest(row GTMWorkspace) string {
@@ -122,6 +127,9 @@ func validateGTM(c GTMContent) error {
 	bad := errors.New("Keep GTM records within their bounds and repair all record links before saving.")
 	text := func(s string) bool { return len(s) <= 4000 && validArtifactStoredText(s) }
 	if !text(c.Positioning) || !text(c.Offer) || c.PricingAssumptions == nil || c.Segments == nil || c.Competitors == nil || c.Channels == nil || c.Milestones == nil || c.Experiments == nil || c.ArtifactLinks == nil {
+		return bad
+	}
+	if !validGTMMetricImports(c.MetricImports) {
 		return bad
 	}
 	if c.CommercialModel != nil {
@@ -256,24 +264,31 @@ func (s *Server) readGTMLedger(p project.Project) (string, gtmLedger, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		return path, empty, nil
 	}
-	if err != nil || ledger.Version != 1 || ledger.ProjectID != p.ID || ledger.AccountScope != empty.AccountScope || ledger.ProjectScope != empty.ProjectScope || ledger.Revisions == nil || len(ledger.Revisions) > gtmHistoryLimit {
+	if err != nil || (ledger.Version != 1 && ledger.Version != 2) || ledger.ProjectID != p.ID || ledger.AccountScope != empty.AccountScope || ledger.ProjectScope != empty.ProjectScope || ledger.Revisions == nil || len(ledger.Revisions) > gtmHistoryLimit {
 		return "", empty, errArtifact
 	}
-	keys := map[string]bool{}
+	first, keys, valid := validGTMArchiveIndex(ledger)
+	if !valid {
+		return "", empty, errArtifact
+	}
 	for i, row := range ledger.Revisions {
-		if !validGTMOrchestratorOrigin(row.OrchestratorOrigin) || row.ProjectID != p.ID || row.Revision != i+1 || validateGTM(row.Content) != nil || !validArtifactSource(row.Source) || row.SourceDigest != reviewDigest(row.Source) || row.Digest != gtmDigest(row) || !hexDigest(row.RequestKeyDigest) || keys[row.RequestKeyDigest] || !hexDigest(row.RequestDigest) || row.Actor.ID == "" || row.Actor.DisplayName == "" {
+		if !gtmRowValid(row, p.ID, first+i) || keys[row.RequestKeyDigest] {
 			return "", empty, errArtifact
 		}
 		keys[row.RequestKeyDigest] = true
-		if _, err := time.Parse(time.RFC3339Nano, row.At); err != nil {
-			return "", empty, errArtifact
-		}
+	}
+	if ledger.Version == 2 && len(ledger.Revisions) == 0 {
+		return "", empty, errArtifact
 	}
 	return path, ledger, nil
 }
 
 func gtmView(p project.Project, ledger gtmLedger, source DistributeArtifactSource, state journeyState) GTMView {
 	view := GTMView{ProjectID: p.ID, Source: source, SourceDigest: reviewDigest(source), Freshness: "none", History: []GTMSummary{}, Requirements: []GTMRequirement{}}
+	view.Archives = gtmArchiveChoices(ledger)
+	for _, archive := range ledger.Archives {
+		view.ArchivedRevisions += len(archive.Keys)
+	}
 	for _, r := range currentSpecification(state).Requirements {
 		view.Requirements = append(view.Requirements, GTMRequirement{ID: r.ID, Title: r.Title})
 	}
@@ -317,6 +332,9 @@ func (s *Server) getGTMWorkspace(w http.ResponseWriter, r *http.Request) {
 	_, ledger, err := s.readGTMLedger(p)
 	if err != nil {
 		artifactProblem(w, err)
+		return
+	}
+	if s.gtmHistoryResponse(w, r, p, ledger) {
 		return
 	}
 	source, state, _, _, err := s.artifactSource(r.Context(), p, "")
@@ -392,11 +410,12 @@ func gtmSaveProblem(w http.ResponseWriter, err error) {
 }
 
 type preparedGTMRevision struct {
-	Path   string
-	Ledger gtmLedger
-	Row    GTMWorkspace
-	State  journeyState
-	Replay bool
+	Path    string
+	Ledger  gtmLedger
+	Row     GTMWorkspace
+	State   journeyState
+	Replay  bool
+	Archive *preparedGTMArchive
 }
 
 // Caller holds s.mu then teamControlsMu. No write occurs until the exact row
@@ -429,19 +448,26 @@ func (s *Server) prepareGTMRevisionLocked(ctx context.Context, p project.Project
 	if err != nil {
 		return preparedGTMRevision{}, err
 	}
-	for _, row := range ledger.Revisions {
-		if row.RequestKeyDigest == key {
-			if row.RequestDigest != requestDigest || reviewDigest(row.OrchestratorOrigin) != reviewDigest(origin) {
-				return fail(409, "gtm_request_changed", "This request key already names different edits.")
-			}
-			return preparedGTMRevision{Path: path, Ledger: gtmLedger{Revisions: []GTMWorkspace{row}}, Row: row, Replay: true}, nil
-		}
+	original, err := s.gtmRevisionByRequest(p, ledger, key)
+	if err != nil {
+		return preparedGTMRevision{}, err
 	}
-	if len(ledger.Revisions) != req.ExpectedRevision || req.ExpectedRevision > 0 && ledger.Revisions[len(ledger.Revisions)-1].Digest != req.ExpectedDigest {
+	if original != nil {
+		row := *original
+		if row.RequestDigest != requestDigest || reviewDigest(row.OrchestratorOrigin) != reviewDigest(origin) {
+			return fail(409, "gtm_request_changed", "This request key already names different edits.")
+		}
+		return preparedGTMRevision{Path: path, Ledger: gtmLedger{Revisions: []GTMWorkspace{row}}, Row: row, Replay: true}, nil
+	}
+	currentRevision := 0
+	if len(ledger.Revisions) > 0 {
+		currentRevision = ledger.Revisions[len(ledger.Revisions)-1].Revision
+	}
+	if currentRevision != req.ExpectedRevision || req.ExpectedRevision > 0 && ledger.Revisions[len(ledger.Revisions)-1].Digest != req.ExpectedDigest {
 		return fail(409, "gtm_changed", "The saved GTM workspace changed. Keep your edits and review its current revision.")
 	}
-	if len(ledger.Revisions) >= gtmHistoryLimit {
-		return fail(409, "gtm_history_full", "This workspace reached its bounded revision history. Existing revisions remain readable.")
+	if len(ledger.Revisions) > 0 && len(gtmMetricImportsValue(ledger.Revisions[len(ledger.Revisions)-1].Content.MetricImports)) > 0 && req.Content.MetricImports == nil {
+		return fail(422, "gtm_imports_omitted", "Keep the saved metric imports, or explicitly remove them in the current GTM editor.")
 	}
 	source, state, _, _, err := s.artifactSource(ctx, p, "")
 	if err != nil {
@@ -482,15 +508,25 @@ func (s *Server) prepareGTMRevisionLocked(ctx context.Context, p project.Project
 			}
 		}
 	}
-	row := GTMWorkspace{ProjectID: p.ID, Revision: len(ledger.Revisions) + 1, Source: source, SourceDigest: reviewDigest(source), Content: req.Content, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), RequestKeyDigest: key, RequestDigest: requestDigest, OrchestratorOrigin: origin}
+	row := GTMWorkspace{ProjectID: p.ID, Revision: currentRevision + 1, Source: source, SourceDigest: reviewDigest(source), Content: req.Content, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano), RequestKeyDigest: key, RequestDigest: requestDigest, OrchestratorOrigin: origin}
 	row.Digest = gtmDigest(row)
 	ledger.Revisions = append(ledger.Revisions, row)
-	return preparedGTMRevision{Path: path, Ledger: ledger, Row: row, State: state}, nil
+	prepared := preparedGTMRevision{Path: path, Ledger: ledger, Row: row, State: state}
+	if err := s.prepareGTMArchive(p, &prepared); err != nil {
+		return preparedGTMRevision{}, err
+	}
+	return prepared, nil
 }
 func persistGTMRevisionLocked(ctx context.Context, prepared preparedGTMRevision) error {
-	raw, err := json.Marshal(prepared.Ledger)
+	raw, err := gtmSerialized(prepared.Ledger)
 	if err != nil || len(raw) > artifactLedgerLimit {
-		return &gtmSaveFailure{413, "gtm_history_full", "The bounded GTM history is full."}
+		return &gtmSaveFailure{413, "gtm_storage_full", "The current GTM revision and index exceed private storage capacity. Saved revisions remain readable and exportable."}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := persistGTMArchive(ctx, prepared); err != nil {
+		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err

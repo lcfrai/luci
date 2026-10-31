@@ -49,6 +49,12 @@ type Result struct {
 }
 
 type Job struct {
+	PersonalOwner           string          `json:"personalOwner,omitempty"`
+	PersonalTeamID          string          `json:"personalTeamId,omitempty"`
+	PersonalTurnID          string          `json:"personalTurnId,omitempty"`
+	PersonalContext         json.RawMessage `json:"personalContext,omitempty"`
+	PersonalResult          json.RawMessage `json:"personalResult,omitempty"`
+	DiscussionTeamID        string          `json:"discussionTeamId,omitempty"`
 	ID                      string          `json:"id"`
 	ProjectID               string          `json:"projectId"`
 	ExpectedRevision        int             `json:"expectedRevision"`
@@ -88,6 +94,12 @@ type Store struct {
 	mu    sync.Mutex
 	read  func(string) ([]byte, error)
 	write func(string, []byte) error
+}
+
+// Any personal marker closes generic project access. A malformed or partially
+// restored owner field must never downgrade a personal job into a legacy job.
+func IsPersonal(job Job) bool {
+	return job.Kind == "personal-luci" || job.PersonalOwner != "" || job.PersonalTeamID != "" || job.PersonalTurnID != "" || len(job.PersonalContext) != 0 || len(job.PersonalResult) != 0
 }
 
 func NewStore(read func(string) ([]byte, error), write func(string, []byte) error) *Store {
@@ -130,8 +142,13 @@ func (s *Store) Update(id string, mutate func(*Job) error) (Job, error) {
 	if err != nil {
 		return job, err
 	}
+	original := job
+	original.PersonalContext = append(json.RawMessage(nil), job.PersonalContext...)
 	if err = mutate(&job); err != nil {
 		return Job{}, err
+	}
+	if IsPersonal(original) && (job.Kind != original.Kind || job.PersonalOwner != original.PersonalOwner || job.PersonalTeamID != original.PersonalTeamID || job.PersonalTurnID != original.PersonalTurnID || job.RequestedBy != original.RequestedBy || job.ProjectID != original.ProjectID || !reflect.DeepEqual(job.PersonalContext, original.PersonalContext)) {
+		return Job{}, errors.New("private assistant ownership and captured context cannot change")
 	}
 	job.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	if Terminal(job.Status) && job.TerminalAt == "" {

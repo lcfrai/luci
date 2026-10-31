@@ -1,0 +1,6 @@
+import { render,screen,fireEvent,waitFor } from '@testing-library/react';
+import { it,expect,vi } from 'vitest';
+import { TaskReuse } from './TaskReuse';
+import { taskReuseApi } from '../../api/taskReuse';
+vi.mock('../../api/taskReuse',async importOriginal=>({...await importOriginal<typeof import('../../api/taskReuse')>(),taskReuseApi:{search:vi.fn(),inspect:vi.fn()}}));
+it('does not send private task wording and only searches the explicitly entered query',async()=>{const change=vi.fn();vi.mocked(taskReuseApi.search).mockResolvedValue({projectId:'p-one',catalogueHash:'a'.repeat(64),generatedAt:'2026-10-30T00:00:00Z',query:'public table',total:0,items:[]});render(<TaskReuse projectId="p-one" task={{id:'task-1',title:'Confidential project requirement',status:'todo'}} index={0} disabled={false} onChange={change}/>);expect(taskReuseApi.search).not.toHaveBeenCalled();fireEvent.click(screen.getByText(/Reuse existing solutions/));fireEvent.change(screen.getByLabelText('Public Glasses catalogue search'),{target:{value:'public table'}});fireEvent.click(screen.getByRole('button',{name:'Search catalogue'}));await waitFor(()=>expect(taskReuseApi.search).toHaveBeenCalledWith('p-one','public table',expect.any(AbortSignal)));expect(change).not.toHaveBeenCalled();});

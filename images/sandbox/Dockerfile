@@ -10,6 +10,7 @@ RUN cd sandboxd && CGO_ENABLED=0 GOMAXPROCS=1 GOMEMLIMIT=512MiB GOFLAGS="-mod=ve
 FROM node:24-bookworm-slim
 LABEL ai.lcfr.codex-task-result="v1" ai.lcfr.codex-task-result.schema-sha256="202ad6cfee380ee028962f42c93a23c730f47b7d8396f8ad58d03508b10c1e8c"
 LABEL ai.lcfr.task-exit-normal-zero="v1"
+LABEL ai.lcfr.harness-task-result="claude-structured-opencode-file-v1"
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git ca-certificates curl ripgrep procps util-linux python3 python3-venv \
     && rm -rf /var/lib/apt/lists/*

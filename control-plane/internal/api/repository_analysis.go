@@ -73,6 +73,13 @@ func (a *API) handleAssistList(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	visible := make([]assistance.Job, 0, len(jobs))
+	for _, job := range jobs {
+		if !assistance.IsPersonal(job) {
+			visible = append(visible, job)
+		}
+	}
+	jobs = visible
 	if len(jobs) > 20 {
 		jobs = jobs[:20]
 	}
@@ -98,7 +105,10 @@ func (a *API) assistantSession(ctx context.Context, projectID, title, contextRef
 	bindAssistantConnection(&s, connection)
 	var home string
 	var err error
-	if nativeHarness(harness) {
+	if owner, ok := ctx.Value(personalAssistanceKey{}).(string); ok && owner != "" {
+		s.PersonalOwner = owner
+		home, err = a.assistDirectory(filepath.Join("personal-luci", "homes", owner, id))
+	} else if nativeHarness(harness) {
 		home, err = a.prepareNativeState(assistWorktree, harness, conversation, sessionResumeSource{}, false)
 	} else {
 		home, err = a.assistDirectory(filepath.Join("assistance", "homes", id))

@@ -98,8 +98,7 @@ func (s *Server) coordinatorExpandAffectedPrerequisites(ctx context.Context, p p
 	for id := range selected {
 		out = append(out, id)
 	}
-	sort.Strings(out)
-	return out, nil
+	return coordinatorIncludeSelectedReviewers(currentPlan(state, p.ID).Tasks, out)
 }
 
 // The coordinator may select an unchanged prerequisite only from an existing

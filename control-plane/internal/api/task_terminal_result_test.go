@@ -245,3 +245,33 @@ func TestTaskTerminalGenericObservationUpgradesOnlyAfterOriginalEOF(t *testing.T
 		})
 	}
 }
+
+func TestOtherHarnessContractsKeepExactOriginalRoleAndExecutable(t *testing.T) {
+	for _, h := range []struct {
+		harness, command string
+		args             []string
+	}{{"claude-code", "claude", []string{"--print", "--permission-mode", "bypassPermissions", "saved task"}}, {"opencode", "opencode", []string{"run", "--pure", "--auto", "--", "saved task"}}} {
+		run, row, descriptor, _ := terminalContractFixture()
+		row.Harness = h.harness
+		run.Swarm.Tasks[0].Role = "reviewer"
+		run.Swarm.Tasks[0].ReviewOnly = true
+		run.Swarm.Tasks[0].ReviewOfTaskID = "task-coding"
+		c, err := terminalContract(run, row, descriptor, h.command, h.args, "sha256:"+strings.Repeat("a", 64))
+		if err != nil || c.Version != 2 || c.Harness != h.harness || c.Role != "reviewer" || !c.ReviewOnly || c.CommandDigest != terminalCommandDigest("/usr/local/bin/"+h.command, h.args) {
+			t.Fatal(c, err)
+		}
+		if _, err := terminalContract(run, row, descriptor, "codex", h.args, c.Image); err == nil {
+			t.Fatal("harness executable mismatch accepted")
+		}
+		row.ImplementationContext.SourceDigest = strings.Repeat("f", 64)
+		if _, err := terminalContract(run, row, descriptor, h.command, h.args, c.Image); err == nil {
+			t.Fatal("original source mismatch accepted")
+		}
+	}
+	run, row, descriptor, args := terminalContractFixture()
+	c, err := terminalContract(run, row, descriptor, "codex", args, "image")
+	raw, _ := json.Marshal(c)
+	if err != nil || c.Version != 1 || bytes.Contains(raw, []byte("harness")) {
+		t.Fatal("legacy Codex contract changed", string(raw), err)
+	}
+}

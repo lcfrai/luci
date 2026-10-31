@@ -7,15 +7,17 @@ import { editScene, redoScene, sceneHistory, undoScene } from './designSceneHist
 import './design-scene.css';
 import { DesignRasterLayer } from './DesignRasterLayer';
 import { createFrameVariant, plannedFrameCoverage } from './frameVariants';
+import { DesignComponentLibrary } from './DesignComponentLibrary';
 
 const emptyScene = (): EditableDesignScene => ({version: 1, frames: []});
 interface Props {
   plan: DesignPlan; canRead: boolean; canEdit: boolean; busy: boolean; workScope: string | null; active?: boolean; canAsk?: boolean; savedAssets?: DesignPlan["assets"];
+  onDocumentChange?(value: Partial<Pick<DesignPlan, 'componentLibrary' | 'tokens' | 'scene'>>): void;
   onChange(scene: EditableDesignScene): void; onAsk(message: string): void; onPlan(): void;
   renderImage?(assetId: string, alt: string): ReactNode;
 }
 type Gesture = {pointerId: number; frameId: string; node: DesignSceneNode; startX: number; startY: number; resize: boolean; scale: number; target: HTMLElement};
-export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, active = true, canAsk = true, onChange, onAsk, onPlan, renderImage, savedAssets = []}: Props) {
+export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, active = true, canAsk = true, onChange, onDocumentChange, onAsk, onPlan, renderImage, savedAssets = []}: Props) {
   const scene = plan.scene ?? emptyScene(), fingerprint = JSON.stringify(scene);
   const history = useRef(sceneHistory(scene)), [historyVersion, setHistoryVersion] = useState(0);
   const [frameId, setFrameId] = useState(''), [nodeId, setNodeId] = useState(''), [screenId, setScreenId] = useState('');
@@ -178,6 +180,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
         {coverage.length > coverageLimit && <Button type="button" variant="tertiary" onClick={() => setCoverageLimit(value => value + 12)}>Show more combinations ({coverage.length - coverageLimit} remaining)</Button>}
       </details>}
     </details>}
+    {onDocumentChange && <DesignComponentLibrary key={workScope ?? plan.projectId} plan={plan} frame={frame} node={node} canModify={canModify && !gesture.current} canRead={canRead && active} onDocumentChange={onDocumentChange} onStyle={value => patchNode(value)} onScene={next => commit(next)} onInsert={value => { if (!frame || !canModify) return; pendingFocus.current = value.id; setNodeId(value.id); setPane('canvas'); patchFrame({nodes: [...frame.nodes, value]}); }} />}
     {notice && <p role="status">{notice}</p>}{errors.length > 0 && <p role="alert">{errors[0]} Save remains blocked until these references are repaired.</p>}
     {!plan.scene && <p className="journey-muted">This saved design has no editable scene yet. Add a frame for a planned screen or ask Luci to propose one. Your sketch and existing screen plan stay available.</p>}
     {!plan.screens.length && <Button variant="secondary" disabled={!canModify} onClick={onPlan}>Plan the first screen</Button>}

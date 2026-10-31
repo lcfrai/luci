@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -20,6 +21,7 @@ type cloudProviderFixture struct {
 	mu                                           sync.Mutex
 	projects, applications, updates, deployments int
 	commit, status                               string
+	repository, branch, domain                   string
 	appFailure                                   bool
 	stops                                        int
 	appStatus                                    string
@@ -59,6 +61,9 @@ func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
 				return
 			}
 			f.commit, _ = body["git_commit_sha"].(string)
+			f.repository, _ = body["git_repository"].(string)
+			f.branch, _ = body["git_branch"].(string)
+			f.domain, _ = body["fqdn"].(string)
 			if r.URL.Path == "/api/v1/applications/private-deploy-key" {
 				f.privateRepository, _ = body["git_repository"].(string)
 				f.privateKey, _ = body["private_key_uuid"].(string)
@@ -81,7 +86,7 @@ func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
 			f.stops++
 			_, _ = w.Write([]byte(`{"message":"Application stopping request queued."}`))
 		case "GET /api/v1/applications/remote-app":
-			_ = json.NewEncoder(w).Encode(map[string]string{"uuid": "remote-app", "status": f.appStatus})
+			_ = json.NewEncoder(w).Encode(map[string]string{"uuid": "remote-app", "status": f.appStatus, "server_uuid": "server-test", "git_repository": f.repository, "git_branch": f.branch, "git_commit_sha": f.commit, "fqdn": f.domain})
 		default:
 			t.Errorf("unexpected remote operation: %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(404)
@@ -92,6 +97,13 @@ func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
 func cloudReleaseFixture(t *testing.T, provider *cloudProviderFixture) (*Server, *http.ServeMux, project.Project, CloudReleaseRequest, *httptest.Server) {
 	t.Helper()
 	s, mux := journeyFixture(t)
+	// Explicit fixture authority: no production nil-authorizer fallback.
+	s.SetCoordinatorDeploymentAuthorizer(func(_ context.Context, ref management.ExecutionActorRef, _ bool) (management.ExecutionAuthority, error) {
+		if !ref.Local || ref.UserID != "" || ref.TeamID != "" {
+			return management.ExecutionAuthority{}, management.ErrExecutionAuthority
+		}
+		return management.ExecutionAuthority{}, nil
+	})
 	s.registerCloudReleases(mux)
 	p := createJourneyProject(t, mux, "cloud-app")
 	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/brief", map[string]any{"revision": 0, "purpose": "Public service", "criteria": []string{"HTTPS health succeeds"}}, 200)

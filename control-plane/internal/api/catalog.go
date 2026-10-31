@@ -305,6 +305,9 @@ func (a *API) decoratedWorktrees(r *http.Request, projectID string) ([]worktreeJ
 	}
 	live := make(map[string]int, len(ws))
 	for _, s := range sessions {
+		if s.IsPersonalAssistant() {
+			continue
+		}
 		if s.Status == registry.StatusExited {
 			// Contract §3.7: a count of live things the user owns, not a
 			// history and not a progress metric.

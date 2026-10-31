@@ -27,6 +27,7 @@ import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import type { ProjectRunDraft } from "./ProjectRuns";
 import { PlanTaskGraph, taskDependencyIssue } from "./PlanTaskGraph";
 import { TaskScope } from "./TaskScope";
+import { TaskReuse } from "./TaskReuse";
 import { TaskDesignFrames } from "./TaskDesignFrames";
 import { designPlanApi, type DesignPlan } from "../../api/designPlan";
 
@@ -415,6 +416,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                   Remove
                 </Button>
                 <TaskScope task={task} index={index} tasks={tasks} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
+                <TaskReuse projectId={projectId} task={task} index={index} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
                 <TaskDesignFrames task={task} index={index} design={design} loading={refreshingDesign} error={designError} disabled={!canEdit || locked || !!draft.pending} onChange={next => edit(tasks.map(item => item.id === task.id ? next : item))} />
                 <details className="task-requirements">
                   <summary>Requirements for task {index + 1} · {task.requirementIds?.length ?? 0} linked</summary>

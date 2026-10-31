@@ -92,3 +92,25 @@ func TestTaskTerminalCapabilityGatePreservesUnwrappedSessions(t *testing.T) {
 		}
 	}
 }
+
+func (b *sessionsBackend) ObserveHarnessTaskResultImage(ctx context.Context, reference, harness string) (string, error) {
+	if harness != "claude-code" && harness != "opencode" {
+		return "", backend.ErrUnsupported
+	}
+	return b.ObserveCodexTaskResultImage(ctx, reference)
+}
+func (b *handoffLifecycleBackend) ObserveHarnessTaskResultImage(ctx context.Context, reference, harness string) (string, error) {
+	observer, ok := b.Backend.(backend.HarnessTaskResultImageObserver)
+	if !ok {
+		return "", backend.ErrUnsupported
+	}
+	return observer.ObserveHarnessTaskResultImage(ctx, reference, harness)
+}
+func TestCodexOnlyImageCannotEnableOtherHarnessContracts(t *testing.T) {
+	a := &API{deps: Deps{Backend: &changedTerminalImage{id: "sha256:" + strings.Repeat("a", 64)}}}
+	for _, h := range []string{"claude-code", "opencode"} {
+		if _, err := a.taskTerminalHarnessImage(context.Background(), "image", h); err == nil {
+			t.Fatal("Codex capability silently used for", h)
+		}
+	}
+}

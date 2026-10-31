@@ -10,7 +10,7 @@ const recordLimit = 128 * 1024, totalLimit = 2 * 1024 * 1024, recordCountLimit =
 export interface ComposerDraft { message: string; replyTo: string; updatedAt: number; slot: string }
 export interface PendingComposerRequest { request: OrchestratorRequest; createdAt: number }
 export interface ComposerRecovery { draft: ComposerDraft | null; pending: PendingComposerRequest[]; error: string }
-function recoveryScope(scope: string): string {
+export function recoveryScope(scope: string): string {
   try {
     const parts: unknown = JSON.parse(scope);
     if (!Array.isArray(parts) || parts.length !== 8 || !parts.every(part => typeof part === "string")) return scope;
