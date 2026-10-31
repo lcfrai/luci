@@ -13,6 +13,9 @@ import (
 var environmentName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,127}$`)
 
 func validateServiceRuntime(service *Service, field string, decision func(string, string, string)) error {
+	if err := validateImagePullSecrets(service); err != nil {
+		return err
+	}
 	if service.DeploymentStrategy != "" && service.DeploymentStrategy != "recreate" {
 		return fmt.Errorf("unknown deployment strategy")
 	}
@@ -97,15 +100,22 @@ func validateServiceRuntime(service *Service, field string, decision func(string
 func RuntimeReferenceCount(blueprint Blueprint) int {
 	seen := map[string]bool{}
 	for _, service := range blueprint.Services {
-		for name := range TelemetrySecretKeys(service) {
+		for name := range ServiceSecretKeys(service) {
 			seen["secret/"+name] = true
 		}
 		if service.Model != nil {
 			seen["persistent-volume-claim/"+service.Model.ClaimName] = true
 		}
+		if service.TelemetryStorage != nil {
+			seen["persistent-volume-claim/"+service.TelemetryStorage.ClaimName] = true
+		}
 		for _, ref := range service.Environment {
 			seen[ref.Kind+"/"+ref.ResourceName] = true
 		}
+	}
+	if blueprint.PublicRoute != nil {
+		seen["secret/"+blueprint.PublicRoute.TLSSecretName] = true
+		seen["ingress-class/"+blueprint.PublicRoute.IngressClassName] = true
 	}
 	return len(seen)
 }

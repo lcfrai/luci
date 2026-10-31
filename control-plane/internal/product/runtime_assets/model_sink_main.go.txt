@@ -1,0 +1,97 @@
+// Fixed controller-built, non-agent model transfer helper. Standard library only.
+package main
+
+import (
+ "context"
+ "crypto/sha256"
+ "crypto/subtle"
+ "encoding/hex"
+ "encoding/json"
+ "errors"
+ "io"
+ "log"
+ "net"
+ "net/http"
+ "os"
+ "path"
+ "strconv"
+ "strings"
+ "sync/atomic"
+ "time"
+)
+
+type receipt struct {
+ Protocol int `json:"protocol"`
+ PreparationID string `json:"preparationId"`
+ OperationID string `json:"operationId"`
+ PVCUID string `json:"pvcUid"`
+ Path string `json:"path"`
+ Bytes int64 `json:"bytes"`
+ SHA256 string `json:"sha256"`
+ State string `json:"state"`
+}
+func fixedFailure(){_,_=io.WriteString(os.Stderr,"The original bounded model transfer did not complete.\n")}
+func validPath(v string)bool{
+ if v=="" || len(v)>240 || path.IsAbs(v) || path.Clean(v)!=v || strings.ContainsAny(v,"\\:\x00\r\n"){return false}
+ for _,part:=range strings.Split(v,"/"){if part==".." || part=="." || strings.HasPrefix(part,"."){return false}};return true
+}
+func termination(raw []byte)error{
+ info,err:=os.Lstat("/dev/termination-log");if err!=nil || !info.Mode().IsRegular(){return errors.New("termination record unavailable")}
+ file,err:=os.OpenFile("/dev/termination-log",os.O_WRONLY|os.O_TRUNC,0600);if err!=nil{return err}
+ after,err:=file.Stat();if err!=nil || !os.SameFile(info,after){_ = file.Close();return errors.New("termination identity changed")}
+ _,err=file.Write(raw);if err==nil{err=file.Sync()};closeErr:=file.Close();if err!=nil{return err};return closeErr
+}
+func run()int{
+ expected,err:=strconv.ParseInt(os.Getenv("LUCI_TRANSFER_BYTES"),10,64)
+ wantHash,key,relative:=os.Getenv("LUCI_TRANSFER_SHA256"),os.Getenv("LUCI_TRANSFER_KEY"),os.Getenv("LUCI_TRANSFER_PATH")
+ keyBytes,keyErr:=hex.DecodeString(key);hashBytes,hashErr:=hex.DecodeString(wantHash)
+ if err!=nil || expected<1 || expected>8<<30 || keyErr!=nil || len(keyBytes)!=32 || len(key)!=64 || hashErr!=nil || len(hashBytes)!=32 || len(wantHash)!=64 || !validPath(relative){return 1}
+ preparation,operation,pvc:=os.Getenv("LUCI_PREPARATION_ID"),os.Getenv("LUCI_OPERATION_ID"),os.Getenv("LUCI_PVC_UID")
+ if preparation=="" || operation=="" || pvc=="" || len(preparation)>128 || len(operation)>128 || len(pvc)>128{return 1}
+ root,err:=os.OpenRoot("/model");if err!=nil{return 1};defer root.Close()
+ _=os.Unsetenv("LUCI_TRANSFER_KEY")
+ done:=make(chan int,1);var used atomic.Bool
+ mux:=http.NewServeMux()
+ mux.HandleFunc("GET /readyz",func(w http.ResponseWriter,r *http.Request){w.Header().Set("Cache-Control","no-store");w.WriteHeader(200)})
+ mux.HandleFunc("POST /upload",func(w http.ResponseWriter,r *http.Request){
+  if r.URL.RawQuery!="" || r.Header.Get("Content-Type")!="application/octet-stream"{w.WriteHeader(400);return}
+  prefix:=make([]byte,65)
+  if _,err:=io.ReadFull(r.Body,prefix);err!=nil || prefix[64]!='\n' || subtle.ConstantTimeCompare(prefix[:64],[]byte(key))!=1{w.WriteHeader(403);return}
+  if !used.CompareAndSwap(false,true){w.WriteHeader(409);return}
+  result:=1
+  defer func(){select{case done<-result:default:}}()
+  // Only this new owned volume is supported. Rooted path APIs prevent an
+  // escape; ordinary ancestors and O_EXCL refuse symlink/overwrite adoption.
+  parts:=strings.Split(relative,"/")
+  for i:=1;i<len(parts);i++{
+   dir:=strings.Join(parts[:i],"/");info,err:=root.Lstat(dir)
+   if errors.Is(err,os.ErrNotExist){if err=root.Mkdir(dir,0750);err!=nil{w.WriteHeader(409);return};parentDir,openErr:=root.Open(path.Dir(dir));if openErr!=nil{w.WriteHeader(500);return};syncErr:=parentDir.Sync();closeErr:=parentDir.Close();if syncErr!=nil || closeErr!=nil{w.WriteHeader(500);return};info,err=root.Lstat(dir)}
+   if err!=nil || !info.IsDir() || info.Mode()&os.ModeSymlink!=0{w.WriteHeader(409);return}
+  }
+  file,err:=root.OpenFile(relative,os.O_CREATE|os.O_EXCL|os.O_WRONLY,0640);if err!=nil{w.WriteHeader(409);return}
+  hash:=sha256.New();count,copyErr:=io.CopyBuffer(io.MultiWriter(file,hash),io.LimitReader(r.Body,expected+1),make([]byte,64<<10))
+  syncErr:=file.Sync();closeErr:=file.Close()
+  if copyErr!=nil || count!=expected || hex.EncodeToString(hash.Sum(nil))!=wantHash || syncErr!=nil || closeErr!=nil{w.WriteHeader(422);return}
+  parent:=".";if len(parts)>1{parent=strings.Join(parts[:len(parts)-1],"/")}
+  dir,err:=root.Open(parent);if err!=nil{w.WriteHeader(500);return};syncErr=dir.Sync();closeErr=dir.Close();if syncErr!=nil || closeErr!=nil{w.WriteHeader(500);return}
+  value:=receipt{Protocol:1,PreparationID:preparation,OperationID:operation,PVCUID:pvc,Path:relative,Bytes:count,SHA256:wantHash,State:"stored-reported"}
+  raw,err:=json.Marshal(value);if err!=nil || len(raw)>2048 || termination(append(raw,'\n'))!=nil{w.WriteHeader(500);return}
+  w.Header().Set("Content-Type","application/json");w.Header().Set("Cache-Control","no-store")
+  if _,err=w.Write(append(raw,'\n'));err!=nil{return}
+  if flush,ok:=w.(http.Flusher);ok{flush.Flush()};result=0
+ })
+ server:=&http.Server{Handler:mux,ReadHeaderTimeout:5*time.Second,ReadTimeout:20*time.Minute,WriteTimeout:20*time.Minute,IdleTimeout:5*time.Second,MaxHeaderBytes:4096,ErrorLog:log.New(io.Discard,"",0)}
+ server.SetKeepAlivesEnabled(false)
+ listener,err:=net.Listen("tcp",":9090");if err!=nil{return 1}
+ settled:=make(chan error,1);go func(){settled<-server.Serve(listener)}()
+ timer:=time.NewTimer(20*time.Minute);defer timer.Stop()
+ select{
+ case result:=<-done:
+  closeCtx,cancel:=context.WithTimeout(context.Background(),5*time.Second);err:=server.Shutdown(closeCtx);cancel()
+  if err!=nil{_ = server.Close();return 1}
+  if serveErr:=<-settled;!errors.Is(serveErr,http.ErrServerClosed){return 1};return result
+ case <-timer.C:_ = server.Close();<-settled;return 1
+ case <-settled:_ = server.Close();return 1
+ }
+}
+func main(){code:=run();if code!=0{fixedFailure()};os.Exit(code)}

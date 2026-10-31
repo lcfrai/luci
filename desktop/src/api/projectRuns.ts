@@ -88,7 +88,7 @@ export interface ProjectRun {
     implementation: ImplementationContext; approvals: RunApprovals; outcome: 'preview' | 'publish';
     requirements: RunRequirement[];
     route: {
-      harness: string; model: string; permissionMode: PermissionMode; effort?: string; executionLocation?: 'cloud-microvm';
+      harness: string; model: string; permissionMode: PermissionMode; effort?: string; executionLocation?: 'cloud-microvm'; cloudHostIds?:string[];cloudPoolDigest?:string;
       nativeDelegation?: 'codex-native-helpers-2-v1'; nativeDelegationImage?: string;
       connection: { id?: string; kind: string; protocol?: string; model?: string; endpoint?: string; authMode?: string; revision: number; openCodeService?: AgentConnectionOpenCodeService };
     };
@@ -114,7 +114,7 @@ export interface ProjectRun {
 }
 export interface CreateProjectRun {
   idempotencyKey: string; worktreeId: string; harness: string; model: string; permissionMode: PermissionMode;
-  effort?: string; executionLocation?: 'cloud-microvm'; agentConnectionId?: string; outcome: 'preview' | 'publish'; implementationContext: ImplementationContextRequest;
+  effort?: string; executionLocation?: 'cloud-microvm'; cloudHostIds?:string[];cloudPoolDigest?:string; agentConnectionId?: string; outcome: 'preview' | 'publish'; implementationContext: ImplementationContextRequest;
   orchestrationContract?: OrchestrationContractReference;
   nativeDelegation?: 'codex-native-helpers-2-v1';
 }
@@ -124,7 +124,13 @@ export function validNativeDelegation(value: unknown): boolean {
   return value === undefined || value === '' || value === CODEX_NATIVE_HELPERS;
 }
 /** Captured identity only; neither a digest nor a profile establishes readiness. */
-export function validNativeDelegationRoute(route: {harness?: string; permissionMode?: string; executionLocation?: string; nativeDelegation?: unknown; nativeDelegationImage?: unknown}): boolean {
+export function validCloudHostRoute(route:{executionLocation?:string;cloudHostIds?:unknown;cloudPoolDigest?:unknown}):boolean{
+ const ids=route.cloudHostIds;
+ if(ids===undefined||Array.isArray(ids)&&ids.length===0)return route.cloudPoolDigest===undefined||route.cloudPoolDigest==='';
+ return route.executionLocation==='cloud-microvm'&&Array.isArray(ids)&&ids.length<=8&&new Set(ids).size===ids.length&&ids.every(id=>typeof id==='string'&&/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(id))&&typeof route.cloudPoolDigest==='string'&&/^[a-f0-9]{64}$/.test(route.cloudPoolDigest);
+}
+export function validNativeDelegationRoute(route: {harness?: string; permissionMode?: string; executionLocation?: string; nativeDelegation?: unknown; nativeDelegationImage?: unknown;cloudHostIds?:unknown;cloudPoolDigest?:unknown}): boolean {
+  if(!validCloudHostRoute(route))return false;
   const profile = route.nativeDelegation, image = route.nativeDelegationImage;
   if (profile === undefined || profile === '') return image === undefined || image === '';
   if (profile !== CODEX_NATIVE_HELPERS || route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation && route.executionLocation !== 'local-docker' || typeof image !== 'string' || image.length > 330) return false;
@@ -180,6 +186,7 @@ export const projectRunsApi = {
   async create(project: string, input: CreateProjectRun) {
     const result = await productApi.request<{ run: ProjectRun }>(path(project), input);
     const run = owned(project, result.run);
+    if ((run.input.route.cloudPoolDigest??'')!==(input.cloudPoolDigest??'')||JSON.stringify([...(run.input.route.cloudHostIds??[])].sort())!==JSON.stringify([...(input.cloudHostIds??[])].sort())) throw new Error('The saved run cloud host selection differs from the reviewed request. Read its original outcome before continuing.');
     if ((run.input.route?.nativeDelegation ?? '') !== (input.nativeDelegation ?? '')) throw new Error('The saved run native-helper profile differs from the exact request. Read its retained outcome before continuing.');
     return run;
   },

@@ -435,3 +435,16 @@ it('honors parent invalidation before new storage props have rendered', async ()
   expect(receive).toHaveBeenCalledWith(ready,0);
   expect(client.check).toHaveBeenCalledOnce();expect(client.installRuntime).not.toHaveBeenCalled();
 });
+
+ it("offers an explicit source upgrade without automatically reinstalling an incompatible runtime", async () => {
+  const incompatible = {...ready, checks: ready.checks.map(item => item.id === 'sandbox-image' ? {...item, preparationMode: 'advanced-build', message: 'Installed image needs an upgrade'} : item)} as SetupStatus;
+  const installRuntime=vi.fn().mockResolvedValue({status:'installing',message:'Current runtime build accepted'});
+  const client={check:vi.fn().mockResolvedValue(incompatible),runtime:vi.fn().mockResolvedValue({status:'idle'}),installRuntime} as unknown as ProductClient;
+  render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
+  const upgrade=await screen.findByRole('button',{name:'Build current agent runtime'});
+  await waitFor(()=>expect(upgrade).toHaveProperty('disabled',false));
+  expect(installRuntime).not.toHaveBeenCalled();
+  expect(screen.getByText(/This downloads Linux base images and pinned tools/)).not.toBeNull();
+  await userEvent.click(upgrade);
+  expect(installRuntime).toHaveBeenCalledExactlyOnceWith('advanced-build');
+ });

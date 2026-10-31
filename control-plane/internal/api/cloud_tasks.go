@@ -21,6 +21,7 @@ import (
 // AttachKey stays on the durable Luci controller, never in a task archive or
 // VM journal. It derives the same per-attempt bearer across API restarts.
 type CloudTaskRuntime struct {
+	Pool                *CloudTaskPool
 	Runtime             *e2bbe.TaskRuntime
 	AttachKey           []byte
 	MaxSeconds          int
@@ -86,19 +87,37 @@ func (a *API) cloudRecord(projectID, runID, operationID, childID string) (e2bbe.
 	if a.deps.CloudTasks == nil {
 		return e2bbe.Record{}, false
 	}
-	rows, _ := a.deps.CloudTasks.Runtime.Controller.Snapshot()
+	cloud, err := a.cloudAttemptRuntime(projectID, runID, operationID, childID)
+	if err != nil {
+		return e2bbe.Record{}, false
+	}
+	rows, _ := cloud.Runtime.Controller.Snapshot()
 	for _, row := range rows {
 		i := row.Request.Identity
 		if i.OperationID == childID && i.ProjectID == projectID && i.RunID == runID && i.AttemptID == operationID &&
-			i.OwnerID == a.deps.CloudTasks.Runtime.Controller.OwnerID() {
+			i.OwnerID == cloud.Runtime.Controller.OwnerID() {
 			return row, true
 		}
 	}
 	return e2bbe.Record{}, false
 }
 
-func (a *API) cloudRetired(_ context.Context, projectID, runID, operationID, childID string) (bool, error) {
+func (a *API) cloudRetired(ctx context.Context, projectID, runID, operationID, childID string) (bool, error) {
 	row, ok := a.cloudRecord(projectID, runID, operationID, childID)
+	if !ok && a.deps.CloudTasks != nil && a.deps.CloudTasks.Pool != nil {
+		run, err := a.deps.Product.GetProjectSwarmRun(projectID, runID)
+		if err != nil {
+			return false, err
+		}
+		for _, op := range run.Operations {
+			if op.ID == operationID && op.ChildID == childID && (run.State == "cancelled" || op.Status == "cancelled") {
+				if ctx.Err() != nil {
+					return false, ctx.Err()
+				}
+				return a.deps.CloudTasks.Pool.neverMaterialized(projectID, runID, operationID, childID, op.CreatedAt, true)
+			}
+		}
+	}
 	return ok && row.State == e2bbe.Absent && !row.ResourcesHeld, nil
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { approvedContractReference, orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
 import { swarmParallelLimitIssue } from '../../api/projectSwarm';
-import { validNativeDelegation, validNativeDelegationRoute } from '../../api/projectRuns';
+import { validNativeDelegation, validNativeDelegationRoute,validCloudHostRoute } from '../../api/projectRuns';
 import { errorText } from '../../api/product';
 import { effectiveAutomaticRepairLimit } from '../../api/coordinatorPolicy';
 import { Button } from '../fluid/components/button';
@@ -32,17 +32,17 @@ export function readContractReview(scope: string | null, projectId: string, acto
       !['local-docker', 'cloud-microvm'].includes(route.executionLocation) || !['preview', 'publish'].includes(request.outcome) ||
       !text(request.worktreeId, 256) || !request.worktreeId || !text(route.model, 512) || route.effort !== undefined && !text(route.effort, 64) ||
       route.agentConnectionId !== undefined && !text(route.agentConnectionId, 256) || value.contractId !== undefined && !text(value.contractId, 256) ||
-      !validNativeDelegation(route.nativeDelegation) || route.nativeDelegation && (route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation !== 'local-docker') ||
+      !validCloudHostRoute(route) || !validNativeDelegation(route.nativeDelegation) || route.nativeDelegation && (route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation !== 'local-docker') ||
       ![context.briefRevision, context.planRevision, context.specificationRevision, context.designPlanRevision].every(x => Number.isSafeInteger(x) && x > 0) ||
       !Array.isArray(context.taskIds) || context.taskIds.length < 1 || context.taskIds.length > 200 || context.taskIds.some(x => !text(x, 256) || !x) ||
       value.continuation !== undefined && (value.continuation.idempotencyKey !== value.runKey || value.continuation.run?.implementationContext?.projectId !== projectId || value.continuation.run?.orchestrationContract !== undefined ||
         value.continuation.run?.worktreeId !== request.worktreeId || value.continuation.run?.harness !== route.harness || value.continuation.run?.model !== route.model || value.continuation.run?.permissionMode !== route.permissionMode || value.continuation.run?.outcome !== request.outcome ||
-        !validNativeDelegation(value.continuation.run?.nativeDelegation) || (value.continuation.run?.nativeDelegation ?? '') !== (route.nativeDelegation ?? '') || Object.keys(value.continuation.run).includes('nativeDelegationImage') ||
+        !validCloudHostRoute(value.continuation.run) || value.continuation.run?.cloudPoolDigest!==route.cloudPoolDigest || JSON.stringify([...(value.continuation.run?.cloudHostIds??[])].sort())!==JSON.stringify([...(route.cloudHostIds??[])].sort()) || !validNativeDelegation(value.continuation.run?.nativeDelegation) || (value.continuation.run?.nativeDelegation ?? '') !== (route.nativeDelegation ?? '') || Object.keys(value.continuation.run).includes('nativeDelegationImage') ||
         JSON.stringify(value.continuation.run?.implementationContext) !== JSON.stringify(context)) ||
       value.acceptedEventId !== undefined && (!/^coord-event-[a-zA-Z0-9_-]+$/.test(value.acceptedEventId) || value.continuation !== undefined) ||
       !fields(value, ['version', 'projectId', 'actorId', 'request', 'runKey', 'contractId', 'continuation', 'acceptedEventId']) ||
       !fields(request, ['idempotencyKey', 'worktreeId', 'implementationContext', 'route', 'outcome']) ||
-      !fields(route, ['harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId', 'nativeDelegation']) ||
+      !fields(route, ['harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'cloudHostIds', 'cloudPoolDigest', 'agentConnectionId', 'nativeDelegation']) ||
       !fields(context, ['projectId', 'briefRevision', 'planRevision', 'specificationRevision', 'designPlanRevision', 'taskIds'])) {
     throw new Error('The retained execution contract request could not be verified.');
   }
@@ -121,7 +121,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
   function own(value: OrchestrationContractView) {
     if (value.contract.actor.id !== actorId) throw new Error('This execution contract belongs to another person. Refresh the workspace.');
     const route = value.contract.input.route;
-    if (!validNativeDelegationRoute(route) || (route.nativeDelegation ?? '') !== (pending.request.route.nativeDelegation ?? '') ||
+    if (!validNativeDelegationRoute(route) || (route.cloudPoolDigest??'')!==(pending.request.route.cloudPoolDigest??'') || JSON.stringify([...(route.cloudHostIds??[])].sort())!==JSON.stringify([...(pending.request.route.cloudHostIds??[])].sort()) || (route.nativeDelegation ?? '') !== (pending.request.route.nativeDelegation ?? '') ||
         view && (route.nativeDelegationImage ?? '') !== (view.contract.input.route.nativeDelegationImage ?? '')) throw new Error('The captured native-helper profile or image changed. Review the exact inputs before approving.');
     return value;
   }
@@ -199,6 +199,7 @@ export function ExecutionContractReview({ pending, initialView, scope, actorId, 
       <p role={view.freshness.status === 'current' ? undefined : 'status'}><strong>{view.freshness.status === 'current' ? 'Current context and policy' : 'Context needs reconciliation'}</strong>{view.freshness.reason && ` · ${view.freshness.reason}`}</p>
       <dl><dt>Design and definition</dt><dd>Design {c!.input.implementation.designPlanRevision} · Definition {c!.input.implementation.specificationRevision} · Plan {c!.input.implementation.planRevision}</dd>
         <dt>Upstream route</dt><dd>{c!.input.route.harness} · {c!.input.route.model || 'configured model'} · {c!.input.route.permissionMode} · {pending.request.route.executionLocation === 'local-docker' ? 'isolated Docker on this computer' : 'configured isolated cloud microVM'}</dd>
+        {pending.request.route.executionLocation === 'cloud-microvm' && <><dt>Allowed cloud hosts</dt><dd>{c!.input.route.cloudHostIds?.join(', ')||'Existing default host only'}. Each attempt stays on its originally selected host; unavailable originals are held for recovery.</dd></>}
         {c!.input.route.nativeDelegation && <><dt>Native coding helpers</dt><dd>{c!.input.route.nativeDelegation} · Captured image: <code>{c!.input.route.nativeDelegationImage}</code>. Each coding task has one parent with at most two concurrent helpers, sharing its worktree and permissions. Luci observes the parent containment and status; individual helper activity is not fully tracked. Helpers do not replace the required separate Luci reviewer, and review or repair tasks receive no helper grant. This profile does not establish current image or account readiness.</dd></>}
         <dt>Intended result</dt><dd>{c!.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment, subject to separate authority'}</dd>
         <dt>Automatic repairs per coding task</dt><dd>{effectiveAutomaticRepairLimit(c!.input.controls.automaticRepairLimit)} · {effectiveAutomaticRepairLimit(c!.input.controls.automaticRepairLimit) === 0 ? 'Stop after the first failed independent review.' : 'Maximum repair reservations in this approved run.'}{c!.input.controls.automaticRepairLimit === undefined && ' Retained contract uses the legacy default of two.'} Initial coding and independent review are separate; a repaired candidate still requires a final independent review. Cancelled or uncertain repair reservations remain consumed.</dd>

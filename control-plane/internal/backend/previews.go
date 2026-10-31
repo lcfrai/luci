@@ -29,6 +29,8 @@ type PreviewIdentity struct {
 }
 
 type PreviewSpec struct {
+	// Optional controller-selected build target; legacy empty remains native.
+	Platform        string
 	Identity        PreviewIdentity
 	Kind            string
 	Resources       Resources

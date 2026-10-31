@@ -55,6 +55,16 @@ func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Se
 	if len(children) != 1 || !sameTaskCompletionGeneration(children[0], observed) || !projectRunSessionBindingMatches(run, *op, children[0]) {
 		return false, ErrProjectRunConflict
 	}
+	if observed.HasTaskContainerResult() {
+		run, err = s.projectRuns.RecordTaskRuntimeTiming(p.ID, p.Path, run.ID, run.Revision, observed)
+		if err != nil {
+			return false, err
+		}
+		op = swarmOperation(&run, observed.ProjectRunOperationID)
+		if op == nil {
+			return false, ErrProjectRunConflict
+		}
+	}
 	if observed.HasTaskContainerResult() && !observed.TaskTerminalResult.NormalZero {
 		// This is original allocation failure evidence, not an absent model report
 		// or an invented child signal. No successful handoff is needed to finish

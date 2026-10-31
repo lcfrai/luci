@@ -16,13 +16,14 @@ var errAzureBlueprint = errors.New("The blueprint, current project context, sele
 // Only the server creates this binding. Client digests are equality checks,
 // never actor/grant assertions. Optional absence preserves legacy CloudPlan JSON.
 type AzureBlueprintBinding struct {
-	Cluster       *AzureClusterBinding                  `json:"cluster,omitempty"`
-	Version       int                                   `json:"version"`
-	Request       deploymentplan.AzureFoundationRequest `json:"request"`
-	Actor         management.ExecutionActorRef          `json:"actor"`
-	ContextDigest string                                `json:"contextDigest"`
-	Fit           deploymentplan.AzureFoundationFit     `json:"fit"`
-	PlanDigest    string                                `json:"planDigest"`
+	TelemetryStorage *AzureTelemetryStorageBinding         `json:"telemetryStorage,omitempty"`
+	Cluster          *AzureClusterBinding                  `json:"cluster,omitempty"`
+	Version          int                                   `json:"version"`
+	Request          deploymentplan.AzureFoundationRequest `json:"request"`
+	Actor            management.ExecutionActorRef          `json:"actor"`
+	ContextDigest    string                                `json:"contextDigest"`
+	Fit              deploymentplan.AzureFoundationFit     `json:"fit"`
+	PlanDigest       string                                `json:"planDigest"`
 }
 
 func foundationPlanDigest(plan CloudPlan) string {
@@ -40,11 +41,17 @@ func validFoundationPlan(plan CloudPlan) bool {
 	if b == nil {
 		return true
 	}
+	if b.Cluster != nil && b.TelemetryStorage != nil {
+		return false
+	}
 	if b.Version != 1 || plan.Provider != "azure" || b.Actor.Local || b.Actor.UserID == "" || b.Actor.ProjectID != b.Request.Blueprint.ProjectID || !hexDigest(b.ContextDigest) || !hexDigest(b.PlanDigest) || b.PlanDigest != foundationPlanDigest(plan) {
 		return false
 	}
 	if b.Cluster != nil {
 		return validAzureClusterPlan(plan)
+	}
+	if b.TelemetryStorage != nil {
+		return validTelemetryStorageCloudPlan(plan)
 	}
 	if plan.Kind != "" {
 		return false
@@ -115,6 +122,9 @@ func (s *Server) foundationContextLocked(p project.Project, blueprint deployment
 }
 
 func (s *Server) prepareFoundationBinding(ctx context.Context, request CloudRequest) (*AzureBlueprintBinding, error) {
+	if request.TelemetryStorage != nil {
+		return s.prepareTelemetryStorageBinding(ctx, request)
+	}
 	if request.Cluster != nil {
 		return s.prepareAzureClusterBinding(ctx, request)
 	}
@@ -181,6 +191,9 @@ func (s *Server) authorizeFoundationPlan(ctx context.Context, plan CloudPlan, al
 	if b.Cluster != nil {
 		public, secrets = !b.Cluster.Fit.Spec.PrivateAPI, true
 	}
+	if b.TelemetryStorage != nil {
+		public, secrets = false, true
+	}
 	if _, err := s.foundationAuthorityProfile(ctx, b.Actor, allocate, plan.MonthlyBudgetUSD, public, secrets); err != nil {
 		return project.Project{}, err
 	}
@@ -203,6 +216,16 @@ func (s *Server) recheckFoundationContextLocked(p project.Project, plan CloudPla
 		latest := ledger.Revisions[len(ledger.Revisions)-1]
 		if latest.Revision != plan.Foundation.Cluster.BlueprintRevision || latest.Digest != plan.Foundation.Cluster.BlueprintDigest || latest.PlanDigest != plan.Foundation.Request.ExpectedBlueprintDigest {
 			return errAzureCluster
+		}
+	}
+	if b := plan.Foundation.TelemetryStorage; b != nil {
+		_, ledger, readErr := s.readDeploymentBlueprintLedger(p)
+		if readErr != nil || len(ledger.Revisions) == 0 {
+			return errAzureBlueprint
+		}
+		latest := ledger.Revisions[len(ledger.Revisions)-1]
+		if latest.Revision != b.BlueprintRevision || latest.Digest != b.BlueprintDigest || latest.PlanDigest != plan.Foundation.Request.ExpectedBlueprintDigest {
+			return errAzureBlueprint
 		}
 	}
 	return nil

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T04:38:14.660Z",
+  "updatedAt": "2026-10-31T07:34:53.671Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -37,11 +37,11 @@
         "desktop/src/components/definition/SpecificationStrategy.tsx"
       ],
       "remainingWork": [
-        "External research/source collection connector",
-        "Strategy findings into reviewed roadmap amendments"
+        "Compile and exercise public research/search → retained quoted evidence → ordinary model finding → reviewed roadmap amendment."
       ],
-      "currentBatch": "Typed customer/problem/alternatives/assumptions/evidence/success model in existing spec/CAS/history/context. UI reviewed; backend review and compile pending.",
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
+      "currentBatch": "Research V1 frozen; root review fixes for empty-source removal, content reversion dedupe, and research-draft preservation are being incorporated into V2. Private Brave search and public URL capture feed attributed exact quotes into existing strategy and ordinary replanning.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "implementationUpdate": "Public research/search and saved observation routing integrated; sources remain exact, untrusted evidence."
     },
     {
       "id": "L100-03",
@@ -105,9 +105,11 @@
         "state": "Source implemented; exact validation and remaining integration recorded in current plan"
       },
       "remainingWork": [
-        "Richer licence/provenance/tool metadata",
-        "Useful team-throughput integration"
-      ]
+        "Compile integrated immutable skill metadata and exercise specialist context assignment.",
+        "Useful specialist-team throughput and context usability testing."
+      ],
+      "currentBatch": "Optional immutable source URL/revision, licence declaration and expected tools source packet frozen for independent review. Metadata travels in existing captured task and bounded orchestrator context; no capability grants or installation.",
+      "implementationUpdate": "Immutable optional skill license/source/revision/tool metadata integrated; no implied tool grants."
     },
     {
       "id": "L100-07",
@@ -123,10 +125,11 @@
         "state": "Bounded saved-skill context, exact plan recommendations and separately reviewed task-skill save joined to existing orchestrator; focused checks pending"
       },
       "remainingWork": [
-        "Event-triggered outcome replanning",
-        "Specialist decomposition quality and useful parallel delivery",
-        "Shared review/repair/integration throughput"
-      ]
+        "Compile integrated saved research/feedback/metric/telemetry/selected-operations observation routing.",
+        "Specialist decomposition quality and useful parallel delivery testing."
+      ],
+      "currentSourceWork": "Existing event-driven finding dispatch, durable jobs/recovery and review/repair/integration continuation are connected source; the missing work is external saved-signal routing, not a replacement engine.",
+      "implementationUpdate": "Saved observations feed the existing finding/model/amendment loop with monotonic sequencing and original-outcome preservation."
     },
     {
       "id": "L100-08",
@@ -164,12 +167,17 @@
       "id": "L100-10",
       "stage": "Develop",
       "title": "Cloud swarm placement and lifecycle",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Cloud",
       "work": "Azure foundation/microVM source exists. Complete per-agent ownership, elastic placement, quota/backpressure, retained artifacts and host-loss reconciliation.",
       "dependsOn": "L100-08,L100-09",
       "evidence": "",
-      "currentSourceWork": "Existing owned Allocate/Start/Finish/Retire, host-generation recovery and configured slot/spend backpressure traced. This is connected source; live cloud capacity/commissioning is unverified."
+      "currentSourceWork": "Existing owned Allocate/Start/Finish/Retire, host-generation recovery and configured slot/spend backpressure traced. This is connected source; live cloud capacity/commissioning is unverified.",
+      "remainingWork": [
+        "Compile/package and commission the explicitly configured host pool; exercise actual concurrent work and original recovery.",
+        "Automatic acquisition of additional cloud hosts is a separate unimplemented extension."
+      ],
+      "implementationUpdate": "Integrated independently reviewed multi-host selection and original placement, aggregate capacity/configured cumulative budget, current monthly actor/team budgets and original-host-only recovery through the existing scheduler. No host acquisition or live acceptance."
     },
     {
       "id": "L100-11",
@@ -217,8 +225,8 @@
       "remainingWork": [
         "Representative fairness/dependency/capacity usability and integration testing."
       ],
-      "currentBatch": "Explicit reviewed actor/team focus ceilings and exact accepted-upstream-run dependencies under implementation in the existing scheduler; existing priority-only path retained.",
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
+      "currentBatch": "Reviewed focus ceilings and accepted-upstream dependencies are integrated in committed 5c10d69d source.",
+      "currentBatchValidation": "API compiled and TypeScript passed at 5c10d69d; Vite later hit native allocator cap. No current-source product tests."
     },
     {
       "id": "L100-14",
@@ -236,7 +244,8 @@
       "remainingWork": [
         "Compile and exercise private portfolio conversation, archived history and explicit project handoffs across account/workspace changes."
       ],
-      "currentSourceWork": "Integrated: private cross-project conversation, selected context, explicit project handoff, archive/rollover/export, and recovery of reserved turns without jobs. Source peer-reviewed; current batch not compiled or tested."
+      "currentSourceWork": "Private conversation/history/recovery plus explicit reviewed discussion or work-request purpose now integrated. Work requests use the existing project orchestrator and current project authority; private history is not forwarded.",
+      "currentBatch": "Nine-file work-purpose handoff independently reviewed and integrated; uncompiled and untested new source."
     },
     {
       "id": "L100-15",
@@ -271,12 +280,13 @@
       "evidence": "",
       "progress": "Source implements closed explicit Kubernetes target credentials and namespace identity, actor-bound expiring review, Apply and Observe with durable unknown-outcome journal and exact owned UID/resourceVersion. Blueprint and current source/check/authority rechecked. Private ClusterIP workloads do not require public publishing authority. Image provenance remains user-supplied.",
       "remainingWork": [
-        "Automatic storage/secret, registry/image-build, GPU/plugin and DNS/TLS lifecycle beyond the current owned-cluster/existing-resource flow.",
-        "Actual authorized cloud/cluster journey and application health verification."
+        "Compile/package, then authorized cluster/application journey testing.",
+        "Additional automatic DNS/controller provisioning and non-Azure provider breadth remain explicit extensions."
       ],
-      "currentBatch": "Integrated owned fixed-CPU AKS creation, explicit scoped access grant, namespace creation/import, private Entra target and existing deployment handoff.",
+      "currentBatch": "Reviewed public HTTPS, image-first batch/UI, PVC/model/private TLS/pull-secret preparation and explicit original helper cleanup are integrated source.",
       "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
-      "currentSourceWork": "AKS V2 source integrated and independently reviewed, including returned-UID retention, interrupted-create explicit import recovery and sticky delete intent. No cloud effects or commissioning."
+      "currentSourceWork": "AKS V2 source integrated and independently reviewed, including returned-UID retention, interrupted-create explicit import recovery and sticky delete intent. No cloud effects or commissioning.",
+      "implementationUpdate": "Fixed Azure-managed GPU pool and original public Traefik HTTPS route integrated. Completed Develop work starts reviewed image publication before cluster selection; resource-only and image-plus-resource preparation use exact original source. No cloud/image/model effects performed. Owned durable telemetry, private query transport and optional reviewed Azure Blob commissioning are integrated."
     },
     {
       "id": "L100-17",
@@ -289,9 +299,9 @@
       "evidence": "",
       "currentSourceWork": "Integrated: health probes, Secret/ConfigMap references, existing model PVC bindings and exact owned-workload readiness observations. Source peer-reviewed; current batch not compiled or tested.",
       "remainingWork": [
-        "Commission the selected immutable inference image/model/PVC and validate actual capacity and readiness.",
-        "Automatic model acquisition, GPU-node/plugin and storage provisioning are not implemented by the current existing-resource path."
-      ]
+        "Compile and commission selected CPU/GPU capacity, owned model transfer, exact file permissions and actual inference readiness."
+      ],
+      "currentBatch": "Integrated bounded public-HTTPS single-file model transfer into owned PVC, fixed immutable helper image build, source hash/byte/EOF checks, original helper completion and explicit recovery cleanup. No actual model acquisition or cluster effect."
     },
     {
       "id": "L100-18",
@@ -304,9 +314,11 @@
       "evidence": "",
       "currentSourceWork": "Integrated typed Collector deployment/configuration, generated Node instrumentation adapter and dependencies, task handoff, and exact owned workload product-counter read/retention/export. V4 source independently reviewed; current batch uncompiled and untested.",
       "remainingWork": [
-        "Compile and commission the complete app instrumentation → Collector → configured destination flow.",
-        "Operational logs/traces query UI and authenticated provider-specific customer/revenue connectors remain beyond this counter/export implementation."
-      ]
+        "Compile and exercise app instrumentation to Collector to backend and original-workload logs/traces.",
+        "Authenticated provider-specific customer/revenue connectors remain additional integrations; aggregate import and feedback already exist."
+      ],
+      "currentBatch": "Owned Prometheus/Tempo, durable TSDB/WAL PVCs, Azure Blob handoff, private TLS, authenticated bounded queries and UI are integrated and independently source-reviewed. Exact three query dependencies acquired; no provider or telemetry runtime executed.",
+      "implementationUpdate": "Original workload logs/traces and selected outcomes connect to planning; owned production storage and private query paths now connect to the same saved deployment/resource flow."
     },
     {
       "id": "L100-19",
@@ -337,10 +349,10 @@
         "state": "Source implemented; exact validation and remaining integration recorded in current plan"
       },
       "remainingWork": [
-        "Creative strategy refinement",
-        "Launch publishing and feedback connectors"
+        "Compile and exercise normal-model strategy proposals, saved commercial plan, exact-source documents and feedback-driven reviewed amendments."
       ],
-      "currentSourceWork": "Integrated durable private GTM history continuation with exact global revisions/replay and bounded recovery from interrupted archive writes; lazy history/export preserves current drafts."
+      "currentSourceWork": "Integrated durable private GTM history continuation with exact global revisions/replay and bounded recovery from interrupted archive writes; lazy history/export preserves current drafts.",
+      "implementationUpdate": "Saved GTM strategies and ordinary model proposals feed exact-source go-to-market documents and feedback."
     },
     {
       "id": "L100-21",
@@ -356,10 +368,10 @@
         "state": "Exact commercial scenarios plus editable saved-GTM landing/brief/channel drafts joined; new asset checks pending"
       },
       "remainingWork": [
-        "Richer campaign creative generation",
-        "Authorized publishing",
-        "Customer/revenue feedback"
-      ]
+        "Compile and exercise pricing/GTM/support document generation, long-source projections, retained legacy artifacts and ordinary edits/exports.",
+        "Richer media-creative generation and further publication-provider integrations are additional unimplemented breadth; current release assets and GitHub publication exist."
+      ],
+      "implementationUpdate": "Pricing and support/FAQ drafts use saved commercial inputs; bounded projections disclose omissions and preserve legacy histories."
     },
     {
       "id": "L100-22",
@@ -416,11 +428,13 @@
       "evidence": "",
       "progress": "Lazy Home outcome summary joins retained accepted run/check/release records, existing queue waiting and deduplicated review/repair work. Current unconfirmed observations are separate from historical acceptance. Bounded history and unavailable evidence are explicit.",
       "remainingWork": [
-        "Actual elapsed work, cost and human-intervention instrumentation",
-        "Customer/product/revenue outcome feedback via L100-18 and L100-22",
-        "Representative usability and correctness testing"
+        "Compile integrated task-duration, accepted-control-action and operator-reconciled cost views; exercise missing-data and currency cases.",
+        "Exercise customer/product/revenue feedback through the integrated findings path.",
+        "Representative usability and correctness testing."
       ],
-      "currentBatchValidation": "Root and independent source review accepted; 4 Go, 3 UI and 2 API regression cases authored but unrun. No build/runtime evidence yet."
+      "currentBatchValidation": "Root and independent source review accepted; 4 Go, 3 UI and 2 API regression cases authored but unrun. No build/runtime evidence yet.",
+      "currentBatch": "Actual terminal-clock durations, explicit human actions and exact operator-reconciled cost receipts are being joined to existing outcome views. Estimates are not relabelled as actual charges.",
+      "implementationUpdate": "Task elapsed time, accepted control actions and operator-reconciled charges integrated; unknown remains unknown and no universal speedup is inferred."
     },
     {
       "id": "L100-26",
@@ -432,8 +446,8 @@
       "dependsOn": "L100-01,L100-12,L100-15",
       "evidence": "",
       "progress": {
-        "date": "2026-10-30",
-        "state": "Connected source prototypes and focused regression batches active"
+        "date": "2026-10-31",
+        "state": "Final autonomy/operations source integrated and reviewed; formatting and final joined compilation/packaging active. Product testing has not started."
       }
     },
     {
@@ -627,16 +641,105 @@
       "https://code.claude.com/docs/en/best-practices"
     ],
     "priority": "Implement missing integrated behavior; do not relabel prototypes as complete.",
-    "sourceCut": "2026-10-31 reviewed implementation across strategy, Design, appearance, focus, task completion/recovery, Kubernetes and outcomes. Compilation pending; no product testing.",
+    "sourceCut": "Committed 5c10d69d plus reviewed integrated source for personal work handoff, skill metadata, Kubernetes continuation, research/replanning, operational evidence, service packaging, commercial documents, multi-host placement, Azure-managed GPU pools, public HTTPS routes, image-first execution, owned PVC/model/private connections and runtime compatibility setup. Joined source is uncompiled and unpackaged. Owned production telemetry, private query TLS and optional Azure Blob commissioning are now integrated.",
     "currentBuild": {
-      "commit": "f3e5cb816b1ddb329722fe98fa122ac77ed48405",
-      "api": "4f64dca4 compiled",
-      "linuxWorker": "4f64dca4 compiled",
-      "frontend": "f3e5cb81 TypeScript and Vite compiled; only index artifact pinned at this intermediate step",
-      "qualification": "The f3e5 correction changes three test type annotations only. No new product tests or runtime/image activation. Installed 3bd01c06 candidate remains unchanged."
+      "commit": "5c10d69d9ac95430ab9f57827d82df744eec7a56",
+      "api": "Compiled successfully at 5c10d69d",
+      "linuxWorker": "Accepted 4f64dca4 worker compile; whole worker source unchanged through 5c10d69d",
+      "frontend": "TypeScript passed at 5c10d69d; Vite transformed 3155 modules then native allocator failed under process cap. No accepted final bundle.",
+      "qualification": "Next joined build uses one Rolldown runtime worker with unchanged limits. No product tests/runtime/image activation. Installed candidate remains 3bd01c06."
     },
     "activeImplementation": [
-      "Format, commit and compile the integrated source; collect complete web output; compile native wrapper and stage matching app/runtime-source package."
-    ]
+      "Format and compile the final joined source and exact embedded Linux model-transfer helper.",
+      "Collect the entire frontend and package the matching native/runtime source set.",
+      "Begin focused regressions and representative journeys after implementation readiness, under actual runtime authority."
+    ],
+    "integratedSourceReceipts": {
+      "personalWorkHandoff": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-personal-work-handoff-20261031/source-draft/root-integration-v1.json",
+        "bytes": 2866,
+        "sha256": "8a1bccb14fb4be79e4892574488a69126b8f31a77c72cc5df12f642b2fffb672"
+      },
+      "skillMetadata": {
+        "receipt": {
+          "path": "E:/Luci-local-acceptance/artifacts/l100-skill-metadata-20261031/source-draft/root-integration-v2.json",
+          "bytes": 3109,
+          "sha256": "8b68b6d2003db41d63f0f82b2239da831ab60e2aa080700740457c4a85de75e8"
+        },
+        "files": 10,
+        "paths": [
+          "control-plane/internal/product/skills.go",
+          "control-plane/internal/product/orchestrator_skills.go",
+          "desktop/src/api/projectSkills.ts",
+          "desktop/src/api/orchestratorSkills.ts",
+          "desktop/src/components/develop/ProjectSkills.tsx",
+          "control-plane/internal/product/skill_metadata.go",
+          "desktop/src/api/skillMetadata.ts",
+          "control-plane/internal/product/skill_metadata_test.go",
+          "desktop/src/api/skillMetadata.test.ts",
+          "desktop/src/components/develop/ProjectSkills.test.tsx"
+        ]
+      },
+      "coordinatorKubernetes": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-coordinator-kubernetes-20261031/source-draft/root-integration-v2.json",
+        "bytes": 8430,
+        "sha256": "7d70ebde219f830aedd920fa4cc47e172604239c0bbb9e7062c064efa20dcc7c"
+      },
+      "researchFindings": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-research-findings-20261031/source-draft/root-integration-v4.json",
+        "bytes": 14111,
+        "sha256": "8c15ac9abfbaffadc1cb61b38772a2ed81721e373a1736351697561f31ca78e0"
+      },
+      "operationsOutcomes": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-operations-outcomes-20261031/source-draft/root-integration-v2.json",
+        "bytes": 12404,
+        "sha256": "584e7f24dff55f847193cd4e4940a27173c01476e88cce8a97373771200e19cb"
+      },
+      "runtimePackaging": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-runtime-prerequisites-20261031/source-draft/root-integration-v2.json",
+        "bytes": 14713,
+        "sha256": "c1fd30119d9303eeef467a193b53bfae52c1caa26860a2c73fcfb1f38b1281ef"
+      },
+      "commercialDocuments": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-commercial-support-assets-20261031/source-draft/root-integration-v3.json",
+        "bytes": 4652,
+        "sha256": "5a5a691c531531e775c8394dcbac7880f0b00de79068fb64494859c9abb45b6f"
+      },
+      "cloudPlacement": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-cloud-placement-20261031/source-draft/root-integration-v1.json",
+        "bytes": 13048,
+        "sha256": "2e4a3c756359673416a5e8f1644c59bbf9f135b44474fc5f9109fa0bfedb73a2"
+      },
+      "managedGPU": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-aks-gpu-20261031/source-draft/root-integration-v3.json",
+        "bytes": 5644,
+        "sha256": "8d5d01cdb7ada57fc3370fe84f9c659d8d8aa6559dc51e3f3190b0c646ba4444"
+      },
+      "publicHTTPS": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-public-ingress-20261031/source-draft/root-integration-v1.json",
+        "bytes": 10990,
+        "sha256": "5e1a7d06e0931d96eafbe4a7cf165a20889d27d8c3b07c993244869dfa824407"
+      },
+      "imageAndResources": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-runtime-resources-20261031/source-draft/root-integration-v2.json",
+        "bytes": 22340,
+        "sha256": "e4cbbe61939fff5fd1479f0562b6a5cc69035f737a61dd1e6b7f0b7e33437fdd"
+      },
+      "runtimeReadiness": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-runtime-readiness-20261031/source-draft/root-integration-v1.json",
+        "bytes": 3763,
+        "sha256": "e57f4f037af9581a82c0deac5c583053b84b16ca12d5d09905613c608d3c383c"
+      },
+      "ownedTelemetry": {
+        "path": "E:/Luci-local-acceptance/artifacts/l100-owned-telemetry-20261031/source-draft/root-integration-v1.json",
+        "bytes": 24678,
+        "sha256": "357bf19a05ea1b49e4941ba7d18ac11125f6ecc618ac6319b3fee99e400c76c8"
+      }
+    },
+    "exactDependencies": {
+      "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/telemetry-module-acquisition-v2-root-actual-20261031.json",
+      "bytes": 6398,
+      "sha256": "8b7842bf60dda4bf73a81a893795212844e5e821b001f4be4dceba42a0a8d04d"
+    }
   }
 }

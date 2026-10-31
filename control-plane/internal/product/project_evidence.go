@@ -70,6 +70,7 @@ func snapshotProjectTasks(tasks []ProjectTask) []ProjectTask {
 		copy[i].DependsOn = append([]string(nil), copy[i].DependsOn...)
 		copy[i].WritePaths = append([]string(nil), copy[i].WritePaths...)
 		copy[i].Reuse = snapshotTaskReuse(copy[i].Reuse)
+		copy[i].RuntimePrerequisites = snapshotTaskRuntimePrerequisites(copy[i].RuntimePrerequisites)
 	}
 	return copy
 }

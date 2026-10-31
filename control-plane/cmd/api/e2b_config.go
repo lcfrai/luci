@@ -189,7 +189,7 @@ func cloudOperationEffectAuthorizer(projects cloudOperationContractReader, curre
 	}
 }
 
-func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Server, authorize management.ExecutionAuthorizer) (*api.CloudTaskRuntime, func(), error) {
+func openE2BTaskRuntimeSingle(ctx context.Context, cfg Config, projects *product.Server, authorize management.ExecutionAuthorizer, poolGuard func(context.Context, e2bbe.Request, int64) error) (*api.CloudTaskRuntime, func(), error) {
 	if cfg.E2BConfigPath == "" {
 		return nil, nil, nil
 	}
@@ -381,6 +381,12 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			limit := int64(math.Floor(current.Policy.MonthlyBudgetUSD * 1_000_000))
 			if !cloudActorMonthlyCostFits(rows, settled, request, time.Now().UTC(), limit) {
 				return management.ErrExecutionAuthority
+			}
+		}
+		if poolGuard != nil {
+			limit := int64(math.Floor(current.Policy.MonthlyBudgetUSD * 1_000_000))
+			if err := poolGuard(effectCtx, request, limit); err != nil {
+				return err
 			}
 		}
 		return nil

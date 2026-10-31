@@ -317,11 +317,12 @@ func TestDistributeArtifactCapacityRefusalDoesNotPrepareOrPersist(t *testing.T) 
 
 func TestDistributeArtifactKindsKeepDistinctEvidenceAndUnknowns(t *testing.T) {
 	_, h, id := controlTestHandler(t)
+	launchStrategyForTest(t, h, id, gtmFixtureContent()) // New Pricing creation binds saved GTM; the missing scenario remains explicit.
 	for _, tc := range []struct{ kind, section, gap string }{
 		{"risk", "risk-register", "No exact implementation-check"},
-		{"go-to-market", "launch-readiness", "No observed demand"},
+		{"go-to-market", "commercial-channels", "does not record a distribution owner"},
 		{"proposal", "scope", "No exact implementation-check"},
-		{"pricing", "commercial-basis", "A real price quote"},
+		{"pricing", "commercial-scenario", "no commercial scenario"},
 		{"presentation", "narrative", "No exact implementation-check"},
 	} {
 		response := controlTestRequest(t, h, "POST", "/v1/product/projects/"+id+"/distribute/artifacts/prepare", map[string]string{"kind": tc.kind}, 200)

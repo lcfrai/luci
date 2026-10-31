@@ -23,15 +23,16 @@ var domainPattern = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?
 func validDomain(v string) bool { return len(v) <= 253 && domainPattern.MatchString(v) }
 
 type CloudRequest struct {
-	Cluster          *deploymentplan.AzureClusterSpec       `json:"cluster,omitempty"`
-	Foundation       *deploymentplan.AzureFoundationRequest `json:"foundation,omitempty"`
-	Provider         string                                 `json:"provider"`
-	Name             string                                 `json:"name"`
-	Region           string                                 `json:"region"`
-	Domain           string                                 `json:"domain"`
-	Size             string                                 `json:"size"`
-	MonthlyBudgetUSD float64                                `json:"monthlyBudgetUsd"`
-	SSHPublicKey     string                                 `json:"sshPublicKey"`
+	TelemetryStorage *deploymentplan.AzureTelemetryStorageSpec `json:"telemetryStorage,omitempty"`
+	Cluster          *deploymentplan.AzureClusterSpec          `json:"cluster,omitempty"`
+	Foundation       *deploymentplan.AzureFoundationRequest    `json:"foundation,omitempty"`
+	Provider         string                                    `json:"provider"`
+	Name             string                                    `json:"name"`
+	Region           string                                    `json:"region"`
+	Domain           string                                    `json:"domain"`
+	Size             string                                    `json:"size"`
+	MonthlyBudgetUSD float64                                   `json:"monthlyBudgetUsd"`
+	SSHPublicKey     string                                    `json:"sshPublicKey"`
 }
 type Estimate struct {
 	Currency    string   `json:"currency"`
@@ -73,6 +74,9 @@ type CloudPlan struct {
 }
 
 func validateCloud(r CloudRequest) error {
+	if r.TelemetryStorage != nil {
+		return validateTelemetryStorageCloudRequest(r)
+	}
 	if r.Cluster != nil && (r.Provider != "azure" || r.Foundation == nil || r.Domain != "" || !azureSetupUUID.MatchString(r.Cluster.SubscriptionID) || !azureSetupUUID.MatchString(r.Cluster.TenantID)) {
 		return errAzureCluster
 	}
@@ -125,7 +129,9 @@ func (s *Server) handleCloudPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var plan CloudPlan
-	if binding != nil && binding.Cluster != nil {
+	if binding != nil && binding.TelemetryStorage != nil {
+		plan, err = s.buildTelemetryStorageCloudPlan(req, *binding)
+	} else if binding != nil && binding.Cluster != nil {
 		plan, err = s.buildAzureClusterCloudPlan(req, *binding)
 	} else {
 		plan, err = s.buildCloudPlan(r.Context(), req)

@@ -12,6 +12,9 @@ import (
 // cannot substitute another result or strand an already linked candidate.
 func (s *Server) continueCoordinatorPreview(ctx context.Context, p project.Project, row coordinatorContinuationRecord) (coordinatorContinuationRecord, error) {
 	if row.PreviewPlan == nil {
+		if row.KubernetesPlan != nil {
+			return s.continueCoordinatorKubernetes(ctx, p, row)
+		}
 		return row, nil
 	}
 	s.mu.Lock()

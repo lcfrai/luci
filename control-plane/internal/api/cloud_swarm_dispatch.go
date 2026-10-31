@@ -23,9 +23,15 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	unknown := func(code string) (product.SwarmDispatchResult, error) {
 		return product.SwarmDispatchResult{State: "unknown", SessionID: op.ChildID, ReasonCode: code, Message: "The cloud task's exact VM or upstream launch is unconfirmed. Its owned attempt is retained and will not be replayed."}, nil
 	}
-	cloud := a.deps.CloudTasks
-	if cloud == nil {
+	if a.deps.CloudTasks == nil {
 		return blocked("cloud_microvm_unavailable", "A verified cloud microVM execution service is not configured.")
+	}
+	cloud, selectedHost, selectionErr := a.chooseCloudRuntime(ctx, req, run, op)
+	if selectionErr != nil {
+		if errors.Is(selectionErr, e2bbe.ErrCapacity) {
+			return product.SwarmDispatchResult{State: "waiting", ReasonCode: "cloud_host_capacity", Message: "No approved cloud host has confirmed capacity. Existing attempts remain on their original hosts."}, nil
+		}
+		return unknown("cloud_original_host_unavailable")
 	}
 	remaining, _ := cloud.Runtime.Controller.ReconcileRestored(ctx, 8)
 	prior, found := a.cloudRecord(req.ProjectID, req.RunID, req.OperationID, op.ChildID)
@@ -98,8 +104,12 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 			return blocked("cloud_host_unavailable", "The selected microVM host's authenticated capacity could not be confirmed; no VM was started.")
 		}
 	}
+	maxSeconds := cloud.MaxSeconds
+	if pool := a.deps.CloudTasks.Pool; pool != nil && pool.config.Limits.MaxTaskSeconds < maxSeconds {
+		maxSeconds = pool.config.Limits.MaxTaskSeconds
+	}
 	input, err := a.deps.Product.BuildProjectSwarmMicroVMInput(ctx, req.ProjectID, req.RunID, op.ID,
-		cloud.Runtime.Controller.OwnerID(), cloud.MaxSeconds, cloud.EstimatedCostMicros)
+		cloud.Runtime.Controller.OwnerID(), maxSeconds, cloud.EstimatedCostMicros)
 	if err != nil {
 		return blocked("cloud_input_changed", "The reviewed Git source or task context changed before cloud allocation; no VM was started.")
 	}
@@ -127,6 +137,19 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	}
 	if err := a.deps.Product.CheckPortfolioFocusAdmission(ctx, req.QueueID); err != nil {
 		return blocked("portfolio_focus_waiting", "The applied focus ceiling or exact upstream acceptance no longer permits a new cloud start. The existing attempt remains retained.")
+	}
+	if pool := a.deps.CloudTasks.Pool; pool != nil {
+		authority, authorityErr := a.authorizeExecution(ctx, req.Actor, run.Input.Route.Harness, true)
+		if authorityErr != nil || !authority.Policy.AllowCloudProvisioning || authority.Policy.MonthlyBudgetUSD <= 0 || selectedHost == nil {
+			return blocked("cloud_policy_changed", "Current cloud execution and spending authority is required before reserving a host.")
+		}
+		budget := cloudPolicyBudget(authority.Policy.MonthlyBudgetUSD)
+		if _, err := pool.reserve(ctx, *selectedHost, req.QueueID, req.Actor, cloudPlacementDigest(run.Input), input.Request, budget); err != nil {
+			if errors.Is(err, e2bbe.ErrCapacity) {
+				return product.SwarmDispatchResult{State: "waiting", ReasonCode: "cloud_pool_capacity", Message: "The shared approved-host pool, project or current spending limit is full. No replacement VM was started."}, nil
+			}
+			return unknown("cloud_placement_unconfirmed")
+		}
 	}
 	started, err := cloud.Runtime.Start(ctx, input.Request, bytes.NewReader(input.Archive), launch)
 	if err != nil {
@@ -170,6 +193,28 @@ func (a *API) resumeCloudSwarm(ctx context.Context, req product.SwarmDispatchReq
 			continue
 		}
 		row, found := a.cloudRecord(req.ProjectID, req.RunID, op.ID, op.ChildID)
+		if !found && a.deps.CloudTasks != nil && a.deps.CloudTasks.Pool != nil {
+			pool := a.deps.CloudTasks.Pool
+			binding, bound, readErr := pool.binding(op.ChildID)
+			if readErr != nil {
+				return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_placement_unconfirmed"}, nil
+			}
+			if bound {
+				if binding.QueueID != req.QueueID || binding.Actor != req.Actor || binding.RunInputDigest != cloudPlacementDigest(run.Input) || binding.Retired {
+					return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_original_unconfirmed"}, nil
+				}
+				if _, err := pool.runtime(binding); err != nil {
+					return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_original_host_unavailable"}, nil
+				}
+			}
+			unmaterialized, lookupErr := pool.neverMaterialized(req.ProjectID, req.RunID, op.ID, op.ChildID, op.CreatedAt, false)
+			if lookupErr == nil && unmaterialized {
+				// Exact controller-journal absence plus the durable pool intent is
+				// proof Allocate has not materialized. No provider lookup or retry
+				// is used to infer absence. Ordinary dispatch rechecks the queue.
+				return a.dispatchQueuedSwarm(ctx, req)
+			}
+		}
 		if !found || row.State != e2bbe.Allocated || row.CancelRequested || row.LaunchRequested || !row.ResourcesHeld {
 			return product.SwarmDispatchResult{State: "unknown", ReasonCode: "cloud_resume_unconfirmed"}, nil
 		}

@@ -96,7 +96,7 @@ type distributeArtifactLedger struct {
 
 func validArtifactKind(kind string) bool {
 	switch kind {
-	case "risk", "go-to-market", "proposal", "pricing", "presentation", "landing-copy", "launch-brief", "channel-copy":
+	case "risk", "go-to-market", "proposal", "pricing", "presentation", "landing-copy", "launch-brief", "channel-copy", "support-guide":
 		return true
 	}
 	return false
@@ -165,7 +165,7 @@ func validArtifactSource(value DistributeArtifactSource) bool {
 	return true
 }
 func validArtifactContent(value DistributeArtifact) bool {
-	if launchArtifactKind(value.Kind) != (value.Source.GTMRevision > 0) {
+	if !validArtifactGTMSource(value.Kind, value.Source) {
 		return false
 	}
 	if !validArtifactKind(value.Kind) || !validArtifactSource(value.Source) || !validArtifactStoredText(value.Title) || strings.TrimSpace(value.Title) == "" || len(value.Title) > 200 || len(value.Sections) == 0 || len(value.Sections) > 40 || len(value.Gaps) > 100 || len(value.Assumptions) > 100 {
@@ -321,7 +321,7 @@ func generatedArtifactBase(kind, projectID string, source DistributeArtifactSour
 	add := func(id, heading, body string, bullets []string, refs ...string) {
 		value.Sections = append(value.Sections, DistributeArtifactSection{ID: id, Heading: heading, Body: body, Bullets: bullets, SourceRefs: refs})
 	}
-	value.Title = map[string]string{"risk": "Risk and evidence review", "go-to-market": "Go-to-market plan", "proposal": "Product proposal", "pricing": "Pricing evidence and assumptions", "presentation": "Project presentation", "landing-copy": "Landing-page copy", "launch-brief": "Launch brief", "channel-copy": "Channel or email copy"}[kind] + ": " + projectID
+	value.Title = map[string]string{"risk": "Risk and evidence review", "go-to-market": "Go-to-market plan", "proposal": "Product proposal", "pricing": "Pricing evidence and assumptions", "presentation": "Project presentation", "landing-copy": "Landing-page copy", "launch-brief": "Launch brief", "channel-copy": "Channel or email copy", "support-guide": "Support guide and FAQ"}[kind] + ": " + projectID
 	add("purpose", "Saved product purpose", brief.Purpose, []string{"Audience: " + brief.Audience, "Constraints: " + brief.Constraints}, fmt.Sprintf("brief:%d:%s", source.BriefRevision, source.BriefDigest))
 	if len(spec.Requirements) > 0 {
 		items := []string{}
@@ -598,7 +598,7 @@ func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request)
 			continue
 		}
 		freshness := artifactCurrentView(row, source)["freshness"]
-		if row.Source.SelectedEvidence != nil || launchArtifactKind(row.Kind) {
+		if row.Source.SelectedEvidence != nil || row.Source.GTMRevision > 0 {
 			freshness = "requires-readback"
 		}
 		rows = append(rows, map[string]any{"id": row.ID, "kind": row.Kind, "title": row.Title, "revision": row.Revision, "state": row.State, "freshness": freshness, "digest": row.Digest})
@@ -633,11 +633,7 @@ func (s *Server) getDistributeArtifact(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 403, "artifact_scope_changed", "Current team access does not cover this artifact.")
 		return
 	}
-	selectedRun := ""
-	if row.Source.SelectedEvidence != nil {
-		selectedRun = row.Source.SelectedEvidence.RunID
-	}
-	source, _, _, _, err := s.artifactSourceForKindLocked(r.Context(), p, row.Kind, selectedRun)
+	source, _, _, _, err := s.artifactSourceForRetainedLocked(r.Context(), p, row)
 	if err != nil {
 		journeyJSON(w, 200, map[string]any{"artifact": row, "history": record.Revisions, "freshness": "unavailable"})
 		return
@@ -695,11 +691,7 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 		return
 	}
 	prior := record.Revisions[len(record.Revisions)-1]
-	selectedRun := ""
-	if prior.Source.SelectedEvidence != nil {
-		selectedRun = prior.Source.SelectedEvidence.RunID
-	}
-	source, _, _, _, err := s.artifactSourceForKindLocked(r.Context(), p, prior.Kind, selectedRun)
+	source, _, _, _, err := s.artifactSourceForRetainedLocked(r.Context(), p, prior)
 	if err != nil {
 		artifactProblem(w, err)
 		return
@@ -790,11 +782,7 @@ func (s *Server) reviewDistributeArtifact(w http.ResponseWriter, r *http.Request
 		journeyError(w, 409, "artifact_already_reviewed", "This exact revision has already been reviewed.")
 		return
 	}
-	selectedRun := ""
-	if prior.Source.SelectedEvidence != nil {
-		selectedRun = prior.Source.SelectedEvidence.RunID
-	}
-	source, _, _, _, err := s.artifactSourceForKindLocked(r.Context(), p, prior.Kind, selectedRun)
+	source, _, _, _, err := s.artifactSourceForRetainedLocked(r.Context(), p, prior)
 	if err != nil {
 		artifactProblem(w, err)
 		return

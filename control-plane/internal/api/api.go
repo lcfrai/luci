@@ -89,6 +89,7 @@ type Deps struct {
 	AuthorizeExecution        management.ExecutionAuthorizer
 	FindingRecipients         management.ProjectRecipientLister
 	AuthorizeProjectRead      management.ProjectReadAuthorizer
+	AuthorizeResearch         management.ResearchAuthorizer
 	AuthorizeChecks           management.CheckAuthorizer
 	AuthorizeExecutionControl management.ExecutionControlAuthorizer
 	AuthorizeDeployment       management.DeploymentAuthorizer
@@ -468,6 +469,7 @@ func New(d Deps) (*API, error) {
 		d.Product.SetRuntimeResourceSnapshot(d.ResourceSnapshot)
 		a.deps.Product.SetExternalHandoffAuthorizer(a.authorizeExecutionRetirement)
 		d.Product.SetCoordinatorAuthorizer(a.authorizeExecutionRetirement)
+		d.Product.SetResearchAuthorizer(d.AuthorizeResearch)
 		d.Product.SetCoordinatorExecutionAuthorizer(a.authorizeCoordinatorExecution)
 		d.Product.SetCoordinatorDeploymentAuthorizer(a.authorizePreview)
 		d.Product.SetProjectFeedbackAuthorizer(a.authorizeProjectFeedback)
@@ -499,7 +501,22 @@ func New(d Deps) (*API, error) {
 			cloudRetired = a.cloudRetired
 			cloudRecoveryPending = func(projectID, runID, operationID, childID string) bool {
 				_, found := a.cloudRecord(projectID, runID, operationID, childID)
-				return found && d.CloudTasks.Runtime.Controller.RestoredPending(childID)
+				if !found {
+					if d.CloudTasks.Pool == nil {
+						return false
+					}
+					_, bound, err := d.CloudTasks.Pool.binding(childID)
+					if err != nil {
+						return true
+					}
+					if !bound {
+						return false
+					}
+					_, err = a.cloudAttemptRuntime(projectID, runID, operationID, childID)
+					return err != nil
+				}
+				cloud, err := a.cloudAttemptRuntime(projectID, runID, operationID, childID)
+				return err != nil || cloud.Runtime.Controller.RestoredPending(childID)
 			}
 		}
 		var resumeCloud func(context.Context, product.SwarmDispatchRequest) (product.SwarmDispatchResult, error)
@@ -541,6 +558,14 @@ func New(d Deps) (*API, error) {
 	guarded.HandleFunc("POST /v1/product/projects/{id}/azure-clusters/commissions/{commissionId}/access", a.handleAzureClusterCommission)
 	guarded.HandleFunc("POST /v1/product/projects/{id}/azure-clusters/commissions/{commissionId}/namespace", a.handleAzureClusterCommission)
 	guarded.HandleFunc("POST /v1/product/projects/{id}/azure-clusters/commissions/{commissionId}/observe", a.handleAzureClusterCommission)
+	guarded.HandleFunc("GET /v1/product/projects/{id}/kubernetes/targets/{targetId}/tempo-query", a.handleKubernetesOperations)
+	guarded.HandleFunc("PUT /v1/product/projects/{id}/kubernetes/targets/{targetId}/tempo-query", a.handleKubernetesOperations)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/operations/pods/read", a.handleKubernetesOperations)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/operations/logs/read", a.handleKubernetesOperations)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/operations/traces/read", a.handleKubernetesOperations)
+	guarded.HandleFunc("GET /v1/product/projects/{id}/kubernetes/operations/evidence/selected", a.handleKubernetesOperations)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/operations/evidence/selection/clear", a.handleKubernetesOperations)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/operations/evidence/{evidenceId}/selection", a.handleKubernetesOperations)
 	guarded.HandleFunc("GET /v1/product/projects/{id}/kubernetes/targets", a.handleKubernetesDeployment)
 	guarded.HandleFunc("PUT /v1/product/projects/{id}/kubernetes/targets", a.handleKubernetesDeployment)
 	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/targets/{targetId}/references/read", a.handleKubernetesDeployment)

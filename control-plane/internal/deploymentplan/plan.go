@@ -92,7 +92,7 @@ func Compile(input Blueprint) (Plan, error) {
 		decision("source.commit", "source-required", "Choose the exact application source revision.")
 	}
 	if b.Infrastructure.Reference == "" {
-		decision("infrastructure.reference", "existing-target-required", "Identify the existing target; provisioning is not implemented by this compiler.")
+		decision("infrastructure.reference", "existing-target-required", "Choose a connected target, or create and connect an Azure cluster before deploying.")
 	}
 	if b.Infrastructure.Kind != "kubernetes" {
 		decision("infrastructure.kind", "compiler-unavailable", "This prototype emits Kubernetes manifests only; existing Local/VM release paths remain separate.")
@@ -131,7 +131,7 @@ func Compile(input Blueprint) (Plan, error) {
 		if err := validateServiceRuntime(s, field, decision); err != nil {
 			return Plan{}, err
 		}
-		if !validName(s.ID) || (s.Kind != "app" && s.Kind != "inference" && s.Kind != "collector") {
+		if !validName(s.ID) || (s.Kind != "app" && s.Kind != "inference" && s.Kind != "collector" && s.Kind != "metrics-store" && s.Kind != "trace-store") {
 			return Plan{}, fmt.Errorf("invalid service identity or kind")
 		}
 		if _, exists := nodes[s.ID]; exists {
@@ -186,7 +186,7 @@ func Compile(input Blueprint) (Plan, error) {
 				if m.Name == "" || m.ClaimName == "" || m.MountPath == "" {
 					decision(field+".model", "model-reference-required", "Specify a model name, existing PVC and mount path.")
 				}
-				if !text(m.Name, 128) || (m.ClaimName != "" && !validName(m.ClaimName)) || !validMount(m.MountPath) || !validRelative(m.RelativePath) {
+				if m.AccessGroup != 0 && m.AccessGroup != 1000 || !text(m.Name, 128) || (m.ClaimName != "" && !validName(m.ClaimName)) || !validMount(m.MountPath) || !validRelative(m.RelativePath) {
 					return Plan{}, fmt.Errorf("invalid model mount")
 				}
 			}
@@ -220,6 +220,12 @@ func Compile(input Blueprint) (Plan, error) {
 		p.ResourceSummary.RequestMemoryMiB += r.RequestMemoryMiB * s.Replicas
 		p.ResourceSummary.LimitMemoryMiB += r.LimitMemoryMiB * s.Replicas
 		p.ResourceSummary.GPUCount += r.GPUCount * s.Replicas
+	}
+	if err := validatePublicRoute(b); err != nil {
+		return Plan{}, err
+	}
+	if b.PublicRoute != nil {
+		p.Warnings = append(p.Warnings, "Public HTTPS routing requires an existing Traefik websecure ingress controller with status publication, a suitable existing TLS Secret and operator-managed DNS pointing at that controller. This compiler does not provision or verify those prerequisites.")
 	}
 	if RuntimeReferenceCount(b) > 64 {
 		return Plan{}, fmt.Errorf("at most sixty-four distinct imported runtime references")

@@ -15,6 +15,7 @@ import { SpecificationEvidenceLinks } from "../discover/SpecificationEvidenceLin
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./definition.css";
+import { ResearchEvidence } from "./ResearchEvidence";
 import { SpecificationStrategy } from "./SpecificationStrategy";
 import { strategyProblems } from "../../api/specificationStrategy";
 
@@ -281,6 +282,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
               <label className="luci-field">Boundaries and constraints<textarea rows={3} value={spec.constraints} onChange={(e) => patch({ constraints: e.target.value })} /></label>
               <label className="luci-field">Out of scope<textarea rows={2} value={spec.outOfScope.join("\n")} onChange={(e) => patch({ outOfScope: e.target.value.split("\n") })} /><small>One exclusion per line.</small></label>
               <SpecificationStrategy strategy={spec.strategy} requirements={spec.requirements} onChange={strategy => patch({strategy})}/>
+
               <section className="definition-requirements"><h2>Requirements and acceptance</h2><p className="journey-muted">Keep each ID through design, implementation and verification. Completing a task does not prove a requirement.</p>
                 {!spec.requirements.length && <p>Add the observable outcomes that define a complete solution.</p>}
                 {spec.requirements.map((r, index) => <fieldset key={r.id} className="definition-record"><legend>{r.id}</legend>
@@ -322,6 +324,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
 
       </div>}
       </TabsSubtlePanel>)}
+      <div hidden={tab !== "specification"} className="definition-content"><ResearchEvidence projectId={projectId} strategy={spec.strategy} disabled={!canEdit || locked || !!draft.pending} onChange={strategy => patch({strategy})}/></div>
       <footer className="definition-footer"><div className="journey-actions">
         {!ideaFirst && definitionAction}
       </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} ${spec.requirements.length === 1 ? "requirement" : "requirements"} · ${openQuestionCount} definition ${openQuestionCount === 1 ? "question" : "questions"}`}</p></footer>

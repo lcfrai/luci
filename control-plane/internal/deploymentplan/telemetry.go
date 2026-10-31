@@ -57,6 +57,9 @@ func validTLSReference(ref TelemetryTLSReference) bool {
 	return true
 }
 func validateTelemetryBlueprint(b *Blueprint, decision func(string, string, string)) error {
+	if err := validateTelemetryStorage(b, decision); err != nil {
+		return err
+	}
 	collectors := 0
 	for i := range b.Services {
 		s := &b.Services[i]
@@ -81,7 +84,7 @@ func validateTelemetryBlueprint(b *Blueprint, decision func(string, string, stri
 		for _, external := range b.ExternalResources {
 			found = found || external.ID == c.Destination.ResourceID && external.Kind == "analytics"
 		}
-		if !found || !validEndpoint(c.Destination.Endpoint) || strings.Contains(c.Destination.Endpoint, "$") {
+		if c.OwnedDestination == nil && (!found || !validEndpoint(c.Destination.Endpoint) || strings.Contains(c.Destination.Endpoint, "$")) {
 			return fmt.Errorf("collector destination requires an existing analytics resource and literal credential-free HTTPS OTLP endpoint without configuration interpolation")
 		}
 		if a := c.Destination.Authorization; a != nil && (a.ResourceName == "" || len(kubevalidation.IsDNS1123Subdomain(a.ResourceName)) != 0 || a.Key == "" || len(kubevalidation.IsConfigMapKey(a.Key)) != 0) {
@@ -98,7 +101,9 @@ func validateTelemetryBlueprint(b *Blueprint, decision func(string, string, stri
 			seen[event.ID] = true
 		}
 		sort.Slice(c.Events, func(i, j int) bool { return c.Events[i].ID < c.Events[j].ID })
-		s.DependsOn = uniqueSorted(append(s.DependsOn, c.Destination.ResourceID))
+		if c.OwnedDestination == nil {
+			s.DependsOn = uniqueSorted(append(s.DependsOn, c.Destination.ResourceID))
+		}
 	}
 	clients := 0
 	for _, s := range b.Services {
@@ -179,6 +184,23 @@ func CollectorConfig(b Blueprint, service Service, planDigest string) ([]byte, e
 	pipelines := config["service"].(map[string]any)["pipelines"].(map[string]any)
 	pipelines["metrics"].(map[string]any)["exporters"] = []string{"otlp_http/destination"}
 	pipelines["metrics/product"] = map[string]any{"receivers": []string{"otlp"}, "processors": []string{"memory_limiter", "filter/product", "transform/product", "batch"}, "exporters": []string{"prometheus/product"}}
+	if d := c.OwnedDestination; d != nil {
+		metrics := telemetryStorageService(b, d.MetricsServiceID, PrometheusStorageProfile)
+		traces := telemetryStorageService(b, d.TracesServiceID, TempoStorageProfile)
+		if metrics == nil || traces == nil {
+			return nil, fmt.Errorf("owned telemetry destinations missing")
+		}
+		exporters := config["exporters"].(map[string]any)
+		delete(exporters, "otlp_http/destination")
+		for name, endpoint := range map[string]string{"otlp_http/metrics": "https://" + storageDNS(b, *metrics) + ":9090/api/v1/otlp", "otlp_http/traces": "https://" + storageDNS(b, *traces) + ":4318"} {
+			exporters[name] = map[string]any{"endpoint": endpoint, "timeout": "5s", "tls": map[string]any{"ca_file": "/luci-otel/storage/ca.pem", "cert_file": "/luci-otel/storage/cert.pem", "key_file": "/luci-otel/storage/key.pem", "min_version": "1.2"}, "sending_queue": map[string]any{"enabled": true, "queue_size": 128, "num_consumers": 1}, "retry_on_failure": map[string]any{"enabled": true, "initial_interval": "1s", "max_interval": "5s", "max_elapsed_time": "10s"}}
+		}
+		pipelines["traces"].(map[string]any)["exporters"] = []string{"otlp_http/traces"}
+		// Closed product metrics receive the same privacy filter before durable
+		// storage as the instantaneous Collector read endpoint.
+		delete(pipelines, "metrics")
+		pipelines["metrics/product"].(map[string]any)["exporters"] = []string{"prometheus/product", "otlp_http/metrics"}
+	}
 	return json.MarshalIndent(config, "", "  ")
 }
 
@@ -193,12 +215,23 @@ func TelemetrySecretKeys(service Service) map[string][]string {
 	}
 	if service.Collector != nil {
 		addTLS(&service.Collector.ReceiverTLS)
+		if d := service.Collector.OwnedDestination; d != nil {
+			addTLS(&d.ClientTLS)
+		}
 		if a := service.Collector.Destination.Authorization; a != nil {
 			out[a.ResourceName] = append(out[a.ResourceName], a.Key)
 		}
 	}
 	if service.Telemetry != nil {
 		addTLS(service.Telemetry.ClientTLS)
+	}
+	if v := service.TelemetryStorage; v != nil {
+		addTLS(&v.ServerTLS)
+		addTLS(&v.QueryTLS)
+		if v.Azure != nil {
+			a := v.Azure.AccountKey
+			out[a.ResourceName] = append(out[a.ResourceName], a.Key)
+		}
 	}
 	for name, keys := range out {
 		out[name] = uniqueSorted(keys)

@@ -14,13 +14,14 @@ const orchestratorSkillContextBytes = 48 << 10
 // A bounded, untrusted catalogue excerpt, never an installed tool or permission.
 // Full immutable instructions remain in the existing project skill registry.
 type OrchestratorSkillSummary struct {
-	ID                 string   `json:"id"`
-	Revision           int      `json:"revision"`
-	Digest             string   `json:"digest"`
-	Title              string   `json:"title"`
-	Provenance         string   `json:"provenance"`
-	Roles              []string `json:"roles"`
-	InstructionExcerpt string   `json:"instructionExcerpt"`
+	Metadata           *ProjectSkillMetadata `json:"metadata,omitempty"`
+	ID                 string                `json:"id"`
+	Revision           int                   `json:"revision"`
+	Digest             string                `json:"digest"`
+	Title              string                `json:"title"`
+	Provenance         string                `json:"provenance"`
+	Roles              []string              `json:"roles"`
+	InstructionExcerpt string                `json:"instructionExcerpt"`
 }
 
 type OrchestratorSkillsContext struct {
@@ -72,7 +73,7 @@ func orchestratorSkillsContext(state journeyState) (*OrchestratorSkillsContext, 
 		if len(out.Versions) >= orchestratorSkillCatalogueLimit {
 			break
 		}
-		out.Versions = append(out.Versions, OrchestratorSkillSummary{ID: v.ID, Revision: v.Revision, Digest: v.Digest, Title: v.Title, Provenance: skillExcerpt(strings.TrimSpace(v.Provenance), 256), Roles: append([]string{}, v.Roles...), InstructionExcerpt: skillExcerpt(strings.TrimSpace(v.Instructions), 512)})
+		out.Versions = append(out.Versions, OrchestratorSkillSummary{ID: v.ID, Revision: v.Revision, Digest: v.Digest, Title: v.Title, Provenance: skillExcerpt(strings.TrimSpace(v.Provenance), 256), Roles: append([]string{}, v.Roles...), InstructionExcerpt: skillExcerpt(strings.TrimSpace(v.Instructions), 512), Metadata: cloneProjectSkillMetadata(v.Metadata)})
 	}
 	out.OmittedVersions = len(versions) - len(out.Versions)
 	// JSON escaping also consumes the catalogue budget. Preserve assignments and
@@ -110,6 +111,9 @@ func validateOrchestratorSkillsContext(value *OrchestratorSkillsContext, project
 	for _, v := range value.Versions {
 		key := skillKey(v.ID, v.Revision)
 		if !designIDPattern.MatchString(v.ID) || v.Revision < 1 || !hexDigest(v.Digest) || seen[key] || strings.TrimSpace(v.Title) == "" || len(v.Title) > 200 || len(v.Provenance) > 256 || strings.TrimSpace(v.Provenance) == "" || len(v.InstructionExcerpt) > 512 || strings.TrimSpace(v.InstructionExcerpt) == "" || !utf8.ValidString(v.Provenance+v.InstructionExcerpt) || strings.ContainsRune(v.Provenance+v.InstructionExcerpt, 0) || len(v.Roles) < 1 || len(v.Roles) > 2 {
+			return ErrOrchestratorInvalid
+		}
+		if !validProjectSkillMetadata(v.Metadata) {
 			return ErrOrchestratorInvalid
 		}
 		roles := map[string]bool{}

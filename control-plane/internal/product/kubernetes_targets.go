@@ -112,7 +112,11 @@ func kubernetesClient(target privateKubernetesTarget) (kubernetes.Interface, err
 		return nil, ErrKubernetesReview
 	}
 	client.Transport = boundedKubernetesTransport{next: client.Transport}
-	return kubernetes.NewForConfigAndClient(config, client)
+	interfaceClient, err := kubernetes.NewForConfigAndClient(config, client)
+	if err != nil {
+		return nil, err
+	}
+	return deploymentkube.WithStorageForwardClient(interfaceClient, config), nil
 }
 
 // false still requires current Edit+Deploy. Only new effects additionally need

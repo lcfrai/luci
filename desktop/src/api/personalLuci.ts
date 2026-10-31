@@ -9,7 +9,9 @@ export interface PersonalContext {
   projects: { project: { id: string; name: string; status: string }; attention: unknown[] }[];
   unknownProjects: number; omittedAttention: number;
 }
+export type PersonalHandoffPurpose = "work-request";
 export interface PersonalHandoff {
+  purpose?: PersonalHandoffPurpose;
   id: string; projectId: string; message: string; status: 'dispatching' | 'forwarded' | 'unknown'; projectTurnId?: string; projectJobId?: string;
 }
 export interface PersonalTurn {
@@ -19,7 +21,7 @@ export interface PersonalTurn {
 }
 export interface PersonalView { revision: number; conversationId: string; archived: boolean; archives: { id: string; lastMessageAt: string; turns: number }[]; preferences: PersonalPreferences; context: PersonalContext; turns: PersonalTurn[]; hasEarlier: boolean; beforeSequence: number }
 export interface PersonalRequest { expectedRevision: number; expectedContextDigest: string; idempotencyKey: string; message: string }
-export interface HandoffRequest { expectedRevision: number; projectId: string; message: string; projectRevision: number; projectContextDigest: string; idempotencyKey: string }
+export interface HandoffRequest { purpose?: PersonalHandoffPurpose; expectedRevision: number; projectId: string; message: string; projectRevision: number; projectContextDigest: string; idempotencyKey: string }
 const path = '/v1/product/personal-luci';
 const text = (v: unknown, max: number) => typeof v === 'string' && v.length <= max;
 const ids = (v: unknown, max: number): v is string[] => Array.isArray(v) && v.length <= max && v.every(id => text(id, 200) && /^[a-zA-Z0-9_-]+$/.test(id)) && new Set(v).size === v.length;
@@ -45,7 +47,7 @@ export function checkedPersonalView(value: PersonalView): PersonalView {
     const answer = turn.answer;
     if (answer && (turn.status !== 'succeeded' || !text(answer.summary, 12000) || !answer.summary || !text(answer.question, 2000) || !Array.isArray(answer.options) || answer.options.length > 6 || answer.options.some(option => !text(option, 500)) ||
       answer.discussion && (!turn.context.preferences.projectIds.includes(answer.discussion.projectId) || !text(answer.discussion.message, 16000)))) throw new Error('The private response could not be verified.');
-    if (turn.handoff && (!turn.context.preferences.projectIds.includes(turn.handoff.projectId) || !['dispatching', 'forwarded', 'unknown'].includes(turn.handoff.status) || !text(turn.handoff.message, 16000))) throw new Error('The project message receipt could not be verified.');
+    if (turn.handoff && (turn.handoff.purpose !== undefined && turn.handoff.purpose !== "work-request" || !turn.context.preferences.projectIds.includes(turn.handoff.projectId) || !['dispatching', 'forwarded', 'unknown'].includes(turn.handoff.status) || !text(turn.handoff.message, 16000))) throw new Error('The project message receipt could not be verified.');
   }
   return value;
 }

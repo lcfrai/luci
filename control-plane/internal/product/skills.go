@@ -18,13 +18,14 @@ const selectedSkillsBytesLimit = 64 << 10
 // Instructions are project content, not capabilities or trusted system policy.
 // Provenance is the editor's declaration, never an independently verified origin.
 type ProjectSkillVersion struct {
-	ID           string   `json:"id"`
-	Revision     int      `json:"revision"`
-	Title        string   `json:"title"`
-	Provenance   string   `json:"provenance"`
-	Roles        []string `json:"roles"`
-	Instructions string   `json:"instructions"`
-	Digest       string   `json:"digest"`
+	ID           string                `json:"id"`
+	Revision     int                   `json:"revision"`
+	Title        string                `json:"title"`
+	Provenance   string                `json:"provenance"`
+	Roles        []string              `json:"roles"`
+	Instructions string                `json:"instructions"`
+	Digest       string                `json:"digest"`
+	Metadata     *ProjectSkillMetadata `json:"metadata,omitempty"`
 }
 
 type ProjectSkillAssignment struct {
@@ -50,11 +51,12 @@ type ProjectSkillsSave struct {
 }
 
 type ProjectSkillInput struct {
-	ID           string   `json:"id"`
-	Title        string   `json:"title"`
-	Provenance   string   `json:"provenance"`
-	Roles        []string `json:"roles"`
-	Instructions string   `json:"instructions"`
+	Metadata     *ProjectSkillMetadata `json:"metadata,omitempty"`
+	ID           string                `json:"id"`
+	Title        string                `json:"title"`
+	Provenance   string                `json:"provenance"`
+	Roles        []string              `json:"roles"`
+	Instructions string                `json:"instructions"`
 }
 
 func currentSkills(state journeyState) ProjectSkillRegistry {
@@ -85,6 +87,9 @@ func validateSkillRegistry(saved ProjectSkillRegistry) error {
 	for _, skill := range saved.Versions {
 		if !designIDPattern.MatchString(skill.ID) || skill.Revision != latest[skill.ID]+1 || strings.TrimSpace(skill.Title) == "" || len(skill.Title) > 200 || strings.TrimSpace(skill.Provenance) == "" || len(skill.Provenance) > 2000 || strings.TrimSpace(skill.Instructions) == "" || len(skill.Instructions) > 16<<10 || !utf8.ValidString(skill.Instructions) || strings.ContainsRune(skill.Instructions, 0) || len(skill.Roles) < 1 || len(skill.Roles) > 2 {
 			return errors.New("Skill versions need sequential revisions, a title, declared provenance, roles and 1–16 KiB of instructions.")
+		}
+		if !validProjectSkillMetadata(skill.Metadata) {
+			return errors.New("Skill source metadata needs a bounded HTTPS source, declared licence/revision and at most 16 distinct tool names. Tool declarations do not grant access.")
 		}
 		roles := map[string]bool{}
 		for _, role := range skill.Roles {
@@ -157,7 +162,7 @@ func applySkillsSave(state journeyState, req ProjectSkillsSave) (ProjectSkillReg
 				next = previous.Revision + 1
 			}
 		}
-		skill := ProjectSkillVersion{ID: req.Skill.ID, Revision: next, Title: req.Skill.Title, Provenance: req.Skill.Provenance, Roles: append([]string{}, req.Skill.Roles...), Instructions: req.Skill.Instructions}
+		skill := ProjectSkillVersion{ID: req.Skill.ID, Revision: next, Title: req.Skill.Title, Provenance: req.Skill.Provenance, Roles: append([]string{}, req.Skill.Roles...), Instructions: req.Skill.Instructions, Metadata: cloneProjectSkillMetadata(req.Skill.Metadata)}
 		sort.Strings(skill.Roles)
 		skill.Digest = skillVersionDigest(skill)
 		saved.Versions = append(saved.Versions, skill)
@@ -241,9 +246,10 @@ func (s *Server) saveProjectSkills(w http.ResponseWriter, r *http.Request) {
 
 type selectedProjectSkill struct {
 	registry.ImplementationSkill
-	Title        string `json:"title"`
-	Provenance   string `json:"provenance"`
-	Instructions string `json:"instructions"`
+	Metadata     *ProjectSkillMetadata `json:"metadata,omitempty"`
+	Title        string                `json:"title"`
+	Provenance   string                `json:"provenance"`
+	Instructions string                `json:"instructions"`
 }
 
 func selectedSkills(state journeyState, taskIDs []string) ([]selectedProjectSkill, error) {
@@ -284,7 +290,7 @@ func selectedSkills(state journeyState, taskIDs []string) ([]selectedProjectSkil
 			}
 			seen[assignment.SkillID] = assignment.SkillRevision
 			skill := versions[skillKey(assignment.SkillID, assignment.SkillRevision)]
-			selected = append(selected, selectedProjectSkill{ImplementationSkill: registry.ImplementationSkill{TaskID: task.ID, Role: role, ID: skill.ID, Revision: skill.Revision, Digest: skill.Digest}, Title: skill.Title, Provenance: skill.Provenance, Instructions: skill.Instructions})
+			selected = append(selected, selectedProjectSkill{ImplementationSkill: registry.ImplementationSkill{TaskID: task.ID, Role: role, ID: skill.ID, Revision: skill.Revision, Digest: skill.Digest}, Title: skill.Title, Provenance: skill.Provenance, Instructions: skill.Instructions, Metadata: cloneProjectSkillMetadata(skill.Metadata)})
 		}
 		if len(seen) > 16 {
 			return nil, errors.New("A task may use at most 16 selected skills.")

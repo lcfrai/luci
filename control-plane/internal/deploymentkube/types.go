@@ -1,5 +1,5 @@
-// Package deploymentkube executes only the existing compiler's Deployment and
-// ClusterIP Service artifacts against a controller-resolved existing namespace.
+// Package deploymentkube executes the compiler's owned Deployment, ClusterIP
+// Service and optional reviewed HTTPS Ingress in an existing namespace.
 // It does not provision infrastructure, acquire images/models or load credentials.
 package deploymentkube
 
@@ -29,16 +29,18 @@ type ExpectedResource struct {
 }
 
 type Request struct {
-	Identity          Identity                 `json:"identity"`
-	Blueprint         deploymentplan.Blueprint `json:"blueprint"`
-	ApprovalReference string                   `json:"approvalReference"`
-	Expected          []ExpectedResource       `json:"expected"`
-	References        []ReferenceSnapshot      `json:"references,omitempty"`
+	PublicRouteBinding *PublicRouteBinding      `json:"publicRouteBinding,omitempty"`
+	Identity           Identity                 `json:"identity"`
+	Blueprint          deploymentplan.Blueprint `json:"blueprint"`
+	ApprovalReference  string                   `json:"approvalReference"`
+	Expected           []ExpectedResource       `json:"expected"`
+	References         []ReferenceSnapshot      `json:"references,omitempty"`
 }
 
 // Only selected keys and bounded identity/access metadata enter a review.
 // Secret/ConfigMap values are neither hashed nor retained in this record.
 type ReferenceSnapshot struct {
+	CapacityBytes     string   `json:"capacityBytes,omitempty"`
 	Kind              string   `json:"kind"`
 	Name              string   `json:"name"`
 	Namespace         string   `json:"namespace"`
@@ -83,17 +85,18 @@ type ResourceReceipt struct {
 }
 
 type Operation struct {
-	Revision                  int                   `json:"revision"`
-	Request                   Request               `json:"request"`
-	RequestDigest             string                `json:"requestDigest"`
-	NamespaceUID              string                `json:"namespaceUid"`
-	State                     string                `json:"state"` // reserved, unknown, pending, ready, blocked
-	Resources                 []ResourceReceipt     `json:"resources"`
-	ObservedAt                string                `json:"observedAt"`
-	ApplicationHealthVerified bool                  `json:"applicationHealthVerified"`
-	ReferenceState            string                `json:"referenceState,omitempty"` // current, changed, unavailable, unreviewed
-	Workloads                 []WorkloadObservation `json:"workloads,omitempty"`
-	Telemetry                 *TelemetryObservation `json:"telemetry,omitempty"` // latest retained attributed sample, not live/lifetime analytics
+	PublicRoute               *PublicRouteObservation `json:"publicRoute,omitempty"`
+	Revision                  int                     `json:"revision"`
+	Request                   Request                 `json:"request"`
+	RequestDigest             string                  `json:"requestDigest"`
+	NamespaceUID              string                  `json:"namespaceUid"`
+	State                     string                  `json:"state"` // reserved, unknown, pending, ready, blocked
+	Resources                 []ResourceReceipt       `json:"resources"`
+	ObservedAt                string                  `json:"observedAt"`
+	ApplicationHealthVerified bool                    `json:"applicationHealthVerified"`
+	ReferenceState            string                  `json:"referenceState,omitempty"` // current, changed, unavailable, unreviewed
+	Workloads                 []WorkloadObservation   `json:"workloads,omitempty"`
+	Telemetry                 *TelemetryObservation   `json:"telemetry,omitempty"` // latest retained attributed sample, not live/lifetime analytics
 }
 
 type WorkloadObservation struct {

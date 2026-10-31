@@ -208,11 +208,17 @@ func blueprintReferenceSet(value *deploymentplan.Blueprint) map[string]bool {
 		if service.Image != "" {
 			add("image", service.Image)
 		}
+		for _, name := range service.ImagePullSecrets {
+			add("image-pull-secret", name)
+		}
 		if service.Model != nil {
 			add("model", service.Model)
 		}
 		if service.Telemetry != nil {
 			add("telemetry", service.Telemetry)
+		}
+		if service.TelemetryStorage != nil {
+			add("telemetry-storage", service.TelemetryStorage)
 		}
 		for _, ref := range service.Environment {
 			add("environment", ref)
@@ -232,7 +238,7 @@ func validateOrchestratorBlueprint(snapshot OrchestratorContext, proposal *Orche
 	if _, err = deploymentplan.Compile(proposal.Blueprint); err != nil {
 		return ErrOrchestratorInvalid
 	}
-	if len(proposal.Blueprint.Services) > 8 {
+	if len(proposal.Blueprint.Services) > 12 {
 		return ErrOrchestratorInvalid
 	}
 	if captured.Saved != nil {

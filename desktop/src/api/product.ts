@@ -19,6 +19,7 @@ export interface SetupCheck {
   status: "unknown" | "ready" | "missing" | "error";
   message: string;
   action: string;
+  preparationMode?: "advanced-build";
 }
 export interface AgentProvider {
   id: string;
@@ -125,19 +126,20 @@ export interface WorkspaceInstall {
   updatedAt: string;
 }
 export interface CloudPlanRequest {
+ telemetryStorage?: {subscriptionId:string;tenantId:string;accountName:string;containerName:string;retentionDays:number};
  cluster?: import("./azureCluster").AzureClusterSpec;
  foundation?: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string };
   provider: "aws" | "azure";
   name: string;
   region: string;
   domain: string;
-  size: "small" | "standard" | "full";
+  size: "small" | "standard" | "full" | "";
   monthlyBudgetUsd: number;
   sshPublicKey: string;
 }
 export interface CloudPlan {
- kind?: "aks";
- foundation?: { cluster?: import("./azureCluster").AzureClusterBinding; version: 1; request: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string }; actor: { userId: string; projectId: string; teamId?: string }; contextDigest: string; planDigest: string; fit: { blueprintDigest: string; tier: string; fits: boolean; capacityVerified: false; milliCpu: number; memoryMiB: number; systemReserveMiB: number; decisions: { path: string; code: string; message: string }[] } };
+ kind?: "aks"|"telemetry-storage";
+ foundation?: { telemetryStorage?:{spec:NonNullable<CloudPlanRequest["telemetryStorage"]>;principal:import("./azureCluster").AzureClusterPrincipal;blueprintRevision:number;blueprintDigest:string}; cluster?: import("./azureCluster").AzureClusterBinding; version: 1; request: { blueprint: import("./deploymentBlueprint").DeploymentBlueprint; expectedBlueprintDigest: string }; actor: { userId: string; projectId: string; teamId?: string }; contextDigest: string; planDigest: string; fit: { blueprintDigest: string; tier: string; fits: boolean; capacityVerified: false; milliCpu: number; memoryMiB: number; systemReserveMiB: number; decisions: { path: string; code: string; message: string }[] } };
   id: string;
   provider: string;
   name: string;
@@ -215,6 +217,7 @@ export interface GitState {
   diff: string;
 }
 export interface ImplementationTask {
+  runtimePrerequisites?: import("./runtimePrerequisites").TaskRuntimePrerequisite[];
   reuse?: import("./taskReuse").TaskReuseDecision[];
   id: string;
   title: string;
@@ -338,7 +341,8 @@ export interface PagesReleaseRequest {
   acknowledgePublic: boolean;
 }
 export interface CloudJob {
- kind?: "aks";
+ telemetryStorage?:{accountResourceId:string;accountCreatedAt:string;containerResourceId:string;containerVersion:string;state:string;observedAt:string};
+ kind?: "aks"|"telemetry-storage";
  cluster?: import("./azureCluster").AzureClusterObservation;
   id: string;
   planId: string;
@@ -684,7 +688,7 @@ export function createProductClient(
     installRuntime: (mode?: 'advanced-build' | 'document-packaged' | 'document-assemble') => request<RuntimeJob>("/v1/setup/runtime/install", mode ? {mode} : {}),
     cancelRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/cancel", { jobId }),
     reconcileRuntime: (jobId: string) => request<RuntimeJob>("/v1/setup/runtime/install/reconcile", { jobId }),
-    cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),
+    cloudJobs: (signal?:AbortSignal) => signal?request<{jobs:CloudJob[]}>("/v1/setup/cloud/jobs",undefined,"GET",30_000,signal):request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),
     workspaceInstalls: () =>
       request<{ jobs: WorkspaceInstall[] }>("/v1/setup/workspace/install"),
     installWorkspace: (connectionId: string, acknowledgeInstall: boolean) =>

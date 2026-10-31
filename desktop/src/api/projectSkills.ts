@@ -1,9 +1,10 @@
 import { productApi } from './product';
+import { validProjectSkillMetadata,type ProjectSkillMetadata } from './skillMetadata';
 
 export type SkillRole = 'coding' | 'reviewer';
 export interface ProjectSkillVersion {
   id: string; revision: number; title: string; provenance: string;
-  roles: SkillRole[]; instructions: string; digest: string;
+  roles: SkillRole[]; instructions: string; digest: string; metadata?:ProjectSkillMetadata;
 }
 export interface ProjectSkillAssignment { role: SkillRole; taskId?: string; skillId: string; skillRevision: number }
 export interface ProjectSkillRegistry { projectId: string; revision: number; versions: ProjectSkillVersion[]; assignments: ProjectSkillAssignment[] }
@@ -24,7 +25,7 @@ export function validProjectSkills(value: ProjectSkillRegistry, projectId: strin
     if (!skill || !id(skill.id) || skill.revision !== (latest.get(skill.id) ?? 0) + 1 || typeof skill.title !== 'string' || !skill.title.trim() || skill.title.length > 200 ||
         typeof skill.provenance !== 'string' || !skill.provenance.trim() || skill.provenance.length > 2000 || typeof skill.instructions !== 'string' || !skill.instructions.trim() || skill.instructions.length > 16384 ||
         !Array.isArray(skill.roles) || skill.roles.length < 1 || skill.roles.length > 2 || skill.roles.some(value => !role(value)) || new Set(skill.roles).size !== skill.roles.length ||
-        !/^[a-f0-9]{64}$/.test(skill.digest)) return false;
+        !validProjectSkillMetadata(skill.metadata)|| !/^[a-f0-9]{64}$/.test(skill.digest)) return false;
     latest.set(skill.id, skill.revision); versions.set(`${skill.id}:${skill.revision}`, skill);
   }
   const seen = new Set<string>();

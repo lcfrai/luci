@@ -83,10 +83,23 @@ func (a *API) stopOwnedSwarmTask(ctx context.Context, req product.SwarmSupersede
 		}
 		current, found := a.cloudRecord(req.ProjectID, req.RunID, req.OperationID, req.ChildID)
 		if !found {
+			if pool := a.deps.CloudTasks.Pool; pool != nil {
+				_, err := a.deps.Product.RecordProjectSwarmUnallocatedCancellation(ctx, req, func(op product.ProjectRunOperation) (bool, error) {
+					if a.deps.AuthorizeExecutionControl == nil || a.deps.AuthorizeExecutionControl(ctx, req.Actor) != nil {
+						return false, management.ErrExecutionAuthority
+					}
+					return pool.neverMaterialized(req.ProjectID, req.RunID, req.OperationID, req.ChildID, op.CreatedAt, true)
+				})
+				return err == nil, err
+			}
 			return false, nil // unknown Create/transfer is never treated as absent
 		}
 		if current.State != e2bbe.Absent {
-			current, err = a.deps.CloudTasks.Runtime.Controller.Cancel(ctx, req.ChildID, current.Revision)
+			cloud, resolveErr := a.cloudAttemptRuntime(req.ProjectID, req.RunID, req.OperationID, req.ChildID)
+			if resolveErr != nil {
+				return false, resolveErr
+			}
+			current, err = cloud.Runtime.Controller.Cancel(ctx, req.ChildID, current.Revision)
 			if err != nil {
 				return false, err // the controller may have saved the intent
 			}

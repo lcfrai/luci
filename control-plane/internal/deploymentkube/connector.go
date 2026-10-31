@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"regexp"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/deploymentplan"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,9 +38,11 @@ func projectLabel(id string) string {
 func operationLabel(id Identity) string { return digest(id) }
 
 type desiredResource struct {
+	configMap        *corev1.ConfigMap
 	kind, name, hash string
 	deployment       *appsv1.Deployment
 	service          *corev1.Service
+	ingress          *networkingv1.Ingress
 }
 
 func prepare(request Request) (Request, []desiredResource, error) {
@@ -57,7 +61,7 @@ func prepare(request Request) (Request, []desiredResource, error) {
 	expected := map[string]ExpectedResource{}
 	for _, row := range request.Expected {
 		key := row.Kind + "/" + row.Name
-		if row.Kind != "Deployment" && row.Kind != "Service" || !token.MatchString(row.Name) || len(row.Name) > 63 || len(row.UID) > 128 || len(row.ResourceVersion) > 128 || (row.UID == "") != (row.ResourceVersion == "") {
+		if row.Kind != "Deployment" && row.Kind != "Service" && row.Kind != "Ingress" && row.Kind != "ConfigMap" || !token.MatchString(row.Name) || len(row.Name) > 253 || len(row.UID) > 128 || len(row.ResourceVersion) > 128 || (row.UID == "") != (row.ResourceVersion == "") {
 			return Request{}, nil, ErrRefused
 		}
 		if _, duplicate := expected[key]; duplicate {
@@ -82,6 +86,14 @@ func prepare(request Request) (Request, []desiredResource, error) {
 			row.service = &corev1.Service{}
 			err = json.Unmarshal([]byte(artifact.Content), row.service)
 			row.name = row.service.Name
+		} else if meta.Kind == "ConfigMap" {
+			row.configMap = &corev1.ConfigMap{}
+			err = json.Unmarshal([]byte(artifact.Content), row.configMap)
+			row.name = row.configMap.Name
+		} else if meta.Kind == "Ingress" {
+			row.ingress = &networkingv1.Ingress{}
+			err = json.Unmarshal([]byte(artifact.Content), row.ingress)
+			row.name = row.ingress.Name
 		} else {
 			return Request{}, nil, ErrRefused
 		}
@@ -210,6 +222,10 @@ func (c *Connector) Apply(ctx context.Context, input Request) (Operation, error)
 		var current metav1.Object
 		if desired.kind == "Deployment" {
 			current, err = target.Client.AppsV1().Deployments(target.Namespace).Get(ctx, desired.name, metav1.GetOptions{})
+		} else if desired.configMap != nil {
+			current, err = target.Client.CoreV1().ConfigMaps(target.Namespace).Get(ctx, desired.name, metav1.GetOptions{})
+		} else if desired.kind == "Ingress" {
+			current, err = target.Client.NetworkingV1().Ingresses(target.Namespace).Get(ctx, desired.name, metav1.GetOptions{})
 		} else {
 			current, err = target.Client.CoreV1().Services(target.Namespace).Get(ctx, desired.name, metav1.GetOptions{})
 		}
@@ -221,6 +237,12 @@ func (c *Connector) Apply(ctx context.Context, input Request) (Operation, error)
 		} else if err != nil || current == nil || string(current.GetUID()) != expected.UID || current.GetResourceVersion() != expected.ResourceVersion || !objectOwned(current, request, desired, false) {
 			_ = c.save(ctx, &operation, "blocked")
 			return operation, ErrRefused
+		}
+		if desired.ingress != nil && expected.UID != "" {
+			old, ok := current.(*networkingv1.Ingress)
+			if !ok || !safeIngressAnnotations(old) {
+				return operation, ErrRefused
+			}
 		}
 		if err = c.authorize(ctx, request, true); err != nil {
 			return Operation{}, ErrRefused
@@ -241,7 +263,13 @@ func (c *Connector) Apply(ctx context.Context, input Request) (Operation, error)
 		var component *deploymentplan.Service
 		for serviceIndex := range request.Blueprint.Services {
 			candidate := &request.Blueprint.Services[serviceIndex]
+			if desired.configMap != nil && desired.configMap.Labels["luci.ai/component"] == candidate.ID {
+				component = candidate
+			}
 			labels := desired.service
+			if desired.ingress != nil && desired.ingress.Labels["luci.ai/component"] == candidate.ID {
+				component = candidate
+			}
 			if desired.deployment != nil {
 				if desired.deployment.Labels["luci.ai/component"] == candidate.ID {
 					component = candidate
@@ -271,6 +299,32 @@ func (c *Connector) Apply(ctx context.Context, input Request) (Operation, error)
 			} else {
 				object.UID = current.GetUID()
 				written, err = target.Client.AppsV1().Deployments(target.Namespace).Update(ctx, object, metav1.UpdateOptions{})
+			}
+		} else if desired.configMap != nil {
+			object := desired.configMap.DeepCopy()
+			if expected.UID != "" {
+				preserveMetadata(object, current)
+			}
+			stamp(object, request, desired)
+			object.ResourceVersion = expected.ResourceVersion
+			if expected.UID == "" {
+				written, err = target.Client.CoreV1().ConfigMaps(target.Namespace).Create(ctx, object, metav1.CreateOptions{})
+			} else {
+				object.UID = current.GetUID()
+				written, err = target.Client.CoreV1().ConfigMaps(target.Namespace).Update(ctx, object, metav1.UpdateOptions{})
+			}
+		} else if desired.ingress != nil {
+			object := desired.ingress.DeepCopy()
+			if expected.UID != "" {
+				preserveMetadata(object, current)
+			}
+			stamp(object, request, desired)
+			object.ResourceVersion = expected.ResourceVersion
+			if expected.UID == "" {
+				written, err = target.Client.NetworkingV1().Ingresses(target.Namespace).Create(ctx, object, metav1.CreateOptions{})
+			} else {
+				object.UID = current.GetUID()
+				written, err = target.Client.NetworkingV1().Ingresses(target.Namespace).Update(ctx, object, metav1.UpdateOptions{})
 			}
 		} else {
 			object := desired.service.DeepCopy()
@@ -322,7 +376,7 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 	}
 	state := "ready"
 	operation.ReferenceState = "current"
-	if deploymentplan.RuntimeReferenceCount(request.Blueprint) > 0 && len(request.References) == 0 {
+	if len(requiredReferences(request.Blueprint)) > 0 && len(request.References) == 0 {
 		operation.ReferenceState = "unreviewed"
 		state = "unknown"
 	} else if referenceErr := c.validateReferences(ctx, target, request, nil, false); referenceErr != nil {
@@ -333,6 +387,7 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 		state = "unknown"
 	}
 	operation.Workloads = nil
+	operation.PublicRoute = nil
 	workloadBudget := &workloadObservationBudget{}
 	for index, desired := range resources {
 		if c.authorize(ctx, request, false) != nil {
@@ -369,6 +424,20 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 						receipt.Ready = false
 					}
 				}
+			} else {
+				err = ErrUnknown
+			}
+		} else if desired.ingress != nil {
+			var view *PublicRouteObservation
+			view, meta, err = c.observedPublicRoute(ctx, target, request, desired, *receipt, operation)
+			operation.PublicRoute = view
+			receipt.Ready = err == nil && view != nil && view.State == "controller-reported"
+		} else if desired.configMap != nil {
+			object, readErr := target.Client.CoreV1().ConfigMaps(target.Namespace).Get(ctx, desired.name, metav1.GetOptions{})
+			err = readErr
+			meta = object
+			if err == nil && object != nil && objectOwned(object, request, desired, true) && reflect.DeepEqual(desired.configMap.Data, object.Data) && len(object.BinaryData) == 0 {
+				receipt.Ready = true
 			} else {
 				err = ErrUnknown
 			}
@@ -410,6 +479,10 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 		}
 	}
 	if operation.ReferenceState != "current" {
+		if operation.PublicRoute != nil {
+			operation.PublicRoute.State = "unknown"
+			operation.PublicRoute.URL = ""
+		}
 		for index := range operation.Workloads {
 			operation.Workloads[index].State = "unknown"
 		}
@@ -424,6 +497,9 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 	if operation.ReferenceState == "current" && c.validateReferences(ctx, latestTarget, request, nil, false) != nil {
 		return Operation{}, ErrRefused
 	}
+	if c.publicRouteStillObserved(ctx, latestTarget, operation) != nil {
+		return Operation{}, ErrRefused
+	}
 	if c.authorize(ctx, request, false) != nil {
 		return Operation{}, ErrRefused
 	} // saved observation is retained, never rolled back
@@ -433,6 +509,9 @@ func (c *Connector) Observe(ctx context.Context, identity Identity) (Operation, 
 // ValidateOperation is the private journal's closed-record check. It compiles
 // pure data only; it does not contact a cluster or confer any authorization.
 func ValidateOperation(operation Operation) error {
+	if validatePublicRouteObservation(operation) != nil {
+		return ErrRefused
+	}
 	if validateTelemetryObservation(operation.Telemetry, operation.Request, operation.Resources) != nil {
 		return ErrRefused
 	}

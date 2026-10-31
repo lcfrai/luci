@@ -2,7 +2,15 @@ import { productApi } from './product';
 import { validRunAttention, type ProjectRunAttention } from './runAttention';
 import type { OrchestratorActivity } from './orchestrator';
 
+export interface ProjectOutcomeMeasurements {
+  version:1; scope:'retained-run-history'; measuredTaskIntervals:number; unknownTaskIntervals:number;
+  recordedNoWorkerAttempts:number; taskRuntimeMilliseconds:number|null; runToAcceptanceMilliseconds:number|null;
+  acceptedIntervalsMeasured:number; acceptedIntervalsUnknown:number; recordedHumanActions:number|null;
+  omittedHumanActions:number; runsWithEarlierUninstrumentedActions:number; humanActionScope:'recorded-run-controls';
+  inputTokens:null; outputTokens:null;
+}
 export interface ProjectOutcomes {
+  measurements?:ProjectOutcomeMeasurements;
   status: 'recorded' | 'unavailable'; scope: 'retained-run-history'; observedAt: string;
   retainedRuns: number | null; recordedAcceptances: number | null; unconfirmedAcceptedObservations: number | null;
   reviewRequiredRuns: number | null; unresolvedCheckRepairTasks: number | null; omittedRuns: number | null;
@@ -29,15 +37,23 @@ export function validProjectOutcomes(value: ProjectOutcomes | undefined): boolea
   if (value === undefined) return true; // Older services do not supply this optional projection.
   if (!value || value.scope !== 'retained-run-history' || typeof value.observedAt !== 'string' || !Number.isFinite(Date.parse(value.observedAt))) return false;
   const counts = [value.retainedRuns, value.recordedAcceptances, value.unconfirmedAcceptedObservations, value.reviewRequiredRuns, value.unresolvedCheckRepairTasks, value.omittedRuns];
-  if (value.status === 'unavailable') return counts.every(item => item === null) && value.latestAccepted === null;
+  if (value.status === 'unavailable') return counts.every(item => item === null) && value.latestAccepted === null && value.measurements === undefined;
   if (value.status !== 'recorded' || counts.some(item => !count(item) || item === null) ||
       value.retainedRuns! > 200 || value.recordedAcceptances! > value.retainedRuns! || value.reviewRequiredRuns! > value.retainedRuns! ||
       value.unconfirmedAcceptedObservations! > value.recordedAcceptances! || value.omittedRuns !== 0) return false;
+  if (value.measurements !== undefined && !validOutcomeMeasurements(value.measurements, value.retainedRuns!, value.recordedAcceptances!)) return false;
   const latest = value.latestAccepted;
   return value.recordedAcceptances === 0 ? latest === null : !!latest &&
     typeof latest.runId === 'string' && latest.runId.length <= 200 && /^run-[a-zA-Z0-9-]+$/.test(latest.runId) && typeof latest.checkId === 'string' && !!latest.checkId && latest.checkId.length <= 200 &&
     typeof latest.releaseId === 'string' && !!latest.releaseId && latest.releaseId.length <= 200 &&
     typeof latest.commit === 'string' && /^[a-f0-9]{40}([a-f0-9]{24})?$/.test(latest.commit) && typeof latest.target === 'string' && !!latest.target && latest.target.length <= 200 && typeof latest.acceptedAt === 'string' && Number.isFinite(Date.parse(latest.acceptedAt));
+}
+function validOutcomeMeasurements(value:ProjectOutcomeMeasurements,runs:number,acceptances:number):boolean {
+  if (!value || value.version!==1 || value.scope!=='retained-run-history' || value.humanActionScope!=='recorded-run-controls' || value.inputTokens!==null || value.outputTokens!==null) return false;
+  const n=(v:unknown,max:number):v is number=>Number.isSafeInteger(v)&&(v as number)>=0&&(v as number)<=max;
+  if (!n(value.measuredTaskIntervals,20000)||!n(value.unknownTaskIntervals,20000)||!n(value.recordedNoWorkerAttempts,20000)||value.measuredTaskIntervals+value.unknownTaskIntervals+value.recordedNoWorkerAttempts>20000||!n(value.acceptedIntervalsMeasured,acceptances)||!n(value.acceptedIntervalsUnknown,acceptances)||value.acceptedIntervalsMeasured+value.acceptedIntervalsUnknown!==acceptances||!n(value.omittedHumanActions,200000000000)||!n(value.runsWithEarlierUninstrumentedActions,runs)||value.recordedHumanActions!==null&&!n(value.recordedHumanActions,51200)) return false;
+  const duration=(v:unknown,intervals:number)=>intervals===0?v===null:n(v,intervals*365*24*60*60*1000);
+  return duration(value.taskRuntimeMilliseconds,value.measuredTaskIntervals)&&duration(value.runToAcceptanceMilliseconds,value.acceptedIntervalsMeasured);
 }
 function validAttention(value: ProjectOverview['attention']): boolean {
   if (value === undefined) return true; // Older services have no observation, not zero obligations.

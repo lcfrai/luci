@@ -5,31 +5,36 @@ import "strings"
 // A saved route is a person's explicit nonsecret preference. It contains no
 // approved revisions, tasks, authority snapshot or credentials.
 type CoordinatorRoute struct {
-	NativeDelegation string `json:"nativeDelegation,omitempty"`
-	WorktreeID        string  `json:"worktreeId"`
-	Harness           string  `json:"harness"`
-	Model             string  `json:"model"`
-	PermissionMode    string  `json:"permissionMode"`
-	Effort            string  `json:"effort,omitempty"`
-	ExecutionLocation string  `json:"executionLocation,omitempty"`
-	AgentConnectionID *string `json:"agentConnectionId,omitempty"`
-	Outcome           string  `json:"outcome"`
+	CloudHostIDs      []string `json:"cloudHostIds,omitempty"`
+	CloudPoolDigest   string   `json:"cloudPoolDigest,omitempty"`
+	NativeDelegation  string   `json:"nativeDelegation,omitempty"`
+	WorktreeID        string   `json:"worktreeId"`
+	Harness           string   `json:"harness"`
+	Model             string   `json:"model"`
+	PermissionMode    string   `json:"permissionMode"`
+	Effort            string   `json:"effort,omitempty"`
+	ExecutionLocation string   `json:"executionLocation,omitempty"`
+	AgentConnectionID *string  `json:"agentConnectionId,omitempty"`
+	Outcome           string   `json:"outcome"`
 }
 type CoordinatorSavedRoute struct {
-	Revision int `json:"revision"`
+	ObservationSequence int                          `json:"observationSequence,omitempty"`
+	Observations        *CoordinatorObservationRoute `json:"observations,omitempty"`
+	Revision            int                          `json:"revision"`
 	// Explicitly permits a bounded model turn for each new consequential
 	// finding. Saving a coding route alone never authorizes model spending.
 	AutoDiscussFindings bool                       `json:"autoDiscussFindings,omitempty"`
 	CheckPlan           *CoordinatorCheckPlan      `json:"checkPlan,omitempty"`
 	PreviewPlan         *CoordinatorPreviewPlan    `json:"previewPlan,omitempty"`
 	DeploymentPlan      *CoordinatorDeploymentPlan `json:"deploymentPlan,omitempty"`
+	KubernetesPlan      *CoordinatorKubernetesPlan `json:"kubernetesPlan,omitempty"`
 	Route               CoordinatorRoute           `json:"route"`
 	MaxParallel         int                        `json:"maxParallel"`
 	UpdatedAt           string                     `json:"updatedAt"`
 }
 
 func coordinatorRoute(req projectRunCreateRequest) CoordinatorRoute {
-	out := CoordinatorRoute{NativeDelegation: req.NativeDelegation, WorktreeID: strings.TrimSpace(req.WorktreeID), Harness: strings.TrimSpace(req.Harness), Model: strings.TrimSpace(req.Model), PermissionMode: strings.TrimSpace(req.PermissionMode), Effort: strings.TrimSpace(req.Effort), ExecutionLocation: strings.TrimSpace(req.ExecutionLocation), Outcome: req.Outcome}
+	out := CoordinatorRoute{CloudPoolDigest: req.CloudPoolDigest, CloudHostIDs: normalizedCloudHosts(req.CloudHostIDs), NativeDelegation: req.NativeDelegation, WorktreeID: strings.TrimSpace(req.WorktreeID), Harness: strings.TrimSpace(req.Harness), Model: strings.TrimSpace(req.Model), PermissionMode: strings.TrimSpace(req.PermissionMode), Effort: strings.TrimSpace(req.Effort), ExecutionLocation: strings.TrimSpace(req.ExecutionLocation), Outcome: req.Outcome}
 	if req.AgentConnectionID != nil {
 		value := strings.TrimSpace(*req.AgentConnectionID)
 		out.AgentConnectionID = &value
@@ -40,6 +45,9 @@ func validCoordinatorRoute(saved *CoordinatorSavedRoute) bool {
 	if saved == nil {
 		return true
 	}
+	if validateCoordinatorKubernetesSelection(saved.KubernetesPlan, saved.DeploymentPlan, saved.CheckPlan, saved.Route.Outcome) != nil {
+		return false
+	}
 	if validateCoordinatorDeploymentPlan(saved.DeploymentPlan) != nil || (saved.DeploymentPlan != nil && (saved.CheckPlan == nil || saved.PreviewPlan == nil || saved.Route.Outcome != "publish")) {
 		return false
 	}
@@ -49,8 +57,16 @@ func validCoordinatorRoute(saved *CoordinatorSavedRoute) bool {
 	if validateCoordinatorCheckPlan(saved.CheckPlan) != nil {
 		return false
 	}
+	if !validObservationRoute(saved.Observations) || saved.ObservationSequence < 0 || saved.ObservationSequence > 1_000_000_000 {
+		return false
+	}
 	r := saved.Route
-	if validateNativeDelegationRequest(r.NativeDelegation, r.Harness, r.PermissionMode, r.ExecutionLocation) != nil { return false }
+	if !validCloudHostSelection(r.CloudHostIDs, r.CloudPoolDigest, r.ExecutionLocation) {
+		return false
+	}
+	if validateNativeDelegationRequest(r.NativeDelegation, r.Harness, r.PermissionMode, r.ExecutionLocation) != nil {
+		return false
+	}
 	if saved.Revision < 1 || saved.MaxParallel < 1 || saved.MaxParallel > MaxSwarmParallelTasks || !validConnectionToken(r.WorktreeID, 200, false) || !validConnectionToken(r.Harness, 128, false) || !validConnectionToken(r.Model, 200, true) || !validConnectionToken(r.PermissionMode, 128, false) || !validConnectionToken(r.Effort, 128, true) || (r.ExecutionLocation != "" && r.ExecutionLocation != "cloud-microvm") || (r.ExecutionLocation == "cloud-microvm" && (r.PermissionMode != "bypass" || r.Harness != "codex" && r.Harness != "claude-code")) || (r.Outcome != "preview" && r.Outcome != "publish") {
 		return false
 	}

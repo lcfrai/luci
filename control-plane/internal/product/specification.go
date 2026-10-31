@@ -323,6 +323,10 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "roadmap_omitted", "The saved definition has a roadmap. Preserve its phases, or send an explicit empty roadmap to remove them after review.")
 		return
 	}
+	if err := s.validateResearchEvidenceLocked(r.Context(), p, spec, current); err != nil {
+		problem(w, 422, "research_changed", "Collected source metadata or quotes changed. Collect again, or preserve the exact saved attribution.")
+		return
+	}
 	if err := s.validateDiscoveryEvidenceLinks(r.Context(), p, spec.Evidence); err != nil {
 		problem(w, 422, "evidence_unavailable", err.Error())
 		return

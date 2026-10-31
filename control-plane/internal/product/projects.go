@@ -29,6 +29,7 @@ func (s *Server) registerProjects(mux Registrar) {
 	mux = s.guardProjectSourceRoutes(mux)
 	s.registerJourneyContext(mux)
 	s.registerSpecification(mux)
+	s.registerResearch(mux)
 	s.registerDiscoveryDocuments(mux)
 	s.registerDesignPlan(mux)
 	s.registerDistributeControls(mux)

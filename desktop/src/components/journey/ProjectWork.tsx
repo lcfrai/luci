@@ -15,6 +15,7 @@ import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { ProjectPlan } from "./ProjectPlan";
 import { ProjectSkills } from "../develop/ProjectSkills";
+import { OutcomeCostReconciliation } from "../projects/OutcomeCostReconciliation";
 import { ProjectChecks } from "./ProjectChecks";
 import { ProjectRuns, type ProjectRunDraft } from "./ProjectRuns";
 import { ExternalToolHandoff } from "./ExternalToolHandoff";
@@ -175,6 +176,7 @@ function ProjectWorkView({ projectId, children, expanded = true, controlsHidden 
       }
     }} />
     <div className="develop-secondary-controls" hidden={controlsHidden}>
+    <OutcomeCostReconciliation projectId={projectId} active={!controlsHidden}/>
     <ExternalToolHandoff projectId={projectId} onReviewPlan={revealPlan} />
     <details className="project-work" open={expanded} ref={details}>
       <summary>

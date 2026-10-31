@@ -256,7 +256,9 @@ export function LocalTools({
                   <summary>Build from bundled source</summary>
                   <p className="journey-muted">
                     Use this explicit alternative when this installation includes
-                    runtime source but not the compressed runtime package. Docker
+                    runtime source but not the compressed runtime package, or when
+                    workspace checks report that an older image lacks the current
+                    task workflows. Docker
                     must be running Linux containers on{" "}
                     {cloud ? "the cloud workspace" : "this machine"}. The build
                     downloads Linux base images, operating-system packages and

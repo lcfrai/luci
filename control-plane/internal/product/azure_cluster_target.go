@@ -139,7 +139,7 @@ func (s *Server) resolvedKubernetesClient(ctx context.Context, identity deployme
 		return raw, nil
 	}
 	confirm := func() error {
-		raw, err := read("resource", "show", "--ids", fit.ClusterResourceID, "--api-version", deploymentplan.AzureManagedClusterAPIVersion, "--output", "json")
+		raw, err := read("resource", "show", "--ids", fit.ClusterResourceID, "--api-version", deploymentplan.AzureClusterAPI(fit.Spec), "--output", "json")
 		if err != nil {
 			return err
 		}
@@ -166,7 +166,7 @@ func (s *Server) resolvedKubernetesClient(ctx context.Context, identity deployme
 	if err != nil {
 		return nil, err
 	}
-	uri := "https://management.azure.com" + fit.ClusterResourceID + "/listClusterUserCredential?api-version=" + deploymentplan.AzureManagedClusterAPIVersion + "&format=exec"
+	uri := "https://management.azure.com" + fit.ClusterResourceID + "/listClusterUserCredential?api-version=" + deploymentplan.AzureClusterAPI(fit.Spec) + "&format=exec"
 	raw, err := read("rest", "--method", "POST", "--url", uri, "--output", "json")
 	if err != nil {
 		return nil, err

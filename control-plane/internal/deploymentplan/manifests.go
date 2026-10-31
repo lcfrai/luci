@@ -77,7 +77,20 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 			}
 		}
 		podSpec := map[string]any{"automountServiceAccountToken": false, "containers": []any{container}}
+		if len(s.ImagePullSecrets) > 0 {
+			pulls := []any{}
+			for _, name := range s.ImagePullSecrets {
+				pulls = append(pulls, map[string]string{"name": name})
+			}
+			podSpec["imagePullSecrets"] = pulls
+		}
+		if s.Resources.GPUCount > 0 {
+			podSpec["tolerations"] = []any{map[string]string{"key": "sku", "operator": "Equal", "value": "gpu", "effect": "NoSchedule"}}
+		}
 		if s.Model != nil {
+			if s.Model.AccessGroup == 1000 {
+				podSpec["securityContext"] = map[string]any{"fsGroup": int64(1000), "fsGroupChangePolicy": "OnRootMismatch"}
+			}
 			mount := map[string]any{"name": "model", "mountPath": s.Model.MountPath, "readOnly": true}
 			if s.Model.RelativePath != "" {
 				mount["subPath"] = s.Model.RelativePath
@@ -87,6 +100,13 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 		}
 		if err := configureTelemetryContainer(b, s, planDigest, container, podSpec); err != nil {
 			return nil, err
+		}
+		if s.TelemetryStorage != nil {
+			config, err := telemetryStorageManifest(b, s, planDigest, container, podSpec)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, config)
 		}
 		deployment := map[string]any{
 			"apiVersion": "apps/v1", "kind": "Deployment", "metadata": metadata(),
@@ -102,6 +122,9 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 		if s.Collector != nil {
 			service["spec"].(map[string]any)["ports"] = []any{map[string]any{"name": "service", "port": s.Port, "targetPort": "service", "protocol": "TCP"}, map[string]any{"name": "metrics", "port": CollectorMetricsPort, "targetPort": "metrics", "protocol": "TCP"}}
 		}
+		if s.TelemetryStorage != nil && s.TelemetryStorage.Profile == TempoStorageProfile {
+			service["spec"].(map[string]any)["ports"] = []any{map[string]any{"name": "service", "port": 3200, "targetPort": "service", "protocol": "TCP"}, map[string]any{"name": "otlp", "port": 4318, "targetPort": "otlp", "protocol": "TCP"}}
+		}
 		for _, item := range []struct {
 			suffix string
 			value  map[string]any
@@ -113,6 +136,13 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 			raw = append(raw, '\n')
 			out = append(out, Artifact{Name: name + "." + item.suffix + ".json", MediaType: "application/json", SHA256: digest(raw), Content: string(raw)})
 		}
+	}
+	if b.PublicRoute != nil {
+		route, err := publicIngressArtifact(b, planDigest)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, route)
 	}
 	return out, nil
 }

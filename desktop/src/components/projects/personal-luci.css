@@ -1,5 +1,7 @@
 .personal-luci {
   min-width: 0;
+  max-inline-size: 1100px;
+  margin-inline: auto;
   margin-block: 0 var(--layout-gap);
   padding: var(--panel-padding);
   border: 1px solid var(--line-strong);
@@ -39,6 +41,8 @@
 .personal-history > p { flex-basis: 100%; }
 .personal-choices details { grid-column: 1 / -1; min-width: 0; }
 .personal-choices details label { display: flex; flex-direction: row; align-items: center; margin-block: .5rem; }
+.personal-work-choice { display: flex; align-items: center; gap: .6rem; min-height: 44px; }
+.personal-work-choice input { flex: 0 0 auto; }
 .personal-review { padding: var(--panel-padding); background: var(--inset); border: 1px solid var(--line-strong); margin-block: var(--layout-gap); border-radius: var(--r-ctl); }
 @media (max-width: 640px) {
   .personal-luci > header { flex-wrap: wrap; }

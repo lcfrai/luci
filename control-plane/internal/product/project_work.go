@@ -21,20 +21,22 @@ type ProjectPlan struct {
 	DesignPlanDigest      string        `json:"designPlanDigest,omitempty"`
 }
 type ProjectTask struct {
-	ID             string               `json:"id"`
-	Title          string               `json:"title"`
-	Status         string               `json:"status"`
-	Role           string               `json:"role,omitempty"`
-	ReviewOfTaskID string               `json:"reviewOfTaskId,omitempty"`
-	RequirementIDs []string             `json:"requirementIds,omitempty"`
-	DesignFrameIDs []string             `json:"designFrameIds,omitempty"`
-	DependsOn      []string             `json:"dependsOn,omitempty"`
-	WritePaths     []string             `json:"writePaths,omitempty"`
-	Acceptance     string               `json:"acceptance,omitempty"`
-	Reuse          *[]TaskReuseDecision `json:"reuse,omitempty"`
+	RuntimePrerequisites *[]TaskRuntimePrerequisite `json:"runtimePrerequisites,omitempty"`
+	ID                   string                     `json:"id"`
+	Title                string                     `json:"title"`
+	Status               string                     `json:"status"`
+	Role                 string                     `json:"role,omitempty"`
+	ReviewOfTaskID       string                     `json:"reviewOfTaskId,omitempty"`
+	RequirementIDs       []string                   `json:"requirementIds,omitempty"`
+	DesignFrameIDs       []string                   `json:"designFrameIds,omitempty"`
+	DependsOn            []string                   `json:"dependsOn,omitempty"`
+	WritePaths           []string                   `json:"writePaths,omitempty"`
+	Acceptance           string                     `json:"acceptance,omitempty"`
+	Reuse                *[]TaskReuseDecision       `json:"reuse,omitempty"`
 }
 
 func (s *Server) registerProjectWork(mux Registrar) {
+	s.registerRuntimePreparations(mux)
 	mux.HandleFunc("GET /v1/product/projects/{id}/plan", s.getProjectPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/plan", s.saveProjectPlan)
 	mux.HandleFunc("GET /v1/product/projects/{id}/checks", s.listProjectChecks)
@@ -72,6 +74,9 @@ func validatePlan(p ProjectPlan) error {
 			return err
 		}
 		if err := validateTaskDesignFrameIDs(task.DesignFrameIDs); err != nil {
+			return err
+		}
+		if err := validateTaskRuntimePrerequisites(task.RuntimePrerequisites); err != nil {
 			return err
 		}
 		if err := validateTaskReuse(task.Reuse); err != nil {
@@ -128,7 +133,7 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "revision_conflict", "The plan changed. Reload before saving.")
 		return
 	}
-	req.Tasks = preserveTaskReuse(plan.Tasks, req.Tasks)
+	req.Tasks = preserveTaskRuntimePrerequisites(plan.Tasks, preserveTaskReuse(plan.Tasks, req.Tasks))
 	if err := validatePlan(ProjectPlan{Tasks: req.Tasks}); err != nil {
 		problem(w, 400, "invalid_plan", err.Error())
 		return

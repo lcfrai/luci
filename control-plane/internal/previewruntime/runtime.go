@@ -27,6 +27,8 @@ type Identity struct {
 }
 
 type Request struct {
+	// Fixed only by the controller-owned model-sink recipe, never browser input.
+	Platform string
 	Identity
 	SourceDirectory string
 	SourceArchive   []byte
@@ -44,9 +46,18 @@ type Request struct {
 	ValidateSource func(context.Context) error
 }
 
+// Publication is assembled only from reviewed private registry setup. The
+// binding identifies the descriptor/revision; it must not be a credential hash.
+type Publication struct {
+	Repository      string
+	RegistryBinding string
+	RegistryAuth    string
+}
+
 type Outcome struct {
 	Identity
 	Phase            string `json:"phase"`
+	ImmutableImage   string `json:"immutableImage,omitempty"`
 	URL              string `json:"url,omitempty"`
 	ResourcesHeld    bool   `json:"resourcesHeld"`
 	CleanupConfirmed bool   `json:"cleanupConfirmed"`
@@ -59,11 +70,12 @@ type Outcome struct {
 // replayed from a saved receipt. Observe is read-only; Stop reauthorizes the
 // current caller and settles only exact owned allocation absence.
 type Runtime struct {
-	CaptureActor func(context.Context, string) (management.ExecutionActorRef, error)
-	Start        func(context.Context, Request, func(Outcome) error) (Outcome, error)
-	Observe      func(context.Context, Identity) (Outcome, error)
-	Stop         func(context.Context, Identity, func(Outcome) error) (Outcome, error)
-	Restart      func(context.Context, Request, func(Outcome) error) (Outcome, error)
+	CaptureActor    func(context.Context, string) (management.ExecutionActorRef, error)
+	BuildAndPublish func(context.Context, Request, Publication, func(Outcome) error) (Outcome, error)
+	Start           func(context.Context, Request, func(Outcome) error) (Outcome, error)
+	Observe         func(context.Context, Identity) (Outcome, error)
+	Stop            func(context.Context, Identity, func(Outcome) error) (Outcome, error)
+	Restart         func(context.Context, Request, func(Outcome) error) (Outcome, error)
 }
 
 func (i Identity) Retained() bool { return i.BuildAllocationID != "" || i.AllocationID != "" }

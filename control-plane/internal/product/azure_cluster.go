@@ -22,7 +22,16 @@ func clusterNameSuffix(request deploymentplan.AzureFoundationRequest, spec deplo
 	return reviewDigest(struct{ BlueprintDigest, SubscriptionID, TenantID, Group string }{request.ExpectedBlueprintDigest, spec.SubscriptionID, spec.TenantID, group})[:12]
 }
 func clusterFoundationFit(fit deploymentplan.AzureClusterFit, summary deploymentplan.ResourceSummary) deploymentplan.AzureFoundationFit {
-	return deploymentplan.AzureFoundationFit{BlueprintDigest: fit.BlueprintDigest, Tier: "aks-fixed-cpu", MilliCPU: fit.NominalNodeMilliCPU * fit.Spec.NodeCount, MemoryMiB: fit.NominalNodeMemoryMiB * fit.Spec.NodeCount, SystemReserveMiB: fit.ReservedMemoryMiBPerNode * fit.Spec.NodeCount, Requested: summary, Fits: fit.Fits, CapacityVerified: false, Decisions: fit.Decisions}
+	value := deploymentplan.AzureFoundationFit{BlueprintDigest: fit.BlueprintDigest, Tier: "aks-fixed-cpu", MilliCPU: fit.NominalNodeMilliCPU * fit.Spec.NodeCount, MemoryMiB: fit.NominalNodeMemoryMiB * fit.Spec.NodeCount, SystemReserveMiB: fit.ReservedMemoryMiBPerNode * fit.Spec.NodeCount, Requested: summary, Fits: fit.Fits, CapacityVerified: false, Decisions: fit.Decisions}
+	if fit.Spec.GPUPool != nil {
+		if gpu, err := deploymentplan.AzureGPUPoolCapacity(fit.Spec.GPUPool); err == nil {
+			value.Tier = "aks-fixed-managed-gpu-preview"
+			value.MilliCPU += gpu.MilliCPU * fit.Spec.GPUPool.NodeCount
+			value.MemoryMiB += gpu.MemoryMiB * fit.Spec.GPUPool.NodeCount
+			value.SystemReserveMiB += 4096 * fit.Spec.GPUPool.NodeCount
+		}
+	}
+	return value
 }
 func (s *Server) prepareAzureClusterBinding(ctx context.Context, request CloudRequest) (*AzureBlueprintBinding, error) {
 	if request.Provider != "azure" || request.Foundation == nil || request.Cluster == nil || request.Domain != "" {
@@ -57,6 +66,9 @@ func (s *Server) prepareAzureClusterBinding(ctx context.Context, request CloudRe
 	}
 	bearer, err := s.azureClusterToken(current, actor, *request.Cluster, nil)
 	if err != nil {
+		return nil, err
+	}
+	if err = s.checkManagedGPUFeature(current, actor, *request.Cluster); err != nil {
 		return nil, err
 	}
 	fit, err := deploymentplan.AzureClusterFoundation(*request.Foundation, *request.Cluster, bearer.principal, request.Name, clusterNameSuffix(*request.Foundation, *request.Cluster, request.Name))
@@ -99,6 +111,10 @@ func (s *Server) buildAzureClusterCloudPlan(r CloudRequest, binding AzureBluepri
 	}
 	fit := binding.Cluster.Fit
 	plan := CloudPlan{Kind: "aks", ID: newID("cp-"), Provider: "azure", Name: r.Name, Region: r.Region, MonthlyBudgetUSD: r.MonthlyBudgetUSD, CreatedAt: time.Now().UTC(), Resources: []string{"One Entra-enabled AKS cluster; local accounts disabled", fit.Spec.NodeSKU + " fixed CPU system pool", "Provider-managed node resource group, networking and disks"}, Estimate: Estimate{Currency: "USD", Explanation: "No verified Azure quote or billing observation. Nodes, disks, outbound networking and other managed resources incur ongoing costs; the reviewed budget is an authority ceiling, not a provider-enforced cap."}, Warnings: []string{"Cluster creation is separate from bootstrap RBAC grant, project namespace creation, usable target admission and D/S deployment.", "No model storage, GPU pool/plugin, autoscaling, image build, Collector instrumentation or product analytics is provisioned."}, Steps: []PlanStep{{ID: "cluster", Title: "Create exact cluster and fixed nodes", Detail: "The existing owned resource-group job validates this exact ARM template before one non-replayed asynchronous creation."}, {ID: "access", Title: "Review bootstrap access separately", Detail: "The captured Azure principal needs a separately acknowledged AKS RBAC Cluster Admin assignment scoped only to this new cluster; operator roleAssignments/write permission is required."}, {ID: "namespace", Title: "Commission one project namespace", Detail: "An explicit review seals either exact existing UID or a separately owned absence/create attempt. No default-namespace auto-sharing."}, {ID: "target", Title: "Use the observed target", Detail: "Only after real authenticated namespace access and exact UID readback can this connection be used by the existing reviewed D/S flow."}}}
+	if fit.Spec.GPUPool != nil {
+		plan.Resources = append(plan.Resources, fit.Spec.GPUPool.NodeSKU+" fixed managed GPU preview pool: provider driver/device plugin/DCGM")
+		plan.Warnings[1] = "Model storage, images and telemetry are prepared through the project runtime workflow; this fixed-capacity cluster plan does not enable autoscaling."
+	}
 	raw, err := deploymentplan.AzureClusterTemplate(fit, r.Name, r.Region, r.SSHPublicKey, plan.ID)
 	if err != nil {
 		return CloudPlan{}, err
@@ -116,6 +132,12 @@ func (s *Server) cloudJobCommand(ctx context.Context, j CloudJob, exe string, ar
 	return s.cloudJobCommandBefore(ctx, j, exe, args, dir, nil)
 }
 func (s *Server) cloudJobCommandBefore(ctx context.Context, j CloudJob, exe string, args []string, dir string, before func(context.Context) error) (string, error) {
+	if j.Plan.Foundation != nil && j.Plan.Foundation.TelemetryStorage != nil {
+		if before != nil {
+			return "", errAzureBlueprint
+		}
+		return s.telemetryStorageCommand(ctx, j, exe, args, dir)
+	}
 	if j.Plan.Foundation == nil || j.Plan.Foundation.Cluster == nil {
 		return s.runner(ctx, exe, args, dir)
 	}
@@ -127,6 +149,11 @@ func (s *Server) cloudJobCommandBefore(ctx context.Context, j CloudJob, exe stri
 	if _, err = s.azureClusterToken(current, b.Actor, b.Cluster.Fit.Spec, &b.Cluster.Fit.Principal); err != nil {
 		return "", &foundationAdmissionRefusal{cause: err}
 	}
+	if j.Status == "creating" {
+		if err = s.checkManagedGPUFeature(current, b.Actor, b.Cluster.Fit.Spec); err != nil {
+			return "", &foundationAdmissionRefusal{cause: err}
+		}
+	}
 	if exe != "az" {
 		return "", errAzureCluster
 	}
@@ -135,6 +162,11 @@ func (s *Server) cloudJobCommandBefore(ctx context.Context, j CloudJob, exe stri
 	// admission AFTER account/token I/O, immediately before this one mutation.
 	if before != nil {
 		if err = before(ctx); err != nil {
+			return "", &foundationAdmissionRefusal{cause: err}
+		}
+	}
+	if j.Status == "creating" {
+		if err = s.admitFoundationProvider(ctx, j); err != nil {
 			return "", &foundationAdmissionRefusal{cause: err}
 		}
 	}

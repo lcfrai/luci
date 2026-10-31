@@ -122,7 +122,7 @@ func (s *Server) readPersonalArchiveChoice(owner PersonalConversation, id string
 				}
 				original := turn.Handoff
 				next := resolution.Handoff
-				if original == nil || original.Status == "forwarded" || next.ID != original.ID || next.ProjectID != original.ProjectID || next.Message != original.Message || next.ProjectRevision != original.ProjectRevision || next.ProjectContextDigest != original.ProjectContextDigest || next.ProjectRequestKey != original.ProjectRequestKey || next.RequestDigest != original.RequestDigest || next.Status != "unknown" && next.Status != "forwarded" || next.Status == "forwarded" && (!prototypeReleaseID.MatchString(next.ProjectTurnID) || !prototypeReleaseID.MatchString(next.ProjectJobID)) {
+				if original == nil || original.Status == "forwarded" || next.Purpose != original.Purpose || next.ID != original.ID || next.ProjectID != original.ProjectID || next.Message != original.Message || next.ProjectRevision != original.ProjectRevision || next.ProjectContextDigest != original.ProjectContextDigest || next.ProjectRequestKey != original.ProjectRequestKey || next.RequestDigest != original.RequestDigest || next.Status != "unknown" && next.Status != "forwarded" || next.Status == "forwarded" && (!prototypeReleaseID.MatchString(next.ProjectTurnID) || !prototypeReleaseID.MatchString(next.ProjectJobID)) {
 					return PersonalConversation{}, ErrPersonalUnavailable
 				}
 				turn.Handoff = &next

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"sort"
+	"strconv"
 
 	"github.com/lcfrai/luci/control-plane/internal/deploymentplan"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +13,7 @@ import (
 )
 
 type requiredReference struct {
+	imagePull  bool
 	kind, name string
 	keys       []string
 	services   []deploymentplan.Service
@@ -22,10 +24,15 @@ var ErrReferenceChanged = errors.New("The reviewed imported resource identity or
 func requiredReferences(blueprint deploymentplan.Blueprint) []requiredReference {
 	rows := map[string]requiredReference{}
 	for _, service := range blueprint.Services {
-		for name, keys := range deploymentplan.TelemetrySecretKeys(service) {
+		for name, keys := range deploymentplan.ServiceSecretKeys(service) {
 			key := "secret/" + name
 			row := rows[key]
 			row.kind, row.name = "secret", name
+			for _, pull := range service.ImagePullSecrets {
+				if pull == name {
+					row.imagePull = true
+				}
+			}
 			for _, selected := range keys {
 				present := false
 				for _, old := range row.keys {
@@ -41,6 +48,13 @@ func requiredReferences(blueprint deploymentplan.Blueprint) []requiredReference 
 			key := "persistent-volume-claim/" + service.Model.ClaimName
 			row := rows[key]
 			row.kind, row.name = "persistent-volume-claim", service.Model.ClaimName
+			row.services = append(row.services, service)
+			rows[key] = row
+		}
+		if v := service.TelemetryStorage; v != nil {
+			key := "persistent-volume-claim/" + v.ClaimName
+			row := rows[key]
+			row.kind, row.name = "persistent-volume-claim", v.ClaimName
 			row.services = append(row.services, service)
 			rows[key] = row
 		}
@@ -81,6 +95,9 @@ func referenceDigest(row ReferenceSnapshot) string { row.MetadataDigest = ""; re
 func ValidateReferenceBinding(request Request) error { return canonicalReferenceSnapshots(&request) }
 
 func canonicalReferenceSnapshots(request *Request) error {
+	if validatePublicRouteBinding(*request) != nil {
+		return ErrRefused
+	}
 	required := requiredReferences(request.Blueprint)
 	if len(required) > 64 || len(request.References) > 64 {
 		return ErrRefused
@@ -105,7 +122,7 @@ func canonicalReferenceSnapshots(request *Request) error {
 			if !claimCompatible(row, need.services) {
 				return ErrRefused
 			}
-		} else if row.Phase != "" || len(row.AccessModes) != 0 || row.VolumeMode != "" || row.VolumeName != "" {
+		} else if row.Phase != "" || len(row.AccessModes) != 0 || row.VolumeMode != "" || row.VolumeName != "" || row.CapacityBytes != "" {
 			return ErrRefused
 		}
 	}
@@ -155,6 +172,12 @@ func claimCompatible(row ReferenceSnapshot, services []deploymentplan.Service) b
 		}
 	}
 	for _, service := range services {
+		if v := service.TelemetryStorage; v != nil {
+			capacity, e := strconv.ParseInt(row.CapacityBytes, 10, 64)
+			if e != nil || capacity < int64(v.CapacityGiB)<<30 || len(row.AccessModes) != 1 || (row.AccessModes[0] != "ReadWriteOnce" && row.AccessModes[0] != "ReadWriteOncePod") || len(services) != 1 {
+				return false
+			}
+		}
 		if !shared && (service.Replicas != 1 || service.DeploymentStrategy != "recreate") {
 			return false
 		}
@@ -198,6 +221,9 @@ func ReadReferences(ctx context.Context, target Target, blueprint deploymentplan
 			if err != nil || object == nil || object.Name != need.name || object.Namespace != target.Namespace || object.DeletionTimestamp != nil {
 				return nil, ErrRefused
 			}
+			if need.imagePull && object.Type != corev1.SecretTypeDockerConfigJson {
+				return nil, ErrRefused
+			}
 			for _, key := range need.keys {
 				if _, exists := object.Data[key]; !exists {
 					return nil, ErrRefused
@@ -221,6 +247,12 @@ func ReadReferences(ctx context.Context, target Target, blueprint deploymentplan
 				return nil, ErrRefused
 			}
 			row.UID, row.ResourceVersion, row.Phase, row.VolumeName = string(object.UID), object.ResourceVersion, string(object.Status.Phase), object.Spec.VolumeName
+			for _, s := range need.services {
+				if s.TelemetryStorage != nil {
+					size := object.Status.Capacity[corev1.ResourceStorage]
+					row.CapacityBytes = strconv.FormatInt(size.Value(), 10)
+				}
+			}
 			row.VolumeMode = "Filesystem"
 			if object.Spec.VolumeMode != nil {
 				row.VolumeMode = string(*object.Spec.VolumeMode)
@@ -248,6 +280,9 @@ func ReadReferences(ctx context.Context, target Target, blueprint deploymentplan
 }
 
 func (c *Connector) validateReferences(ctx context.Context, target Target, request Request, service *deploymentplan.Service, mutation bool) error {
+	if err := c.validatePublicRouteReferences(ctx, target, request, service, mutation); err != nil {
+		return err
+	}
 	blueprint := request.Blueprint
 	if service != nil {
 		blueprint.Services = []deploymentplan.Service{*service}

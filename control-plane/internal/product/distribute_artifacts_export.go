@@ -305,11 +305,7 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		journeyError(w, 409, "artifact_changed", "The saved artifact revision changed. Review the current version before exporting.")
 		return
 	}
-	selectedRun := ""
-	if row.Source.SelectedEvidence != nil {
-		selectedRun = row.Source.SelectedEvidence.RunID
-	}
-	source, _, _, _, sourceErr := s.artifactSourceForKindLocked(r.Context(), p, row.Kind, selectedRun)
+	source, _, _, _, sourceErr := s.artifactSourceForRetainedLocked(r.Context(), p, row)
 	s.teamControlsMu.Unlock()
 	s.mu.RUnlock()
 	freshness := "unavailable"

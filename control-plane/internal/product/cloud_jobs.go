@@ -25,23 +25,24 @@ func (e *foundationAdmissionRefusal) Error() string {
 func (e *foundationAdmissionRefusal) Unwrap() error { return e.cause }
 
 type CloudJob struct {
-	Kind            string                   `json:"kind,omitempty"`
-	DeleteAttempted bool                     `json:"deleteAttempted,omitempty"`
-	Cluster         *AzureClusterObservation `json:"cluster,omitempty"`
-	ID              string                   `json:"id"`
-	PlanID          string                   `json:"planId"`
-	Provider        string                   `json:"provider"`
-	Name            string                   `json:"name"`
-	Region          string                   `json:"region"`
-	Domain          string                   `json:"domain"`
-	Status          string                   `json:"status"`
-	Message         string                   `json:"message"`
-	PublicIP        string                   `json:"publicIp"`
-	ResourceID      string                   `json:"resourceId"`
-	CreatedAt       time.Time                `json:"createdAt"`
-	UpdatedAt       time.Time                `json:"updatedAt"`
-	Plan            CloudPlan                `json:"-"`
-	Owned           bool                     `json:"-"`
+	TelemetryStorage *AzureTelemetryStorageObservation `json:"telemetryStorage,omitempty"`
+	Kind             string                            `json:"kind,omitempty"`
+	DeleteAttempted  bool                              `json:"deleteAttempted,omitempty"`
+	Cluster          *AzureClusterObservation          `json:"cluster,omitempty"`
+	ID               string                            `json:"id"`
+	PlanID           string                            `json:"planId"`
+	Provider         string                            `json:"provider"`
+	Name             string                            `json:"name"`
+	Region           string                            `json:"region"`
+	Domain           string                            `json:"domain"`
+	Status           string                            `json:"status"`
+	Message          string                            `json:"message"`
+	PublicIP         string                            `json:"publicIp"`
+	ResourceID       string                            `json:"resourceId"`
+	CreatedAt        time.Time                         `json:"createdAt"`
+	UpdatedAt        time.Time                         `json:"updatedAt"`
+	Plan             CloudPlan                         `json:"-"`
+	Owned            bool                              `json:"-"`
 }
 type savedCloudJob struct {
 	Job   CloudJob  `json:"job"`
@@ -68,6 +69,9 @@ func (s *Server) initCloudJobs() error {
 	for _, record := range records {
 		j := record.Job
 		j.Plan = record.Plan
+		if (j.Kind == "telemetry-storage") != (j.Plan.Foundation != nil && j.Plan.Foundation.TelemetryStorage != nil) || j.TelemetryStorage != nil && j.Kind != "telemetry-storage" {
+			return errAzureBlueprint
+		}
 		if j.Kind != j.Plan.Kind {
 			return errAzureCluster
 		}
@@ -211,7 +215,7 @@ func (s *Server) updateJob(j CloudJob, status, message string) {
 	s.mu.Lock()
 	j.Status = status
 	j.Message = message
-	if j.Kind == "aks" && s.jobs[j.ID].DeleteAttempted {
+	if (j.Kind == "aks" || j.Kind == "telemetry-storage") && s.jobs[j.ID].DeleteAttempted {
 		j.DeleteAttempted = true
 		if status != "deleted" {
 			j.Status = "deleting"
@@ -341,6 +345,9 @@ func (s *Server) provisionCloud(j CloudJob) {
 		j.ResourceID = group.ID
 		j.Owned = true
 		message := "Resource group created. Validating the machine template."
+		if j.Kind == "telemetry-storage" {
+			message = "Resource group created. Validating the dedicated private Blob account/container and retention template."
+		}
 		if j.Kind == "aks" {
 			message = "Resource group created. Validating the exact AKS cluster template; workloads are not deployed."
 		}
@@ -354,7 +361,9 @@ func (s *Server) provisionCloud(j CloudJob) {
 			return
 		}
 	}
-	if j.Kind == "aks" {
+	if j.Kind == "telemetry-storage" {
+		s.updateJob(j, "provisioning", "Dedicated trace Blob storage requested. Observe the original job; private Secret, PVCs and instrumented workload deployment remain separate reviewed prerequisites.")
+	} else if j.Kind == "aks" {
 		s.updateJob(j, "provisioning", "Cluster and fixed nodes requested. Refresh the original job; access grant, project namespace and workloads remain separate.")
 	} else {
 		s.updateJob(j, "provisioning", "Resources are being created. Refresh progress, then connect the server through SSH.")
@@ -421,7 +430,7 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 		}
 		j.ResourceID = group.ID
 		j.Owned = true
-		if j.Kind == "aks" && (j.DeleteAttempted || j.Status == "deleting" || j.Status == "deleted") {
+		if (j.Kind == "aks" || j.Kind == "telemetry-storage") && (j.DeleteAttempted || j.Status == "deleting" || j.Status == "deleted") {
 			s.updateJob(j, "deleting", "The original group still exists after a delete attempt; no deletion or workload operation was repeated.")
 			s.writeFoundationJobResponse(w, r, j, 200, s.jobsSnapshot(j.ID))
 			return
@@ -507,7 +516,17 @@ func (s *Server) refreshCloudJob(w http.ResponseWriter, r *http.Request) {
 			j.Status = "provisioning"
 		}
 	}
-	if j.Plan.Foundation != nil && j.Plan.Foundation.Cluster != nil {
+	if j.Kind == "telemetry-storage" {
+		observation, readErr := s.observeTelemetryStorage(ctx, j)
+		if readErr != nil {
+			j.Status = "unknown"
+			s.updateJob(j, j.Status, "The original trace storage identity/configuration could not be confirmed. Resources and charges may remain; no create was replayed.")
+		} else {
+			j.TelemetryStorage = &observation
+			j.Status = observation.State
+			s.updateJob(j, j.Status, "Original account/container observed. Trace delivery, Kubernetes Secret and retained query data are verified separately.")
+		}
+	} else if j.Plan.Foundation != nil && j.Plan.Foundation.Cluster != nil {
 		observation, readErr := s.observeAzureCluster(ctx, j)
 		if readErr != nil {
 			j.Status = "unknown"
@@ -547,7 +566,7 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "ownership_required", "Type the resource name and refresh its ownership before deleting it.")
 		return
 	}
-	if j.Status == "creating" || j.Status == "deleting" || j.Kind == "aks" && j.DeleteAttempted {
+	if j.Status == "creating" || j.Status == "deleting" || (j.Kind == "aks" || j.Kind == "telemetry-storage") && j.DeleteAttempted {
 		problem(w, 409, "operation_running", "Wait for the current operation before deleting resources.")
 		return
 	}
@@ -601,7 +620,7 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if j.Kind == "aks" {
+	if j.Kind == "aks" || j.Kind == "telemetry-storage" {
 		// Durable original intent precedes the one existing provider mutation. A
 		// lost response never restores commissioning or silently repeats deletion.
 		s.mu.Lock()

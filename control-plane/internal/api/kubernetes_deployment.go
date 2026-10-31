@@ -66,12 +66,21 @@ func (a *API) handleKubernetesDeployment(w http.ResponseWriter, r *http.Request)
 		}
 		value, err = a.deps.Product.ReviewKubernetesDeployment(r.Context(), actor, input)
 	case "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/telemetry/read":
-		var input struct{}
+		var input struct {
+			Source string `json:"source,omitempty"`
+		}
 		if !decode(&input) {
 			httpx.WriteProblem(w, 400, "kubernetes_invalid", "Read only the exact retained Collector operation.", nil)
 			return
 		}
-		value, err = a.deps.Product.ReadKubernetesTelemetry(r.Context(), actor, r.PathValue("operationId"))
+		if input.Source == "stored" {
+			value, err = a.deps.Product.ReadKubernetesStoredTelemetry(r.Context(), actor, r.PathValue("operationId"))
+		} else if input.Source == "" {
+			value, err = a.deps.Product.ReadKubernetesTelemetry(r.Context(), actor, r.PathValue("operationId"))
+		} else {
+			httpx.WriteProblem(w, 400, "kubernetes_invalid", "Choose Collector counters or the explicitly configured owned store.", nil)
+			return
+		}
 	case "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/apply", "POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/observe":
 		var input struct {
 			AcknowledgeCost            bool `json:"acknowledgeCost"`

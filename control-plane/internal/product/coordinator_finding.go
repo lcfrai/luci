@@ -20,20 +20,23 @@ const coordinatorFindingLimit = 64
 // source identity is authoritative; its text is observation, never permission
 // to apply a proposal or retry an unknown external operation.
 type CoordinatorFinding struct {
-	ID             string `json:"id"`
-	ProjectID      string `json:"projectId"`
-	RecipientID    string `json:"recipientId"`
-	ContinuationID string `json:"continuationId"`
-	EventID        string `json:"eventId,omitempty"`
-	OriginTurnID   string `json:"originTurnId"`
-	ContextDigest  string `json:"contextDigest"`
-	SourceRevision int    `json:"sourceRevision"`
-	SourceStatus   string `json:"sourceStatus"`
-	Status         string `json:"status"` // pending, reserved, inflight, question, review, observed, resumed, unknown
-	Message        string `json:"message"`
-	RequestKey     string `json:"requestKey,omitempty"`
-	TurnID         string `json:"turnId,omitempty"`
-	UpdatedAt      string `json:"updatedAt"`
+	ObservationSequence      int                     `json:"observationSequence,omitempty"`
+	ObservationRouteRevision int                     `json:"observationRouteRevision,omitempty"`
+	Observation              *CoordinatorObservation `json:"observation,omitempty"`
+	ID                       string                  `json:"id"`
+	ProjectID                string                  `json:"projectId"`
+	RecipientID              string                  `json:"recipientId"`
+	ContinuationID           string                  `json:"continuationId"`
+	EventID                  string                  `json:"eventId,omitempty"`
+	OriginTurnID             string                  `json:"originTurnId"`
+	ContextDigest            string                  `json:"contextDigest"`
+	SourceRevision           int                     `json:"sourceRevision"`
+	SourceStatus             string                  `json:"sourceStatus"`
+	Status                   string                  `json:"status"` // pending, reserved, inflight, question, review, observed, resumed, unknown
+	Message                  string                  `json:"message"`
+	RequestKey               string                  `json:"requestKey,omitempty"`
+	TurnID                   string                  `json:"turnId,omitempty"`
+	UpdatedAt                string                  `json:"updatedAt"`
 }
 
 type CoordinatorFindingDispatch struct {
@@ -54,7 +57,14 @@ func validCoordinatorFinding(f CoordinatorFinding, projectID, actorID string) bo
 	if !strings.HasPrefix(f.ID, "finding-") || !prototypeReleaseID.MatchString(f.ID) || f.ProjectID != projectID || f.RecipientID != actorID || !prototypeReleaseID.MatchString(f.OriginTurnID) || !hexDigest(f.ContextDigest) || f.SourceRevision < 1 || len(f.Message) == 0 || len(f.Message) > 2000 || (f.TurnID != "" && (!strings.HasPrefix(f.TurnID, "turn-") || !prototypeReleaseID.MatchString(f.TurnID))) {
 		return false
 	}
-	if f.EventID != "" {
+	if f.SourceStatus == "saved-observation" && f.Observation == nil {
+		return false
+	}
+	if f.Observation != nil {
+		if !validObservation(f.Observation) || f.ObservationSequence < 1 || f.ObservationRouteRevision < 1 || f.ID != observationFindingIdentity(projectID, actorID, *f.Observation, f.ObservationRouteRevision, f.ObservationSequence) || f.EventID != "" || f.ContinuationID != "" || f.SourceStatus != "saved-observation" || f.ContextDigest != f.Observation.Digest || f.Message != f.Observation.Summary {
+			return false
+		}
+	} else if f.EventID != "" {
 		if f.ContinuationID != "" || !strings.HasPrefix(f.EventID, "coord-event-") || !prototypeReleaseID.MatchString(f.EventID) {
 			return false
 		}
@@ -65,7 +75,7 @@ func validCoordinatorFinding(f CoordinatorFinding, projectID, actorID string) bo
 		return false
 	}
 	switch f.SourceStatus {
-	case "blocked", "unknown", "checks-verified", "preview-ready", "preview-blocked", "deployment-blocked", "deployed", "accepted-context":
+	case "blocked", "unknown", "checks-verified", "preview-ready", "preview-blocked", "deployment-blocked", "deployed", "accepted-context", "saved-observation":
 	default:
 		return false
 	}
@@ -437,6 +447,15 @@ func (s *Server) continueCoordinatorFinding(ctx context.Context, p project.Proje
 			}
 			return s.setCoordinatorFindingStatus(p, rows.ActorID, finding.ID, finding.Status, status, finding.TurnID)
 		}
+		if finding.Observation != nil {
+			current, sourceErr := s.observationFindingStatus(fresh, p, ref, finding, rows)
+			if sourceErr != nil {
+				continue
+			}
+			if !current {
+				return s.setCoordinatorFindingStatus(p, rows.ActorID, finding.ID, finding.Status, "observed", "")
+			}
+		}
 		view, err := s.OrchestratorView(fresh, p.ID, 0)
 		if err != nil {
 			return false, err
@@ -457,6 +476,9 @@ func (s *Server) continueCoordinatorFinding(ctx context.Context, p project.Proje
 			return true, err
 		}
 		source := "continuation " + finding.ContinuationID
+		if finding.Observation != nil {
+			source = "saved " + finding.Observation.Kind + " evidence " + finding.Observation.Digest
+		}
 		if finding.EventID != "" {
 			source = "accepted event " + finding.EventID
 		}

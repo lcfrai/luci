@@ -40,3 +40,25 @@ it('offers a new explicit existing-namespace review without replaying an unknown
  const original={...row(),roleAttempted:true,roleObserved:true,namespaceAttempted:true,state:'namespace-unknown' as const};const imported={...original,id:'aks-'+'d'.repeat(32),revision:1,mode:'existing' as const,expectedNamespaceUid:'current-reviewed-uid',expectedNamespaceVersion:'7',roleAttempted:false,roleExistingAtReview:true,namespaceAttempted:false,state:'reviewed' as const};vi.spyOn(azureClusterApi,'list').mockResolvedValue({jobs:[job()],commissions:[original]});const review=vi.spyOn(azureClusterApi,'review').mockResolvedValue(imported),action=vi.spyOn(azureClusterApi,'action');
  render(<AzureClusterHandoff projectId="p-one" active saved={null} plan={null} draftMatchesSaved={false} onTarget={()=>undefined}/>);const user=await load();await user.selectOptions(screen.getByLabelText('Retained access review'),original.id);await user.click(screen.getByRole('button',{name:'Review existing namespace connection'}));expect(review).not.toHaveBeenCalled();expect(action).not.toHaveBeenCalled();expect(screen.getByLabelText('Namespace mode')).toHaveProperty('value','existing');await user.click(screen.getByRole('button',{name:'Review bootstrap access and namespace'}));expect(review).toHaveBeenCalledWith('p-one',original.jobId,original.namespace,'existing',expect.any(AbortSignal));expect(action).not.toHaveBeenCalled();expect(screen.getByLabelText('Retained access review').querySelector(`option[value="${original.id}"]`)).not.toBeNull();
 });
+
+it('keeps the optional GPU preview explicit and submits only the selected fixed pool',async()=>{
+ const blueprint:import('../../api/deploymentBlueprint').DeploymentBlueprint={version:1,projectId:'p-one',source:{commit:'a'.repeat(40),configurationRevision:1},infrastructure:{id:'cluster',kind:'kubernetes',reference:'',namespace:''},services:[{id:'inference',kind:'inference',image:'registry.example/model@sha256:'+'b'.repeat(64),port:8080,replicas:1,resources:{requestMilliCpu:500,limitMilliCpu:1000,requestMemoryMiB:1024,limitMemoryMiB:2048,gpuCount:1}}]};
+ const plan:import('../../api/deploymentBlueprint').DeploymentBlueprintPlan={version:1,digest:'d'.repeat(64),state:'decisions-required',blueprint,steps:[],decisions:[],artifacts:[],capabilities:[],warnings:[],resourceSummary:{replicas:1,requestMilliCpu:500,limitMilliCpu:1000,requestMemoryMiB:1024,limitMemoryMiB:2048,gpuCount:1},sourceVerified:false,effectsApplied:false};
+ const saved:import('../../api/deploymentBlueprint').SavedDeploymentBlueprint={projectId:'p-one',revision:1,digest:'e'.repeat(64),planDigest:plan.digest,blueprint,actor:{id:'alice',displayName:'Alice'},at:now};
+ const review=vi.spyOn(azureClusterApi,'plan').mockRejectedValue(new Error('Review response unavailable')),create=vi.spyOn(azureClusterApi,'create');
+ render(<AzureClusterHandoff projectId="p-one" active saved={saved} plan={plan} draftMatchesSaved onTarget={()=>undefined}/>);
+ const user=userEvent.setup();await user.click(screen.getByText('Create a managed Azure Kubernetes cluster'));
+ expect(screen.queryByLabelText('GPU node size')).toBeNull();
+ await user.click(screen.getByLabelText('Include a fixed NVIDIA GPU pool'));
+ expect(screen.getByLabelText(/Use the Azure managed GPU preview/)).toHaveProperty('checked',false);
+ await user.click(screen.getByLabelText(/Use the Azure managed GPU preview/));
+ await user.click(screen.getByLabelText('Include a fixed NVIDIA GPU pool'));await user.click(screen.getByLabelText('Include a fixed NVIDIA GPU pool'));
+ expect(screen.getByLabelText(/Use the Azure managed GPU preview/)).toHaveProperty('checked',false);
+ for(const [label,value] of [['New Azure resource group','owned-project'],['Azure region','eastus'],['Subscription ID','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],['Tenant ID','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'],['Exact Kubernetes version','1.34.1'],['Reviewed monthly authority ceiling (USD)','500'],['Public controller egress IPv4 networks','8.8.8.8/32'],['Existing node SSH public key','ssh-ed25519 PUBLIC-FIXTURE']]){
+  await user.type(screen.getByLabelText(label),value);
+ }
+ await user.selectOptions(screen.getByLabelText('GPU node size'),'Standard_NC8as_T4_v3');
+ await user.click(screen.getByLabelText(/Use the Azure managed GPU preview/));await user.click(screen.getByRole('button',{name:'Review cluster plan'}));await screen.findByRole('alert');
+ expect(review).toHaveBeenCalledTimes(1);expect(review.mock.calls[0][0].cluster?.gpuPool).toEqual({nodeSku:'Standard_NC8as_T4_v3',nodeCount:1,acknowledgeManagedPreview:true});
+ expect(create).not.toHaveBeenCalled();
+});

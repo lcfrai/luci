@@ -247,7 +247,7 @@ func (s *Server) controlProjectSwarm(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			return nil
-		})
+		}, humanRunAction(r, "swarm-"+action, req.ExpectedRevision)...)
 	}
 	if err != nil {
 		projectRunProblem(w, err)

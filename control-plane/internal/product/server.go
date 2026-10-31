@@ -68,6 +68,8 @@ type Options struct {
 }
 
 type Server struct {
+	runtimePreparationMu            sync.Mutex
+	outcomeCostsMu                  sync.Mutex
 	distributeWorkAdmission         func(context.Context) (func(), error)
 	distributePDFWorkAdmission      func(context.Context) (func(), error)
 	teamControlsMu                  sync.Mutex
@@ -160,6 +162,7 @@ type Server struct {
 	githubReleasesMu                sync.Mutex
 	githubReleaseRunner             GitHubReleaseRunner
 	feedbackMu                      sync.Mutex
+	researchAuthorize               management.ResearchAuthorizer
 	feedbackAuthorize               ProjectFeedbackAuthorizer
 	githubIssuesRunner              GitHubIssuesRunner
 	nativeInfo                      bool
@@ -456,11 +459,12 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 func (b *limitedBuffer) String() string { b.mu.Lock(); defer b.mu.Unlock(); return string(b.data) }
 
 type Check struct {
-	ID      string `json:"id"`
-	Label   string `json:"label"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Action  string `json:"action"`
+	ID              string `json:"id"`
+	Label           string `json:"label"`
+	Status          string `json:"status"`
+	Message         string `json:"message"`
+	Action          string `json:"action"`
+	PreparationMode string `json:"preparationMode,omitempty"`
 }
 type Provider struct {
 	ID          string `json:"id"`
@@ -507,7 +511,7 @@ func defaultChecks() []Check {
 	return []Check{
 		{ID: "git", Label: "Git", Status: "unknown", Message: "Check that Git is installed"},
 		{ID: "docker", Label: "Docker engine", Status: "unknown", Message: "Required for isolated agent sessions and local previews"},
-		{ID: "sandbox-image", Label: "Agent runtime", Status: "unknown", Message: "Check that Luci's agent image is available"},
+		{ID: "sandbox-image", Label: "Agent runtime", Status: "unknown", Message: "Check that the installed runtime supports Luci's agent workflows"},
 		{ID: "aws", Label: "AWS connection", Status: "unknown", Message: "Optional; use your existing AWS sign-in"},
 		{ID: "azure", Label: "Azure connection", Status: "unknown", Message: "Optional; use your existing Azure sign-in"},
 	}
@@ -542,7 +546,7 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 	}{
 		{"git", []string{"--version"}, "Install Git, then run this check again."},
 		{"docker", []string{"info", "--format", "{{.ServerVersion}}"}, "Open Docker Desktop or start your Docker engine, then check again."},
-		{"docker", []string{"image", "inspect", s.sandboxImage, "--format", "{{.Id}}"}, "Install Luci's agent runtime from the local runtime setup."},
+		{"docker", []string{"image", "inspect", s.sandboxImage, "--format", runtimeReadinessFormat}, "Install Luci's agent runtime from the local runtime setup."},
 		{"aws", []string{"sts", "get-caller-identity", "--query", "Account", "--output", "text"}, "Install AWS CLI and sign in with aws login or your configured SSO profile."},
 		{"az", []string{"account", "show", "--query", "name", "--output", "tsv"}, "Install Azure CLI and use az login to connect your own account."},
 	}
@@ -572,6 +576,8 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 				checks[i].Status = "missing"
 				checks[i].Message = "This connection is not ready."
 				checks[i].Action = p.action
+			} else if i == 2 {
+				checks[i] = runtimeReadinessCheck(output)
 			} else {
 				checks[i].Status = "ready"
 				checks[i].Message = "Ready"

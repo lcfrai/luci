@@ -64,6 +64,9 @@ func previewIdentityLabels(v backend.PreviewIdentity) map[string]string {
 }
 func previewName(v backend.PreviewIdentity) string { return "luci-preview-" + v.AllocationID }
 func validPreviewSpec(s backend.PreviewSpec) bool {
+	if s.Platform != "" && (s.Platform != "linux/amd64" || s.Kind != "preview-build") {
+		return false
+	}
 	if !validPreviewIdentity(s.Identity, false) || (s.Kind != "preview-build" && s.Kind != "preview" && s.Kind != backend.ReviewedSourcePreview) || (s.Kind == backend.ReviewedSourcePreview) != (s.Identity.Kind == backend.ReviewedSourcePreview) || s.Resources.MemoryMiB <= 0 || int64(s.Resources.MemoryMiB) > math.MaxInt64>>20 || s.Resources.CPUMillis <= 0 || int64(s.Resources.CPUMillis) > math.MaxInt64/1000000 || s.Port < 1 || s.Port > 65535 {
 		return false
 	}
@@ -147,6 +150,10 @@ func (b *Backend) PreparePreview(ctx context.Context, s backend.PreviewSpec) (ba
 	if info.ID != identity.EngineID || info.OSType != "linux" {
 		return backend.PreparedPreview{}, backend.ErrLaunchFenceOwnership
 	}
+	// This fixed profile does not assume an ambient cross-architecture emulator.
+	if s.Platform != "" && info.Architecture != "amd64" && info.Architecture != "x86_64" {
+		return backend.PreparedPreview{}, backend.ErrUnsupported
+	}
 	if !requestedLimitsSupported(info, s.Resources) {
 		return backend.PreparedPreview{}, backend.ErrResourceLimitsUnsupported
 	}
@@ -167,6 +174,9 @@ func (b *Backend) PreparePreview(ctx context.Context, s backend.PreviewSpec) (ba
 		p.PreparedContext, p.ContextDigest, p.BaseImages, p.RequiredDiskBytes = plan.prepared, plan.digest, plan.images, plan.demand
 		p.BasePlan = plan.bases
 		p.Spec.ContextDigest = p.ContextDigest
+		if err := b.previewRequiredPlatform(ctx, p.Spec, p.BasePlan); err != nil {
+			return backend.PreparedPreview{}, err
+		}
 		p.BasePlanDigest = previewBasePlanDigest(p)
 	} else {
 		images, ok := b.api.(imageResourceClient)
@@ -221,7 +231,7 @@ func (b *Backend) BuildPreview(ctx context.Context, p backend.PreparedPreview, b
 	}
 	// Explicit classic builder: BuildKit ignores the per-build memory/CPU flags.
 	// nproc is a process ulimit, not a cgroup PID bound; serving uses PidsLimit.
-	opts := build.ImageBuildOptions{Version: build.BuilderV1, Dockerfile: p.Spec.Dockerfile, Remove: true, ForceRemove: true, PullParent: false, NoCache: true, Memory: p.Spec.Resources.MemoryBytes(), MemorySwap: p.Spec.Resources.MemoryBytes(), CPUPeriod: 100000, CPUQuota: int64(p.Spec.Resources.CPUMillis) * 100, NetworkMode: "default", Labels: previewIdentityLabels(p.Spec.Identity), Ulimits: []*container.Ulimit{{Name: "nproc", Soft: 256, Hard: 256}}}
+	opts := build.ImageBuildOptions{Platform: p.Spec.Platform, Version: build.BuilderV1, Dockerfile: p.Spec.Dockerfile, Remove: true, ForceRemove: true, PullParent: false, NoCache: true, Memory: p.Spec.Resources.MemoryBytes(), MemorySwap: p.Spec.Resources.MemoryBytes(), CPUPeriod: 100000, CPUQuota: int64(p.Spec.Resources.CPUMillis) * 100, NetworkMode: "default", Labels: previewIdentityLabels(p.Spec.Identity), Ulimits: []*container.Ulimit{{Name: "nproc", Soft: 256, Hard: 256}}}
 	if opts.Dockerfile == "" {
 		opts.Dockerfile = "Dockerfile"
 	}
@@ -302,7 +312,7 @@ func (b *Backend) BuildPreview(ctx context.Context, p backend.PreparedPreview, b
 		return backend.PreviewBuildResult{}, backend.ErrUnsupported
 	}
 	row, err := images.ImageInspect(ctx, imageID)
-	if err != nil || row.ID != imageID || row.Size <= 0 || row.Config == nil {
+	if err != nil || row.ID != imageID || row.Size <= 0 || row.Config == nil || p.Spec.Platform != "" && (row.Os != "linux" || row.Architecture != "amd64") {
 		return backend.PreviewBuildResult{}, backend.ErrUnavailable
 	}
 	for k, v := range previewIdentityLabels(p.Spec.Identity) {

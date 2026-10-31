@@ -48,8 +48,10 @@ type SwarmSchedulerRuntime struct {
 	CaptureActor func(context.Context, string) (management.ExecutionActorRef, error)
 	Admit        func(context.Context, SwarmAdmissionRequest) (SwarmAdmissionResult, error)
 	Dispatch     func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)
-	// ResumeCloud may complete only an already-owned, reconciled VM whose
-	// upstream launch marker is still absent. It must never allocate a new VM.
+	// ResumeCloud may finish an exact owned VM without replay. A configured
+	// host pool may also finish the FIRST admission of a canonical queued
+	// operation only with positive durable unmaterialized-original proof;
+	// unknown or materialized attempts cannot be replaced or moved.
 	ResumeCloud func(context.Context, SwarmDispatchRequest) (SwarmDispatchResult, error)
 	// StopOwned settles only the exact retained attempt after a durable stop
 	// intent. False means its child or charge is still live/uncertain.

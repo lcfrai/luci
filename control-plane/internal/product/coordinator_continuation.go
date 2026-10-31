@@ -68,6 +68,7 @@ type coordinatorContinuationRecord struct {
 	CheckPlan       *CoordinatorCheckPlan        `json:"checkPlan,omitempty"`
 	PreviewPlan     *CoordinatorPreviewPlan      `json:"previewPlan,omitempty"`
 	DeploymentPlan  *CoordinatorDeploymentPlan   `json:"deploymentPlan,omitempty"`
+	KubernetesPlan  *CoordinatorKubernetesPlan   `json:"kubernetesPlan,omitempty"`
 }
 type coordinatorContinuations struct {
 	Version            int                             `json:"version"`
@@ -102,6 +103,7 @@ type coordinatorContinuationRequest struct {
 	CheckPlan              *CoordinatorCheckPlan      `json:"checkPlan,omitempty"`
 	PreviewPlan            *CoordinatorPreviewPlan    `json:"previewPlan,omitempty"`
 	DeploymentPlan         *CoordinatorDeploymentPlan `json:"deploymentPlan,omitempty"`
+	KubernetesPlan         *CoordinatorKubernetesPlan `json:"kubernetesPlan,omitempty"`
 }
 
 func (s *Server) SetCoordinatorExecutionAuthorizer(fn func(context.Context, string, string, bool) error) {
@@ -112,6 +114,7 @@ func (s *Server) SetCoordinatorDeploymentAuthorizer(fn management.DeploymentAuth
 }
 
 func (s *Server) registerCoordinatorContinuations(mux Registrar) {
+	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/kubernetes-plan", s.prepareCoordinatorKubernetesPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/deployment-plan", s.prepareCoordinatorDeploymentPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/findings/preferences", s.updateCoordinatorFindingPreference)
 	const base = "/v1/product/projects/{id}/orchestrator/continuations"
@@ -339,6 +342,14 @@ func (s *Server) getCoordinatorContinuation(w http.ResponseWriter, r *http.Reque
 // identity may use deployment observation authority. This does not authorize a
 // new push or provider action; those typed steps reauthorize allocation directly.
 func coordinatorRetainedDeploymentObservation(row coordinatorContinuationRecord) bool {
+	if row.KubernetesPlan != nil && row.Delivery != nil && row.Delivery.Status == "verified" && row.Delivery.Kubernetes != nil && len(row.Actions) == 3 {
+		for i, kind := range []string{"create-run", "prepare-tasks", "queue-tasks"} {
+			if row.Actions[i].Kind != kind || row.Actions[i].Status != "confirmed" {
+				return false
+			}
+		}
+		return true
+	}
 	if row.DeploymentPlan == nil || row.Delivery == nil || row.Delivery.Status != "verified" || (row.Delivery.GitPublication == nil && row.Delivery.Deployment == nil) || len(row.Actions) != 3 {
 		return false
 	}
@@ -364,7 +375,7 @@ func (s *Server) continuationAuthority(ctx context.Context, p project.Project, r
 		// refresh it outside this lock before observation or any effect.
 		captured, err := management.CaptureDeploymentActor(ctx, p.ID)
 		_, policy, present := management.ActorFromContext(ctx)
-		if err != nil || captured != row.ExecutionActor || !present || !policy.AllowPublicPublishing {
+		if err != nil || captured != row.ExecutionActor || !present || row.KubernetesPlan == nil && !policy.AllowPublicPublishing {
 			return errCoordinatorAuthority
 		}
 		return nil
@@ -419,7 +430,7 @@ func (s *Server) coordinatorContractSelectionCurrent(ctx context.Context, p proj
 		c.Input.Implementation.BriefRevision != run.ImplementationContext.BriefRevision || c.Input.Implementation.PlanRevision != run.ImplementationContext.PlanRevision ||
 		c.Input.Implementation.SpecificationRevision != run.ImplementationContext.SpecificationRevision || c.Input.Implementation.DesignPlanRevision != run.ImplementationContext.DesignPlanRevision ||
 		!sameReviewedTaskIDs(c.Input.Implementation.TaskIDs, run.ImplementationContext.TaskIDs) || c.Input.Route.Harness != run.Harness || (run.Model != "" && c.Input.Route.Model != run.Model) ||
-		c.Input.Route.PermissionMode != run.PermissionMode || c.Input.Route.NativeDelegation != run.NativeDelegation || (run.Effort != "" && c.Input.Route.Effort != run.Effort) || c.Input.Outcome != run.Outcome ||
+		c.Input.Route.CloudPoolDigest != run.CloudPoolDigest || !sameCloudHosts(c.Input.Route.CloudHostIDs, run.CloudHostIDs) || c.Input.Route.PermissionMode != run.PermissionMode || c.Input.Route.NativeDelegation != run.NativeDelegation || (run.Effort != "" && c.Input.Route.Effort != run.Effort) || c.Input.Outcome != run.Outcome ||
 		(c.Input.Route.ExecutionLocation != "" && c.Input.Route.ExecutionLocation != run.ExecutionLocation) || (c.Input.Route.ExecutionLocation == "" && run.ExecutionLocation != "" && run.ExecutionLocation != "local-docker") ||
 		(run.AgentConnectionID != nil && c.Input.Route.Connection.ID != *run.AgentConnectionID) || s.contractView(ctx, p, *c).Freshness.Status != "current" {
 		return ErrOrchestratorConflict
@@ -447,8 +458,12 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		journeyError(w, http.StatusConflict, "execution_contract_required", "Review and approve the current execution contract before continuing this build.")
 		return
 	}
-	if req.Run.ExecutionLocation != "" && req.Run.ExecutionLocation != "local-docker" && req.Run.ExecutionLocation != "cloud-microvm" || req.Run.ExecutionLocation == "cloud-microvm" && (req.Run.PermissionMode != "bypass" || req.Run.Harness != "codex" && req.Run.Harness != "claude-code" || req.Run.AgentConnectionID == nil || *req.Run.AgentConnectionID == "") {
+	if !validCloudHostSelection(req.Run.CloudHostIDs, req.Run.CloudPoolDigest, req.Run.ExecutionLocation) || req.Run.ExecutionLocation != "" && req.Run.ExecutionLocation != "local-docker" && req.Run.ExecutionLocation != "cloud-microvm" || req.Run.ExecutionLocation == "cloud-microvm" && (req.Run.PermissionMode != "bypass" || req.Run.Harness != "codex" && req.Run.Harness != "claude-code" || req.Run.AgentConnectionID == nil || *req.Run.AgentConnectionID == "") {
 		journeyError(w, 400, "invalid_cloud_continuation", "Choose an explicit supported cloud harness, noninteractive permission and a model connection for this microVM task plan.")
+		return
+	}
+	if err := validateCoordinatorKubernetesSelection(req.KubernetesPlan, req.DeploymentPlan, req.CheckPlan, req.Run.Outcome); err != nil {
+		coordinatorPolicyProblem(w, err)
 		return
 	}
 	if err := validateCoordinatorDeploymentPlan(req.DeploymentPlan); err != nil {
@@ -502,11 +517,21 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		coordinatorPolicyProblem(w, errCoordinatorAuthority)
 		return
 	}
+	if req.KubernetesPlan != nil {
+		if err := s.kubernetesAuthority(r.Context(), executionActor, false, true, 0); err != nil {
+			coordinatorPolicyProblem(w, err)
+			return
+		}
+		if err := s.coordinatorKubernetesPlanCurrent(r.Context(), p, req.KubernetesPlan); err != nil {
+			coordinatorPolicyProblem(w, err)
+			return
+		}
+	}
 	requestKey := req.IdempotencyKey
 	key := reviewDigest(requestKey)
 	req.IdempotencyKey = ""
 	requestDigest := reviewDigest(req)
-	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, AcceptedEvents: append([]CoordinationEventReceipt{}, req.AcceptedEvents...), ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan}
+	row := coordinatorContinuationRecord{CoordinatorContinuation: CoordinatorContinuation{ID: newID("continue-"), IdempotencyKey: requestKey, ProjectID: p.ID, Actor: actor, OriginTurnID: req.OriginTurnID, AcceptedEvents: append([]CoordinationEventReceipt{}, req.AcceptedEvents...), ContextDigest: req.ExpectedContextDigest, PolicyRevision: req.ExpectedPolicyRevision, Revision: 1, Status: "ready", Message: "Continuing the reviewed task selection with its saved upstream route.", QueueIDs: []string{}, Actions: []CoordinatorAction{}}, KeyDigest: key, RequestDigest: requestDigest, Run: req.Run, MaxParallel: req.MaxParallel, ExecutionActor: executionActor, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan, KubernetesPlan: req.KubernetesPlan}
 	if err := s.continuationAuthority(r.Context(), p, row); err != nil {
 		coordinatorPolicyProblem(w, err)
 		return
@@ -565,7 +590,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 		}
 	}
 	if err == nil && req.ExpectedRouteRevision != nil {
-		if rows.SavedRoute == nil || rows.SavedRoute.Revision != *req.ExpectedRouteRevision || reviewDigest(rows.SavedRoute.Route) != reviewDigest(coordinatorRoute(req.Run)) || rows.SavedRoute.MaxParallel != req.MaxParallel || reviewDigest(rows.SavedRoute.CheckPlan) != reviewDigest(req.CheckPlan) || reviewDigest(rows.SavedRoute.PreviewPlan) != reviewDigest(req.PreviewPlan) || reviewDigest(rows.SavedRoute.DeploymentPlan) != reviewDigest(req.DeploymentPlan) {
+		if rows.SavedRoute == nil || rows.SavedRoute.Revision != *req.ExpectedRouteRevision || reviewDigest(rows.SavedRoute.Route) != reviewDigest(coordinatorRoute(req.Run)) || rows.SavedRoute.MaxParallel != req.MaxParallel || reviewDigest(rows.SavedRoute.CheckPlan) != reviewDigest(req.CheckPlan) || reviewDigest(rows.SavedRoute.PreviewPlan) != reviewDigest(req.PreviewPlan) || reviewDigest(rows.SavedRoute.DeploymentPlan) != reviewDigest(req.DeploymentPlan) || reviewDigest(rows.SavedRoute.KubernetesPlan) != reviewDigest(req.KubernetesPlan) {
 			err = ErrOrchestratorConflict
 		}
 	}
@@ -657,7 +682,7 @@ func (s *Server) createCoordinatorContinuation(w http.ResponseWriter, r *http.Re
 			if rows.SavedRoute != nil {
 				revision = rows.SavedRoute.Revision + 1
 			}
-			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, AutoDiscussFindings: req.AutoDiscussFindings, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan}
+			rows.SavedRoute = &CoordinatorSavedRoute{Revision: revision, AutoDiscussFindings: req.AutoDiscussFindings, Route: coordinatorRoute(req.Run), MaxParallel: req.MaxParallel, UpdatedAt: row.CreatedAt, CheckPlan: req.CheckPlan, PreviewPlan: req.PreviewPlan, DeploymentPlan: req.DeploymentPlan, KubernetesPlan: req.KubernetesPlan}
 			if !validCoordinatorRoute(rows.SavedRoute) {
 				err = ErrOrchestratorInvalid
 			}

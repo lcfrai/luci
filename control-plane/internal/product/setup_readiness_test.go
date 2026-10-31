@@ -25,7 +25,7 @@ func TestSetupReadinessRequiresDockerEngineAndImageEvidence(t *testing.T) {
 		{"empty-engine-and-image", "", "", "missing", "missing"},
 		{"whitespace-engine-and-image", " \r\n", "\t\n", "missing", "missing"},
 		{"engine-without-image", "28.3.3\n", "", "ready", "missing"},
-		{"verified-engine-and-image", "28.3.3\n", "sha256:" + strings.Repeat("a", 64) + "\n", "ready", "ready"},
+		{"verified-engine-and-image", "28.3.3\n", runtimeReadinessFixture(), "ready", "ready"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			builds := 0
@@ -114,6 +114,9 @@ func TestSetupReadinessRunsIndependentProbesConcurrentlyAndPublishesTogether(t *
 		started <- startedProbe{id, bounded, time.Until(deadline)}
 		select {
 		case <-release:
+			if id == "sandbox-image" {
+				return runtimeReadinessFixture(), nil
+			}
 			return "verified-" + id, nil
 		case <-ctx.Done():
 			return "", ctx.Err()

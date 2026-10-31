@@ -1,8 +1,10 @@
+import { RuntimePreparationWorkspace } from './RuntimePreparationWorkspace';
+import { PublicRouteEditor } from './PublicRouteEditor';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useCockpit } from '../../store/store';
 import { orchestratorApi } from '../../api/orchestrator';
 import { blueprintIntentMatchesContext, type BlueprintDraftIntent } from '../../api/orchestratorBlueprint';
-import { deploymentBlueprintApi, type BlueprintProjectContext, type BlueprintService, type DeploymentBlueprint, type DeploymentBlueprintPlan, type SavedDeploymentBlueprint, type SaveBlueprintRequest } from '../../api/deploymentBlueprint';
+import { deploymentBlueprintApi, type BlueprintProjectContext, type BlueprintPublicRoute, type BlueprintService, type DeploymentBlueprint, type DeploymentBlueprintPlan, type SavedDeploymentBlueprint, type SaveBlueprintRequest } from '../../api/deploymentBlueprint';
 import { errorText } from '../../api/product';
 import { teamScopeGeneration } from '../../api/teamScope';
 import { PROJECT_CONTEXT_CHANGED } from '../../api/projectContextEvents';
@@ -19,9 +21,11 @@ import { KubernetesReferencePicker } from './KubernetesReferencePicker';
 import { InferenceHealthEditor } from './InferenceHealthEditor';
 import { blueprintEditorRecognizesFields } from './blueprintEditorCompatibility';
 import { TelemetryCollectorEditor, TelemetryClientEditor, newCollectorService, telemetryIntegrationDiscussion } from './TelemetryEditor';
+import {TelemetryStorageEditor,newTelemetryStore} from './TelemetryStorageEditor';
+import {AzureTelemetryStorageHandoff} from './AzureTelemetryStorageHandoff';
 
 type ServiceDraft = BlueprintService & { useTelemetry: boolean; commandText: string; argsText: string };
-type Editor = { reference: string; namespace: string; services: ServiceDraft[]; telemetry: boolean; telemetryReference: string; endpoint: string };
+type Editor = { publicRoute?: BlueprintPublicRoute; reference: string; namespace: string; services: ServiceDraft[]; telemetry: boolean; telemetryReference: string; endpoint: string };
 const service = (kind: 'app' | 'inference', id: string): ServiceDraft => ({ id, kind, image: '', port: 0, replicas: 0,
   resources: { requestMilliCpu: 0, limitMilliCpu: 0, requestMemoryMiB: 0, limitMemoryMiB: 0, gpuCount: 0 },
   command: [], args: [], dependsOn: [], useTelemetry: false, commandText: '', argsText: '',
@@ -34,8 +38,8 @@ const sourceKey = (value: DeploymentBlueprint['source']) => JSON.stringify([valu
 const lines = (value: string) => value.split('\n').filter(line => line.trim() !== '');
 function requestFor(projectId: string, draft: Editor, context: BlueprintProjectContext): DeploymentBlueprint {
   const telemetry = draft.telemetry && draft.services.some(row => row.useTelemetry);
-  const usesAnalytics = telemetry || draft.services.some(row=>!!row.collector);
-  return { version: 1, projectId, source: context.source, infrastructure: { id: 'cluster', kind: 'kubernetes', reference: draft.reference, namespace: draft.namespace },
+  const usesAnalytics = telemetry || draft.services.some(row=>!!row.collector&&!row.collector.ownedDestination);
+  return { version: 1, projectId, source: context.source, ...(draft.publicRoute?{publicRoute:{...draft.publicRoute}}:{}), infrastructure: { id: 'cluster', kind: 'kubernetes', reference: draft.reference, namespace: draft.namespace },
     services: draft.services.map(({ useTelemetry, commandText, argsText, ...row }) => ({ ...row, command: lines(commandText), args: lines(argsText), ...(telemetry && useTelemetry && !row.telemetry?.clientTLS ? { telemetry: { resourceId: 'analytics', endpoint: draft.endpoint } } : {}) })),
     ...(usesAnalytics ? { externalResources: [{ id: 'analytics', kind: 'analytics' as const, reference: draft.telemetryReference }] } : {}),
   };
@@ -45,14 +49,14 @@ function editorFor(blueprint: DeploymentBlueprint): Editor {
   const analytics = blueprint.externalResources?.find(row => row.id === 'analytics' && row.kind === 'analytics');
   const collectorIDs = new Set(blueprint.services.filter(row=>row.collector).map(row=>row.id));
   const known = new Set([blueprint.infrastructure.id, ...blueprint.services.map(row => row.id), ...(analytics ? ['analytics'] : [])]);
-  if (!blueprintEditorRecognizesFields(blueprint) || blueprint.infrastructure.kind !== 'kubernetes' || blueprint.infrastructure.id !== 'cluster' || blueprint.services.length > 8 ||
-      (blueprint.externalResources ?? []).some(row => row !== analytics) || blueprint.services.some(row => (row.dependsOn ?? []).some(id => !known.has(id)) || row.telemetry && row.telemetry.resourceId !== 'analytics'&&!collectorIDs.has(row.telemetry.resourceId) || row.collector&&row.collector.destination.resourceId!=='analytics') ||
+  if (!blueprintEditorRecognizesFields(blueprint) || blueprint.infrastructure.kind !== 'kubernetes' || blueprint.infrastructure.id !== 'cluster' || blueprint.services.length > 12 ||
+      (blueprint.externalResources ?? []).some(row => row !== analytics) || blueprint.services.some(row => (row.dependsOn ?? []).some(id => !known.has(id)) || row.telemetry && row.telemetry.resourceId !== 'analytics'&&!collectorIDs.has(row.telemetry.resourceId) || row.collector&&!row.collector.ownedDestination&&row.collector.destination.resourceId!=='analytics') ||
       new Set(blueprint.services.filter(row=>row.telemetry?.resourceId==='analytics').map(row => row.telemetry?.endpoint).filter(Boolean)).size > 1 || analytics && !blueprint.services.some(row => row.telemetry||row.collector) ||
       !!analytics && blueprint.services.some(row => row.dependsOn?.includes('analytics') && !row.telemetry&&!row.collector) ||
       blueprint.services.some(row => [...(row.command ?? []), ...(row.args ?? [])].some(value => value.includes('\n') || value.trim() === ''))) {
     throw new Error('This saved topology uses options outside this editor. Its saved revision is preserved; export it for inspection instead of replacing it.');
   }
-  return { reference: blueprint.infrastructure.reference, namespace: blueprint.infrastructure.namespace ?? '',
+  return { ...(blueprint.publicRoute?{publicRoute:{...blueprint.publicRoute}}:{}), reference: blueprint.infrastructure.reference, namespace: blueprint.infrastructure.namespace ?? '',
     services: blueprint.services.map(({ telemetry, ...row }) => ({ ...row, ...(telemetry&&collectorIDs.has(telemetry.resourceId)?{telemetry}:{}), dependsOn: row.dependsOn?.filter(id => id !== blueprint.infrastructure.id && (!analytics || id !== 'analytics')),
       useTelemetry: !!telemetry&&telemetry.resourceId==='analytics', commandText: row.command?.join('\n') ?? '', argsText: row.args?.join('\n') ?? '' })),
     telemetry: blueprint.services.some(row=>row.telemetry?.resourceId==='analytics'), telemetryReference: analytics?.reference ?? '', endpoint: blueprint.services.find(row => row.telemetry?.resourceId==='analytics')?.telemetry?.endpoint ?? '' };
@@ -204,9 +208,15 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
     edit({ ...draft, services: [...draft.services, service(kind, `${kind}-${index}`)] });
   }
   function addCollector() {
-    if(draft.services.some(row=>row.collector)||draft.services.length>=8)return;
+    if(draft.services.some(row=>row.collector)||draft.services.length>=12)return;
     let id='collector-1',index=1;while(draft.services.some(row=>row.id===id))id=`collector-${++index}`;
     edit({...draft,services:[...draft.services,{...newCollectorService(id),useTelemetry:false,commandText:'',argsText:''}]});
+  }
+  function addStorage(){
+    if(draft.services.length>10||draft.services.some(row=>row.telemetryStorage))return;
+    const ids=new Set(draft.services.map(row=>row.id));const next=(prefix:string)=>{let i=1;while(ids.has(prefix+'-'+i))i++;return prefix+'-'+i};
+    const stores:ServiceDraft[]=[newTelemetryStore('metrics-store',next('metrics-store')),newTelemetryStore('trace-store',next('trace-store'))].map(row=>({...row,useTelemetry:false,commandText:'',argsText:''}));
+    edit({...draft,services:[...draft.services,...stores]});
   }
   async function generate() {
     if (!canPlan || !active || disabled || pending.current) return;
@@ -241,7 +251,7 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
   if (!canPlan) return <section className="journey-page"><p role="status">{access.message || 'Current project read access is required to prepare a deployment plan.'}</p></section>;
   const locked = disabled || busy;
   return <section className="journey-page blueprint-editor" aria-labelledby={heading}>
-    <header><h2 id={heading}>Plan your application services</h2><p>Plan app and inference services, then review and export manifests for your existing cluster.</p><p className="journey-muted">Save a project blueprint to return to it later. Use resource references, not credentials. Saving does not deploy services.</p></header>
+    <header><h2 id={heading}>Plan your application services</h2><p>Define services, build their images, connect or create a target, then deploy and observe the application.</p><p className="journey-muted">Save a project blueprint to return to it later. Use resource references, not credentials. Saving does not deploy services.</p></header>
     <section aria-label="Saved service blueprint"><p>{saved ? `Saved revision ${saved.revision} by ${saved.actor.displayName}.` : savedLoaded ? 'No saved revision.' : 'Saved blueprint not loaded yet.'} The latest 50 revisions are retained in private project state.</p>
       <div className="journey-actions"><Button type="button" variant="secondary" disabled={locked || !access.canEdit || !savedLoaded || unsupported || reviewNeeded && !reviewed} onClick={() => void saveDraft()}>Save blueprint</Button>
         <Button type="button" variant="secondary" disabled={locked} onClick={() => void loadSaved(true)}>Review saved revision without replacing edits</Button>
@@ -256,17 +266,19 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
         <label className="luci-field">Cluster reference<input value={draft.reference} maxLength={512} placeholder="Your existing cluster identity" onChange={e => edit({ ...draft, reference: e.target.value })}/></label>
         <label className="luci-field">Namespace<input value={draft.namespace} maxLength={63} placeholder="An existing namespace" onChange={e => edit({ ...draft, namespace: e.target.value })}/></label>
       </div></fieldset>
-      {draft.services.map(row => <fieldset className="definition-record" key={row.id} disabled={locked}><legend>{row.kind === 'app' ? 'Application' : row.kind==='collector'?'Telemetry Collector':'Inference'} · {row.id}</legend><div className="blueprint-grid">
+      {draft.services.map(row => <fieldset className="definition-record" key={row.id} disabled={locked}><legend>{row.kind === 'app' ? 'Application' : row.kind==='collector'?'Telemetry Collector':row.telemetryStorage?'Telemetry storage':'Inference'} · {row.id}</legend><div className="blueprint-grid">
+        <label className="luci-field">Existing image pull Secrets · one per line<textarea value={(row.imagePullSecrets??[]).join('\n')} onChange={e=>change(row.id,{imagePullSecrets:lines(e.target.value)})}/><small>Names only. The deployment review checks current namespace identities and selected dockerconfigjson keys without exposing credentials.</small></label>
         <label className="luci-field">Image digest<input value={row.image} maxLength={512} placeholder="registry/image@sha256:…" onChange={e => change(row.id, { image: e.target.value })}/></label>
-        {row.collector?<p>One Collector replica. Private OTLP port 4318; bounded metrics read on port 8889.</p>:<><NumberField label="Internal port" value={row.port} max={65535} onChange={port => change(row.id, { port })}/><NumberField label="Replicas" value={row.replicas} max={32} onChange={replicas => change(row.id, { replicas })}/></>}
-        {(['requestMilliCpu', 'limitMilliCpu', 'requestMemoryMiB', 'limitMemoryMiB', 'gpuCount'] as const).map((key, index) => row.collector&&key==='gpuCount'?null:<NumberField key={key} label={['CPU request (millicores)', 'CPU limit (millicores)', 'Memory request (MiB)', 'Memory limit (MiB)', 'NVIDIA GPUs per replica'][index]} value={row.resources[key] ?? 0} max={index === 4 ? 8 : index < 2 ? 64000 : 1048576} onChange={value => change(row.id, { resources: { ...row.resources, [key]: value } })}/>)}
+        {row.collector||row.telemetryStorage?<p>{row.collector?'One Collector replica. Private OTLP port 4318; bounded metrics read on port 8889.':'One fixed store replica, Recreate strategy; private port '+row.port+'.'}</p>:<><NumberField label="Internal port" value={row.port} max={65535} onChange={port => change(row.id, { port })}/><NumberField label="Replicas" value={row.replicas} max={32} onChange={replicas => change(row.id, { replicas })}/></>}
+        {(['requestMilliCpu', 'limitMilliCpu', 'requestMemoryMiB', 'limitMemoryMiB', 'gpuCount'] as const).map((key, index) => (row.collector||row.telemetryStorage)&&key==='gpuCount'?null:<NumberField key={key} label={['CPU request (millicores)', 'CPU limit (millicores)', 'Memory request (MiB)', 'Memory limit (MiB)', 'NVIDIA GPUs per replica'][index]} value={row.resources[key] ?? 0} max={index === 4 ? 8 : index < 2 ? 64000 : 1048576} onChange={value => change(row.id, { resources: { ...row.resources, [key]: value } })}/>)}
       </div>
-      {row.collector?<TelemetryCollectorEditor projectId={projectId} targetId={draft.reference} namespace={draft.namespace} active={active&&!locked} value={row.collector} onChange={collector=>change(row.id,{collector})}/>:<>
+      {row.telemetryStorage?<TelemetryStorageEditor projectId={projectId} targetId={draft.reference} namespace={draft.namespace} active={active&&!locked} value={row.telemetryStorage} onChange={telemetryStorage=>change(row.id,{telemetryStorage})}/>:row.collector?<TelemetryCollectorEditor services={draft.services} projectId={projectId} targetId={draft.reference} namespace={draft.namespace} active={active&&!locked} value={row.collector} onChange={collector=>change(row.id,{collector})}/>:<>
       <details><summary>Container entrypoint and arguments</summary><p className="journey-muted">One argument per line. These describe the image’s existing command; nothing runs here. Inference needs its explicit server configuration.</p><div className="blueprint-grid">
         <label className="luci-field">Command<textarea rows={3} value={row.commandText} maxLength={16000} onChange={e => change(row.id, { commandText: e.target.value })}/></label>
         <label className="luci-field">Arguments<textarea rows={3} value={row.argsText} maxLength={60000} onChange={e => change(row.id, { argsText: e.target.value })}/></label>
       </div></details>
       {row.model && <div className="blueprint-grid">
+        <label className="setup-check"><input type="checkbox" checked={row.model?.accessGroup===1000} onChange={e=>{const model={...row.model!};if(e.target.checked)model.accessGroup=1000;else delete model.accessGroup;change(row.id,{model});}}/>Use shared model reader group1000 · required for newly prepared model volumes; no world-readable files</label>
         {(['name', 'claimName', 'mountPath', 'relativePath'] as const).map((key, index) => <label className="luci-field" key={key}>{['Model name', 'Existing model PVC', 'Read-only mount path', 'Path within the PVC (optional)'][index]}<input value={row.model![key] ?? ''} maxLength={index === 0 ? 128 : index === 1 ? 63 : 256} onChange={e => change(row.id, { model: { ...row.model!, [key]: e.target.value } })}/></label>)}
       </div>}
       {row.model&&<KubernetesReferencePicker projectId={projectId} targetId={draft.reference} namespace={draft.namespace} kind="persistent-volume-claim" active={active&&!locked} onChoose={volume=>{
@@ -297,8 +309,10 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
       </>}
       <Button type="button" variant="tertiary" disabled={draft.services.length === 1} onClick={() => edit({ ...draft, services: draft.services.filter(other => other.id !== row.id) })}>Remove {row.id}</Button>
       </fieldset>)}
-      <div className="journey-actions"><Button type="button" variant="secondary" disabled={locked || draft.services.length >= 8} onClick={() => add('app')}>Add application</Button><Button type="button" variant="secondary" disabled={locked || draft.services.length >= 8} onClick={() => add('inference')}>Add inference service</Button><Button type="button" variant="secondary" disabled={locked||draft.services.length>=8||draft.services.some(row=>row.collector)} onClick={addCollector}>Add private telemetry Collector</Button></div>
-      {draft.services.some(row=>row.collector)&&!draft.telemetry&&<label className="luci-field">Existing analytics backend reference<input value={draft.telemetryReference} maxLength={512} onChange={e=>edit({...draft,telemetryReference:e.target.value})}/><small>Name the existing destination receiving Collector exports. No analytics backend is provisioned.</small></label>}
+      <div className="journey-actions"><Button type="button" variant="secondary" disabled={locked || draft.services.length >= 12} onClick={() => add('app')}>Add application</Button><Button type="button" variant="secondary" disabled={locked || draft.services.length >= 12} onClick={() => add('inference')}>Add inference service</Button><Button type="button" variant="secondary" disabled={locked||draft.services.length>=12||draft.services.some(row=>row.collector)} onClick={addCollector}>Add private telemetry Collector</Button></div>
+      <Button type="button" variant="secondary" disabled={locked||draft.services.length>10||draft.services.some(row=>row.telemetryStorage)} onClick={addStorage}>Add private durable metrics and trace stores</Button>
+      {draft.services.some(row=>row.collector&&!row.collector.ownedDestination)&&!draft.telemetry&&<label className="luci-field">Existing analytics backend reference<input value={draft.telemetryReference} maxLength={512} onChange={e=>edit({...draft,telemetryReference:e.target.value})}/><small>Name the existing destination receiving Collector exports. Choose the owned destination in the Collector to use the planned private stores instead.</small></label>}
+      <PublicRouteEditor value={draft.publicRoute} services={draft.services} disabled={locked} onChange={publicRoute=>edit({...draft,publicRoute})}/>
       <fieldset disabled={locked} className="definition-fields"><legend>Optional telemetry</legend><label><input type="checkbox" checked={draft.telemetry} onChange={e => edit({ ...draft, telemetry: e.target.checked, services: e.target.checked ? draft.services : draft.services.map(row => ({ ...row, useTelemetry: false })) })}/>Use an existing OTLP/HTTP receiver</label>
         {draft.telemetry && <div className="blueprint-grid"><label className="luci-field">Receiver reference<input value={draft.telemetryReference} maxLength={512} onChange={e => edit({ ...draft, telemetryReference: e.target.value })}/></label><label className="luci-field">HTTPS receiver endpoint<input value={draft.endpoint} maxLength={2048} onChange={e => edit({ ...draft, endpoint: e.target.value })}/><small>No credentials, query tokens or request headers. This binds configuration; it does not instrument the app or provision analytics.</small></label></div>}
       </fieldset>
@@ -306,7 +320,7 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
     </form>
     {busy && <p role="status">Reading the project’s current source and context, then compiling the plan…</p>}{error && <p role="alert" className="journey-error">{error}</p>}{notice && <p role="status">{notice}</p>}
     {context && <p className="journey-muted">Observed HEAD: {context.head || 'No commit'} · configuration {context.source.configurationRevision} · definition {context.source.context?.specificationRevision} ({context.definitionStatus}) · design {context.source.context?.designRevision} ({context.designStatus}). {!context.clean && 'Uncommitted changes are not represented by HEAD. Commit them to resolve the source input.'}</p>}
-    {plan && <section className="blueprint-result" aria-label="Generated deployment plan"><h3>{plan.state === 'compiled-prototype' ? 'Manifests ready for review' : 'Inputs still needed'}</h3><p>Review the generated services and unresolved inputs before exporting.</p>
+    {plan && <section className="blueprint-result" aria-label="Generated deployment plan"><h3>{plan.state === 'compiled-prototype' ? 'Manifests ready for review' : 'Inputs still needed'}</h3><p>Review the services and unresolved inputs, then prepare images and runtime resources before deployment.</p>
       <ul>{plan.decisions.map(row => <li key={`${row.path}:${row.code}`}><strong>{row.path}</strong>: {row.message}</li>)}</ul>
       <h4>Service order</h4><ol>{plan.steps.map(step => <li key={step.componentId}><strong>{step.componentId}</strong> · {step.action.replace(/-/g, ' ')}{step.dependsOn.length > 0 && ` · after ${step.dependsOn.join(', ')}`}</li>)}</ol>
       <p>Requested totals: {plan.resourceSummary.replicas} replicas · {plan.resourceSummary.requestMilliCpu} millicores · {plan.resourceSummary.requestMemoryMiB} MiB memory · {plan.resourceSummary.gpuCount} NVIDIA GPUs. These are planned requests, not available capacity or a price quote.</p>
@@ -314,9 +328,11 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
       {!!plan.supportingArtifacts?.length&&<section aria-label="Application instrumentation and Collector configuration"><h4>Include instrumentation in your application</h4><p>These files are not Kubernetes resources and are never executed or installed by Apply. Review the dependencies and integration steps, include the adapter in the app, then rebuild and select its immutable instrumented image.</p>{plan.blueprint.services.filter(service=>service.telemetry?.instrumentation).map(service=><Button key={service.id} type="button" variant="secondary" disabled={locked||!active||!canPlan||!access.canAssist||!scope} onClick={()=>{if(!scope)return;window.dispatchEvent(new CustomEvent('luci:orchestrator-open',{detail:{scope,projectId,message:telemetryIntegrationDiscussion(plan,service.id)}}));setNotice('An instrumentation task is drafted in project Luci. Review and send it explicitly; no work was started.');}}>Draft instrumentation task for {service.id} in Luci</Button>)}{plan.supportingArtifacts.map(artifact=><details key={artifact.name}><summary>{artifact.name}</summary><pre tabIndex={0}>{artifact.content}</pre><Button type="button" variant="secondary" onClick={()=>download(artifact.name,artifact.content)}>Download {artifact.name}</Button></details>)}</section>}
       <div className="journey-actions"><Button type="button" variant="secondary" onClick={() => download('luci-deployment-plan.json', JSON.stringify(plan, null, 2)+'\n')}>Export plan JSON</Button><Button type="button" variant="secondary" disabled={disabled} onClick={onPublishing}>Open existing release paths</Button></div>
       <AzureFoundationHandoff key={plan.digest} plan={plan} active={active && canPlan && !disabled} />
-      <details><summary>Capabilities and review notes</summary><p>Plan <code>{plan.digest}</code>. Exporting does not deploy manifests. The separate cluster flow below reviews and applies workloads to an existing configured namespace; existing release forms keep their own permissions.</p><ul>{plan.capabilities.map(row => <li key={row.id}><strong>{row.id} · {row.state}</strong>: {row.description}</li>)}{plan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>
+      <AzureTelemetryStorageHandoff key={'storage-'+plan.digest} plan={plan} active={active&&canPlan&&!disabled}/>
+      <details><summary>Capabilities and review notes</summary><p>Plan <code>{plan.digest}</code>. A generated plan is not an applied workload. The steps below prepare images, connect or create a target, review deployment and observe original resources; existing release paths retain their own permissions.</p><ul>{plan.capabilities.map(row => <li key={row.id}><strong>{row.id} · {row.state}</strong>: {row.description}</li>)}{plan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>
     </section>}
     <AzureClusterHandoff projectId={projectId} active={active && canPlan && !disabled} saved={saved} plan={plan} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded} onTarget={target=>edit({...draft,reference:target.id,namespace:target.namespace})}/>
+    <RuntimePreparationWorkspace projectId={projectId} active={active && canPlan && !disabled} saved={saved} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded}/>
     <KubernetesDeployment projectId={projectId} active={active && canPlan && !disabled} saved={saved} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded} onTarget={target=>edit({...draft,reference:target.id,namespace:target.namespace})}/>
   </section>;
 }

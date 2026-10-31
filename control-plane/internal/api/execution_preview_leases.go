@@ -19,20 +19,23 @@ var errPreviewLeaseAbsent = errors.New("the exact preview lease is absent")
 // use the worker/check ledger and lock; neither consumes an AI provider slot.
 // Revision fences delayed controllers even if a phase happens to recur.
 type previewExecutionLease struct {
-	ID              string                       `json:"id"`
-	Scope           string                       `json:"scope"`
-	Actor           management.ExecutionActorRef `json:"actor"`
-	Identity        backend.PreviewIdentity      `json:"identity"`
-	Kind            string                       `json:"kind"`
-	Resources       backend.Resources            `json:"resources"`
-	HostLaunchBytes uint64                       `json:"hostLaunchBytes,omitempty"`
-	CreateDiskBytes uint64                       `json:"createDiskBytes"`
-	State           string                       `json:"state"`
-	Ref             string                       `json:"ref,omitempty"`
-	Image           string                       `json:"image,omitempty"`
-	Revision        int                          `json:"revision"`
-	CreatedAt       time.Time                    `json:"createdAt"`
-	UpdatedAt       time.Time                    `json:"updatedAt"`
+	PublicationRepository string                       `json:"publicationRepository,omitempty"`
+	PublicationBinding    string                       `json:"publicationBinding,omitempty"`
+	PublicationDigest     string                       `json:"publicationDigest,omitempty"`
+	ID                    string                       `json:"id"`
+	Scope                 string                       `json:"scope"`
+	Actor                 management.ExecutionActorRef `json:"actor"`
+	Identity              backend.PreviewIdentity      `json:"identity"`
+	Kind                  string                       `json:"kind"`
+	Resources             backend.Resources            `json:"resources"`
+	HostLaunchBytes       uint64                       `json:"hostLaunchBytes,omitempty"`
+	CreateDiskBytes       uint64                       `json:"createDiskBytes"`
+	State                 string                       `json:"state"`
+	Ref                   string                       `json:"ref,omitempty"`
+	Image                 string                       `json:"image,omitempty"`
+	Revision              int                          `json:"revision"`
+	CreatedAt             time.Time                    `json:"createdAt"`
+	UpdatedAt             time.Time                    `json:"updatedAt"`
 }
 
 func validPreviewIdentity(v backend.PreviewIdentity) bool {
@@ -54,7 +57,17 @@ func validPreviewExecutionLease(v previewExecutionLease) bool {
 		return false
 	}
 	if v.Kind == "preview-build" {
-		return v.Identity.Kind == "" && v.Ref == "" && (v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || v.State == "finished")
+		bound := v.PublicationRepository != "" || v.PublicationBinding != "" || v.PublicationDigest != ""
+		if v.PublicationDigest != "" && v.State != "finished" {
+			return false
+		}
+		if bound && (!validRuntimePublicationRepository(v.PublicationRepository) || !checkHex(v.PublicationBinding, 32) || v.PublicationDigest != "" && (!strings.HasPrefix(v.PublicationDigest, "sha256:") || !checkHex(strings.TrimPrefix(v.PublicationDigest, "sha256:"), 32))) {
+			return false
+		}
+		return v.Identity.Kind == "" && v.Ref == "" && (v.State == "reserved" && v.Image == "" || v.State == "building" && v.Image == "" || bound && (v.State == "built" || v.State == "publishing") && v.Image != "" && v.PublicationDigest == "" || v.State == "finished")
+	}
+	if v.PublicationRepository != "" || v.PublicationBinding != "" || v.PublicationDigest != "" {
+		return false
 	}
 	if !previewServingKind(v.Kind) || (v.Kind == backend.ReviewedSourcePreview) != (v.Identity.Kind == backend.ReviewedSourcePreview) || v.Image == "" || v.Kind == backend.ReviewedSourcePreview && v.Image != v.Identity.RuntimeImageID {
 		return false
@@ -165,7 +178,9 @@ func (g *executionAdmission) reservePreview(ctx context.Context, prepared backen
 			return nil
 		}
 		demand := executionCapacityDemand{RequiredCreateDiskBytes: prepared.RequiredDiskBytes, CreateAcknowledged: ownRef != ""}
-		if err:=g.addInputProofAdmissionCapacity(ctx,l.InputProofs,"","",&demand,policy.DiskReserveMiB);err!=nil{return err}
+		if err := g.addInputProofAdmissionCapacity(ctx, l.InputProofs, "", "", &demand, policy.DiskReserveMiB); err != nil {
+			return err
+		}
 		observed := map[string]bool{}
 		for _, c := range snap.Execution.Containers {
 			if ownRef != "" && c.ID == ownRef {
@@ -260,7 +275,7 @@ func (g *executionAdmission) transitionPreview(ctx context.Context, before previ
 			if v != before {
 				return errors.New("the exact preview phase changed")
 			}
-			allowed := v.Kind == "preview-build" && v.State == "reserved" && next == "building" ||
+			allowed := v.Kind == "preview-build" && (v.State == "reserved" && next == "building" || v.PublicationBinding != "" && (v.State == "building" && next == "built" || v.State == "built" && next == "publishing")) ||
 				previewServingKind(v.Kind) && (v.State == "reserved" && next == "creating" || v.State == "creating" && next == "created" || (v.State == "created" || v.State == "stopped") && next == "starting" || v.State == "starting" && next == "running" || v.State == "running" && next == "stopping" || v.State == "stopping" && next == "stopped" || (v.State == "created" || v.State == "starting" || v.State == "running" || v.State == "stopping" || v.State == "stopped") && next == "cleaning")
 			if !allowed || v.Ref != "" && v.Ref != ref || v.Image != "" && v.Image != image {
 				return errors.New("preview phase transition or immutable ownership is invalid")

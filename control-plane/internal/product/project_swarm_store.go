@@ -186,7 +186,7 @@ func validateProjectSwarm(run ProjectRun) error {
 	}
 	return nil
 }
-func (s *ProjectRunStore) mutateSwarm(projectID, path, id string, revision int, change func(*ProjectRun) error) (ProjectRun, error) {
+func (s *ProjectRunStore) mutateSwarm(projectID, path, id string, revision int, change func(*ProjectRun) error, origin ...runHumanAction) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.mutate(projectID, path, id, revision, func(row *storedProjectRun) (bool, error) {
@@ -194,7 +194,7 @@ func (s *ProjectRunStore) mutateSwarm(projectID, path, id string, revision int, 
 			return false, err
 		}
 		return true, nil
-	})
+	}, origin...)
 }
 
 // Check-repair continuation publication uses the same store -> server lock

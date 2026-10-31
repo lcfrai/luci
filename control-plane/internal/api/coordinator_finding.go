@@ -20,7 +20,7 @@ func (a *API) dispatchCoordinatorFinding(ctx context.Context, ref management.Exe
 	if err != nil || ref.UserID != finding.RecipientID || ref.ProjectID != finding.ProjectID {
 		return "", management.ErrExecutionAuthority
 	}
-	if !a.deps.Product.CoordinatorFindingDispatchCurrent(finding.ProjectID, finding.RecipientID, finding.FindingID, finding.RouteRevision) {
+	if !a.deps.Product.CoordinatorObservationDispatchCurrent(fresh, ref, finding.FindingID) || !a.deps.Product.CoordinatorFindingDispatchCurrent(finding.ProjectID, finding.RecipientID, finding.FindingID, finding.RouteRevision) {
 		return "", errors.New("the automatic finding route or policy changed before model admission")
 	}
 	input, err := json.Marshal(orchestratorRequest{ExpectedRevision: finding.ExpectedRevision, ExpectedContextDigest: finding.ExpectedContextDigest, IdempotencyKey: finding.RequestKey, Message: finding.Message, Harness: finding.Harness, Model: finding.Model, AgentConnectionID: finding.AgentConnectionID})

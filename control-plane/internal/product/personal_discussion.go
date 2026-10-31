@@ -25,7 +25,27 @@ func (turn OrchestratorTurn) IsDiscussionOnly() bool {
 	return turn.DiscussionOnly || strings.HasPrefix(turn.ID, "turn-discussion-")
 }
 
+const PersonalHandoffWorkRequest = "work-request"
+
+func validPersonalHandoffPurpose(purpose string) bool {
+	return purpose == "" || purpose == PersonalHandoffWorkRequest
+}
+
+// Omitted purpose retains the original discussion-only contract. No existing
+// discussion is converted: a work request creates a new ordinary project turn.
+func PersonalHandoffContext(ctx context.Context, purpose string) context.Context {
+	if purpose == PersonalHandoffWorkRequest {
+		return ctx
+	}
+	return PersonalDiscussionContext(ctx)
+}
+
+func PersonalHandoffMatchesTurn(purpose string, turn OrchestratorTurn) bool {
+	return validPersonalHandoffPurpose(purpose) && turn.IsDiscussionOnly() == (purpose != PersonalHandoffWorkRequest)
+}
+
 type PersonalHandoffRequest struct {
+	Purpose              string `json:"purpose,omitempty"`
 	ExpectedRevision     int    `json:"expectedRevision"`
 	ProjectID            string `json:"projectId"`
 	Message              string `json:"message"`
@@ -39,7 +59,7 @@ func (s *Server) ReservePersonalHandoff(ctx context.Context, turnID string, req 
 	if err != nil {
 		return PersonalTurn{}, false, err
 	}
-	if turn.Status != "succeeded" || turn.Answer == nil || req.ProjectRevision < 0 || !hexDigest(req.ProjectContextDigest) || !validRunKey(req.IdempotencyKey) || req.Message == "" || len(req.Message) > 16000 || !validArtifactStoredText(req.Message) {
+	if !validPersonalHandoffPurpose(req.Purpose) || turn.Status != "succeeded" || turn.Answer == nil || req.ProjectRevision < 0 || !hexDigest(req.ProjectContextDigest) || !validRunKey(req.IdempotencyKey) || req.Message == "" || len(req.Message) > 16000 || !validArtifactStoredText(req.Message) {
 		return PersonalTurn{}, false, ErrPersonalChanged
 	}
 	selected := false
@@ -49,7 +69,7 @@ func (s *Server) ReservePersonalHandoff(ctx context.Context, turnID string, req 
 	if !selected {
 		return PersonalTurn{}, false, ErrPortfolioGoalInvalid
 	}
-	if err := access(ctx, req.ProjectID, false); err != nil {
+	if err := access(ctx, req.ProjectID, req.Purpose == PersonalHandoffWorkRequest); err != nil {
 		return PersonalTurn{}, false, err
 	}
 	scope, err := s.PersonalScope(ctx)
@@ -77,7 +97,7 @@ func (s *Server) ReservePersonalHandoff(ctx context.Context, turnID string, req 
 		if row.Revision != req.ExpectedRevision || candidate.Status != "succeeded" {
 			return PersonalTurn{}, false, ErrPersonalChanged
 		}
-		candidate.Handoff = &PersonalHandoff{ID: newID("personal-handoff-"), ProjectID: req.ProjectID, Message: req.Message, ProjectRevision: req.ProjectRevision, ProjectContextDigest: req.ProjectContextDigest, ProjectRequestKey: "personal-" + reviewDigest([]string{scope, turnID, req.IdempotencyKey}), RequestDigest: digest, Status: "dispatching"}
+		candidate.Handoff = &PersonalHandoff{Purpose: req.Purpose, ID: newID("personal-handoff-"), ProjectID: req.ProjectID, Message: req.Message, ProjectRevision: req.ProjectRevision, ProjectContextDigest: req.ProjectContextDigest, ProjectRequestKey: "personal-" + reviewDigest([]string{scope, turnID, req.IdempotencyKey}), RequestDigest: digest, Status: "dispatching"}
 		if err := s.savePersonal(&row); err != nil {
 			return PersonalTurn{}, false, err
 		}

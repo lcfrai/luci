@@ -144,6 +144,10 @@ func previewBasePlanDigest(p backend.PreparedPreview) string {
 		Bases               []backend.PreviewBaseImage
 	}{p.Spec.Identity, p.ContextDigest, p.Spec.Dockerfile, p.BasePlan})
 	sum := sha256.Sum256(data)
+	if p.Spec.Platform != "" {
+		bound, _ := json.Marshal([]string{hex.EncodeToString(sum[:]), "required-build-platform", p.Spec.Platform})
+		sum = sha256.Sum256(bound)
+	}
 	return hex.EncodeToString(sum[:])
 }
 
@@ -227,7 +231,7 @@ func (b *Backend) provisionPreviewBases(ctx context.Context, p backend.PreparedP
 		if err := ctx.Err(); err != nil {
 			return previewContextPlan{}, true, err
 		}
-		body, err := puller.ImagePull(ctx, base.Reference, image.PullOptions{})
+		body, err := puller.ImagePull(ctx, base.Reference, image.PullOptions{Platform: p.Spec.Platform})
 		if err != nil || body == nil {
 			if body != nil {
 				_ = body.Close()
@@ -261,6 +265,13 @@ func (b *Backend) provisionPreviewBases(ctx context.Context, p backend.PreparedP
 		base.ImageID, base.VirtualSizeBytes = row.ID, uint64(row.Size)
 		resolved[base.Reference] = base
 	}
+	bases := []backend.PreviewBaseImage{}
+	for _, base := range resolved {
+		bases = append(bases, base)
+	}
+	if err := b.previewRequiredPlatform(ctx, p.Spec, bases); err != nil {
+		return previewContextPlan{}, true, err
+	}
 	plan, err := b.planPreviewContext(ctx, p.Spec, resolved)
 	if err != nil {
 		return previewContextPlan{}, true, err
@@ -269,4 +280,27 @@ func (b *Backend) provisionPreviewBases(ctx context.Context, p backend.PreparedP
 		return previewContextPlan{}, true, backend.ErrLaunchFenceOwnership
 	}
 	return plan, true, nil
+}
+
+func (b *Backend) previewRequiredPlatform(ctx context.Context, s backend.PreviewSpec, bases []backend.PreviewBaseImage) error {
+	if s.Platform == "" {
+		return nil
+	}
+	if s.Platform != "linux/amd64" {
+		return backend.ErrUnsupported
+	}
+	images, ok := b.api.(imageResourceClient)
+	if !ok {
+		return backend.ErrUnsupported
+	}
+	for _, base := range bases {
+		if base.ImageID == "" {
+			continue
+		}
+		row, err := images.ImageInspect(ctx, base.ImageID)
+		if err != nil || row.ID != base.ImageID || !runtimeBaseValid(row) || row.Architecture != "amd64" {
+			return backend.ErrUnsupported
+		}
+	}
+	return ctx.Err()
 }

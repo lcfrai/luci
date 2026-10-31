@@ -8,16 +8,17 @@ import (
 // ProjectOutcomes describes the bounded retained history, not lifetime
 // throughput or current production health. It contains no personal dialogue.
 type ProjectOutcomes struct {
-	Status                          string                    `json:"status"`
-	Scope                           string                    `json:"scope"`
-	ObservedAt                      string                    `json:"observedAt"`
-	RetainedRuns                    *int                      `json:"retainedRuns"`
-	RecordedAcceptances             *int                      `json:"recordedAcceptances"`
-	UnconfirmedAcceptedObservations *int                      `json:"unconfirmedAcceptedObservations"`
-	ReviewRequiredRuns              *int                      `json:"reviewRequiredRuns"`
-	UnresolvedCheckRepairTasks      *int                      `json:"unresolvedCheckRepairTasks"`
-	OmittedRuns                     *int                      `json:"omittedRuns"`
-	LatestAccepted                  *ProjectOutcomeAcceptance `json:"latestAccepted"`
+	Measurements                    *ProjectOutcomeMeasurements `json:"measurements,omitempty"`
+	Status                          string                      `json:"status"`
+	Scope                           string                      `json:"scope"`
+	ObservedAt                      string                      `json:"observedAt"`
+	RetainedRuns                    *int                        `json:"retainedRuns"`
+	RecordedAcceptances             *int                        `json:"recordedAcceptances"`
+	UnconfirmedAcceptedObservations *int                        `json:"unconfirmedAcceptedObservations"`
+	ReviewRequiredRuns              *int                        `json:"reviewRequiredRuns"`
+	UnresolvedCheckRepairTasks      *int                        `json:"unresolvedCheckRepairTasks"`
+	OmittedRuns                     *int                        `json:"omittedRuns"`
+	LatestAccepted                  *ProjectOutcomeAcceptance   `json:"latestAccepted"`
 }
 
 type ProjectOutcomeAcceptance struct {
@@ -102,6 +103,7 @@ func summarizeProjectOutcomes(ctx context.Context, projectID string, runs []Proj
 		}
 	}
 	retained := len(runs)
+	view.Measurements = summarizeRunMeasurements(runs)
 	view.Status = "recorded"
 	view.RetainedRuns, view.RecordedAcceptances, view.UnconfirmedAcceptedObservations = &retained, &accepted, &unconfirmed
 	view.ReviewRequiredRuns, view.UnresolvedCheckRepairTasks, view.OmittedRuns = &reviews, &repairs, &omitted

@@ -30,6 +30,9 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/kubernetes/targets/{targetId}/tempo-query": "Reads only the current private Tempo configuration descriptor after current Secrets and Deploy checks. Credential bytes are omitted; no HTTP query, observation or save on GET.",
+	"GET /v1/product/projects/{id}/kubernetes/operations/evidence/selected":   "Reads only actor-scoped selected operational evidence metadata after current Secrets and Deploy checks. Historical selection is explicit; no log, trace, source refresh, provider call or selection mutation on GET.",
+
 	"GET /v1/product/projects/{id}/distribute/github-releases":                 "Reads bounded actor-owned original publication journals after fresh project Read checks. No gh/provider call, observation, mutation or recovery on GET.",
 	"GET /v1/product/projects/{id}/distribute/github-releases/{publicationId}": "Reads one exact actor-owned original journal after fresh Read checks. No provider call or persistence on GET.",
 	"GET /v1/product/projects/{id}/azure-clusters/commissions":                 "Reads bounded original-actor cluster and commissioning records after current project Deploy+Secrets checks. No Azure, token, namespace, reconciliation or persistence operation on GET.",

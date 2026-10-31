@@ -1,6 +1,6 @@
 import { productApi } from './product';
 
-export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation' | 'landing-copy' | 'launch-brief' | 'channel-copy';
+export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation' | 'landing-copy' | 'launch-brief' | 'channel-copy' | 'support-guide';
 export type ArtifactExportFormat = 'docx' | 'pptx' | 'xlsx' | 'pdf';
 export interface ArtifactSource {
   gtmRevision?:number;gtmDigest?:string;

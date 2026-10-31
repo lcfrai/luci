@@ -41,7 +41,7 @@ func (s *Server) bindLaunchGTMSourceLocked(p project.Project, source DistributeA
 
 func (s *Server) artifactSourceForKindLocked(ctx context.Context, p project.Project, kind, runID string) (DistributeArtifactSource, journeyState, *TeamControlRevision, *ControlAssessment, error) {
 	source, state, library, assessment, err := s.artifactSource(ctx, p, runID)
-	if err == nil && launchArtifactKind(kind) {
+	if err == nil && gtmArtifactKind(kind) {
 		source, _, err = s.bindLaunchGTMSourceLocked(p, source)
 	}
 	return source, state, library, assessment, err
@@ -52,14 +52,18 @@ func (s *Server) artifactDraftForKindLocked(ctx context.Context, p project.Proje
 	if err != nil {
 		return DistributeArtifact{}, err
 	}
-	if !launchArtifactKind(kind) {
+	if !gtmArtifactKind(kind) {
 		return generatedArtifact(kind, p.ID, source, state, library, assessment), nil
 	}
 	source, gtm, err := s.bindLaunchGTMSourceLocked(p, source)
 	if err != nil {
 		return DistributeArtifact{}, err
 	}
-	return generatedLaunchAsset(generatedArtifactBase(kind, p.ID, source, state, library, assessment), gtm), nil
+	base := generatedArtifactBase(kind, p.ID, source, state, library, assessment)
+	if launchArtifactKind(kind) {
+		return generatedLaunchAsset(base, gtm), nil
+	}
+	return generatedCommercialAsset(base, gtm, state)
 }
 
 // No model, provider, publishing engine or external channel is invoked. These

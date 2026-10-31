@@ -103,7 +103,20 @@ func (a *API) handlePersonalHandoff(w http.ResponseWriter, r *http.Request) {
 		personalProblem(w, product.ErrPersonalChanged)
 		return
 	}
-	turn, existing, err := a.deps.Product.ReservePersonalHandoff(r.Context(), turn.ID, req, access)
+	reserveAccess := access
+	if req.Purpose == product.PersonalHandoffWorkRequest {
+		reserveAccess = func(ctx context.Context, projectID string, control bool) error {
+			if err := access(ctx, projectID, false); err != nil {
+				return err
+			}
+			if control {
+				_, err := a.personalDestination(ctx, projectID, turn.Context.Preferences.Harness)
+				return err
+			}
+			return ctx.Err()
+		}
+	}
+	turn, existing, err := a.deps.Product.ReservePersonalHandoff(r.Context(), turn.ID, req, reserveAccess)
 	if err != nil {
 		personalProblem(w, err)
 		return
@@ -121,7 +134,7 @@ func (a *API) handlePersonalHandoff(w http.ResponseWriter, r *http.Request) {
 		personalProblem(w, err)
 		return
 	}
-	projectRequest := r.Clone(product.PersonalDiscussionContext(destination))
+	projectRequest := r.Clone(product.PersonalHandoffContext(destination, turn.Handoff.Purpose))
 	projectRequest.SetPathValue("id", req.ProjectID)
 	response := &personalAdmissionResponse{header: http.Header{}}
 	a.startOrchestratorTurn(response, projectRequest, personalProjectRequest(turn))
@@ -129,7 +142,7 @@ func (a *API) handlePersonalHandoff(w http.ResponseWriter, r *http.Request) {
 	projectTurnID, projectJobID := "", ""
 	if !response.overflow && response.status == 202 && json.Unmarshal(response.body.Bytes(), &job) == nil && job.Kind == "orchestrator" && job.PersonalOwner == "" && job.ProjectID == req.ProjectID {
 		stored, readErr := a.deps.Product.OrchestratorTurn(req.ProjectID, job.OrchestratorTurnID)
-		if readErr == nil && stored.IsDiscussionOnly() && stored.JobID == job.ID && stored.Message == req.Message {
+		if readErr == nil && product.PersonalHandoffMatchesTurn(turn.Handoff.Purpose, stored) && stored.JobID == job.ID && stored.Message == req.Message {
 			projectTurnID, projectJobID = stored.ID, job.ID
 		}
 	}
@@ -149,7 +162,11 @@ func (a *API) writePersonalHandoff(w http.ResponseWriter, r *http.Request, turn 
 		personalProblem(w, management.ErrExecutionAuthority)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"handoff": turn.Handoff, "message": "Only your reviewed message was routed. No amendment or execution was authorized. An unconfirmed result must be checked, never resent automatically."})
+	message := "Only your reviewed message was routed as discussion. No amendment or execution was authorized."
+	if turn.Handoff.Purpose == product.PersonalHandoffWorkRequest {
+		message = "Your reviewed work request entered the project orchestrator. Its current permissions, approval requirements and saved automation policy govern any work."
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"handoff": turn.Handoff, "message": message + " An unconfirmed result must be checked, never resent automatically."})
 }
 func (a *API) handlePersonalHandoffResolve(w http.ResponseWriter, r *http.Request) {
 	access, ok := a.personalRequest(w, r)
@@ -167,13 +184,13 @@ func (a *API) handlePersonalHandoffResolve(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	a.orchestratorAdmissionMu.Lock()
-	resolved, err := a.deps.Product.ResolveOrchestratorRequest(product.PersonalDiscussionContext(destination), turn.Handoff.ProjectID, orchestratorTurnSelection(personalProjectRequest(turn)))
+	resolved, err := a.deps.Product.ResolveOrchestratorRequest(product.PersonalHandoffContext(destination, turn.Handoff.Purpose), turn.Handoff.ProjectID, orchestratorTurnSelection(personalProjectRequest(turn)))
 	a.orchestratorAdmissionMu.Unlock()
 	if err != nil {
 		personalProblem(w, err)
 		return
 	}
-	if resolved.Status == "accepted" && resolved.Turn != nil && resolved.Turn.IsDiscussionOnly() {
+	if resolved.Status == "accepted" && resolved.Turn != nil && product.PersonalHandoffMatchesTurn(turn.Handoff.Purpose, *resolved.Turn) {
 		job, readErr := a.assistanceStore().Read(resolved.Turn.JobID)
 		if readErr == nil && job.Kind == "orchestrator" && job.PersonalOwner == "" && job.ProjectID == turn.Handoff.ProjectID && job.OrchestratorTurnID == resolved.Turn.ID {
 			if err := a.deps.Product.CompletePersonalHandoff(r.Context(), turn.ID, turn.Handoff.ID, resolved.Turn.ID, job.ID, access); err != nil {

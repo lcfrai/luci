@@ -55,16 +55,7 @@ type azureManagedCluster struct {
 			Private bool     `json:"enablePrivateCluster"`
 			Ranges  []string `json:"authorizedIPRanges"`
 		} `json:"apiServerAccessProfile"`
-		Pools []struct {
-			Name     string `json:"name"`
-			VMSize   string `json:"vmSize"`
-			Count    int    `json:"count"`
-			Mode     string `json:"mode"`
-			Auto     bool   `json:"enableAutoScaling"`
-			OSType   string `json:"osType"`
-			OSSKU    string `json:"osSKU"`
-			PublicIP bool   `json:"enableNodePublicIP"`
-		} `json:"agentPoolProfiles"`
+		Pools []azureManagedClusterPool `json:"agentPoolProfiles"`
 	} `json:"properties"`
 }
 
@@ -73,7 +64,7 @@ func (s *Server) observeAzureCluster(ctx context.Context, j CloudJob) (AzureClus
 		return AzureClusterObservation{}, errAzureCluster
 	}
 	fit := j.Plan.Foundation.Cluster.Fit
-	raw, err := s.cloudJobCommand(ctx, j, "az", []string{"resource", "show", "--ids", fit.ClusterResourceID, "--api-version", deploymentplan.AzureManagedClusterAPIVersion, "--output", "json"}, "")
+	raw, err := s.cloudJobCommand(ctx, j, "az", []string{"resource", "show", "--ids", fit.ClusterResourceID, "--api-version", deploymentplan.AzureClusterAPI(fit.Spec), "--output", "json"}, "")
 	if err != nil {
 		return AzureClusterObservation{}, err
 	}
@@ -88,11 +79,7 @@ func azureClusterObservation(raw string, j CloudJob) (AzureClusterObservation, e
 	p := value.Properties
 	p.Access.Ranges = append([]string{}, p.Access.Ranges...)
 	sort.Strings(p.Access.Ranges)
-	if !strings.EqualFold(value.ID, fit.ClusterResourceID) || value.Name != fit.ClusterName || !strings.EqualFold(value.Type, "Microsoft.ContainerService/managedClusters") || value.Location != j.Region || value.Tags["luci-plan"] != j.Plan.ID || value.Identity.Type != "SystemAssigned" || !azureSetupUUID.MatchString(strings.ToLower(value.Identity.PrincipalID)) || strings.ToLower(value.Identity.TenantID) != fit.Spec.TenantID || p.ResourceUID == "" || len(p.ResourceUID) > 128 || !prototypeReleaseID.MatchString(p.ResourceUID) || p.NodeResourceGroup != fit.NodeResourceGroup || p.KubernetesVersion != fit.Spec.KubernetesVersion || !p.EnableRBAC || !p.DisableLocalAccounts || !p.AAD.Managed || !p.AAD.AzureRBAC || strings.ToLower(p.AAD.TenantID) != fit.Spec.TenantID || p.Access.Private != fit.Spec.PrivateAPI || !reflect.DeepEqual(append([]string{}, p.Access.Ranges...), append([]string{}, fit.Spec.AuthorizedAPICIDRs...)) || len(p.Pools) != 1 {
-		return AzureClusterObservation{}, errAzureCluster
-	}
-	pool := p.Pools[0]
-	if pool.Name != "system" || pool.VMSize != fit.Spec.NodeSKU || pool.Count != fit.Spec.NodeCount || pool.Mode != "System" || pool.Auto || pool.OSType != "Linux" || pool.OSSKU != "Ubuntu" || pool.PublicIP {
+	if !strings.EqualFold(value.ID, fit.ClusterResourceID) || value.Name != fit.ClusterName || !strings.EqualFold(value.Type, "Microsoft.ContainerService/managedClusters") || value.Location != j.Region || value.Tags["luci-plan"] != j.Plan.ID || value.Identity.Type != "SystemAssigned" || !azureSetupUUID.MatchString(strings.ToLower(value.Identity.PrincipalID)) || strings.ToLower(value.Identity.TenantID) != fit.Spec.TenantID || p.ResourceUID == "" || len(p.ResourceUID) > 128 || !prototypeReleaseID.MatchString(p.ResourceUID) || p.NodeResourceGroup != fit.NodeResourceGroup || p.KubernetesVersion != fit.Spec.KubernetesVersion || !p.EnableRBAC || !p.DisableLocalAccounts || !p.AAD.Managed || !p.AAD.AzureRBAC || strings.ToLower(p.AAD.TenantID) != fit.Spec.TenantID || p.Access.Private != fit.Spec.PrivateAPI || !reflect.DeepEqual(append([]string{}, p.Access.Ranges...), append([]string{}, fit.Spec.AuthorizedAPICIDRs...)) || !azureClusterPoolsMatch(p.Pools, fit.Spec) {
 		return AzureClusterObservation{}, errAzureCluster
 	}
 	fqdn := p.FQDN
@@ -111,6 +98,13 @@ func azureClusterObservation(raw string, j CloudJob) (AzureClusterObservation, e
 		state = "created"
 	case "Failed", "Canceled":
 		state = "failed"
+	}
+	if fit.Spec.GPUPool != nil && state == "created" {
+		for _, pool := range p.Pools {
+			if pool.Name == "gpu" && pool.State != "Succeeded" {
+				state = "unconfirmed"
+			}
+		}
 	}
 	version := p.CurrentKubernetesVersion
 	if state == "created" && version != fit.Spec.KubernetesVersion {

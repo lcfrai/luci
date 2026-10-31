@@ -66,6 +66,28 @@ it('continues in the same workspace while keeping the draft and selectable saved
   expect(personalLuciApi.send).not.toHaveBeenCalled();
 });
 
+it('requires an explicit work choice and a fresh project review before routing work', async () => {
+  vi.mocked(personalLuciApi.get).mockResolvedValue({ ...view(), turns: [turn()], revision: 3 });
+  environment.project.mockResolvedValue({ revision: 7, context: { digest: 'b'.repeat(64) } });
+  const user = userEvent.setup(); render(<PersonalLuci projects={projects} />);
+  await user.click(await screen.findByRole('button', { name: 'Review message for Appointments' }));
+  const choice = screen.getByRole('checkbox', { name: 'Make this a work request' });
+  expect((choice as HTMLInputElement).checked).toBe(false);
+  await user.click(screen.getByRole('button', { name: 'Review current project context' }));
+  await screen.findByRole('button', { name: 'Send reviewed message' });
+  await user.click(choice);
+  expect(screen.queryByRole('button', { name: 'Send reviewed work request' })).toBeNull();
+  expect(personalLuciApi.handoff).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Review current project context' }));
+  await user.click(await screen.findByRole('button', { name: 'Send reviewed work request' }));
+  await waitFor(() => expect(personalLuciApi.handoff).toHaveBeenCalledTimes(1));
+  const [id, request] = vi.mocked(personalLuciApi.handoff).mock.calls[0];
+  expect(id).toBe(turn().id); expect(request.purpose).toBe('work-request');
+  expect(request.message).toBe('Suggested project question');
+  expect(JSON.stringify(request)).not.toContain('PRIVATE MESSAGE');
+  expect(environment.project).toHaveBeenCalledTimes(2);
+});
+
 it('discards late private history when the authenticated draft scope changes', async () => {
   let resolve!: (value: PersonalView) => void;
   vi.mocked(personalLuciApi.get).mockImplementationOnce(() => new Promise<PersonalView>(done => { resolve = done; })).mockResolvedValue(view());

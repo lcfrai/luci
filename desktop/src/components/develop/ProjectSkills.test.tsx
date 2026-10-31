@@ -75,3 +75,17 @@ it('ignores a late old-scope response and hides content immediately when read au
   state.access.canRead = false; state.access.message = 'Read access removed.'; view.rerender(<ProjectSkills projectId="p-skills" />);
   expect(screen.queryByLabelText('Instructions')).toBeNull(); expect(screen.getByRole('status').textContent).toBe('Read access removed.');
 });
+
+it('keeps optional skill provenance on conflicts and sends normalized metadata only on explicit save',async()=>{
+ const save=vi.spyOn(projectSkillsApi,'save').mockRejectedValue(new Error('The skill registry changed. Reload before saving.'));
+ render(<ProjectSkills projectId="p-skills"/>);await openSkills();
+ await userEvent.type(screen.getByLabelText('Skill ID'),'source-aware');await userEvent.type(screen.getByLabelText('Title'),'Source aware');
+ await userEvent.type(screen.getByLabelText('Declared provenance'),'Our reviewed source');await userEvent.type(screen.getByLabelText('Instructions'),'Use the approved tokens.');
+ await userEvent.click(screen.getByText('Source and compatibility · optional'));
+ await userEvent.type(screen.getByLabelText('Declared licence'),'MIT');await userEvent.type(screen.getByLabelText('Source URL'),'https://example.com/skill');
+ await userEvent.type(screen.getByLabelText('Source version or commit'),'v2');await userEvent.type(screen.getByLabelText('Expected tools · comma separated'),'git, node,');
+ expect(save).not.toHaveBeenCalled();await userEvent.click(screen.getByRole('button',{name:'Save new immutable version'}));await screen.findByRole('alert');
+ expect(save).toHaveBeenCalledWith('p-skills',expect.objectContaining({skill:expect.objectContaining({metadata:{license:'MIT',sourceUrl:'https://example.com/skill',sourceRevision:'v2',declaredTools:['git','node']}})}));
+ expect((screen.getByLabelText('Expected tools · comma separated') as HTMLInputElement).value).toBe('git, node,');
+ await userEvent.click(screen.getByRole('button',{name:'Discard unsaved skill edits'}));expect((screen.getByLabelText('Source URL') as HTMLInputElement).value).toBe('');
+});

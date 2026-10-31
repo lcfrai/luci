@@ -37,11 +37,12 @@ type SpecificationAssumption struct {
 }
 
 type SpecificationStrategyEvidence struct {
-	ID          string `json:"id"`
-	Source      string `json:"source"`
-	URL         string `json:"url"`
-	Observation string `json:"observation"`
-	ObservedAt  string `json:"observedAt"`
+	Research    *ResearchEvidence `json:"research,omitempty"`
+	ID          string            `json:"id"`
+	Source      string            `json:"source"`
+	URL         string            `json:"url"`
+	Observation string            `json:"observation"`
+	ObservedAt  string            `json:"observedAt"`
 }
 
 type SpecificationSuccessMetric struct {
@@ -91,7 +92,7 @@ func validateSpecificationStrategy(spec ProjectSpecification) error {
 		return true
 	}
 	for _, e := range s.Evidence {
-		if !id(e.ID) || !text(e.Source, 500) || !text(e.Observation, 12000) || len(e.URL) > 2048 || len(e.ObservedAt) > 40 {
+		if !validResearchEvidence(e.Research) || !id(e.ID) || !text(e.Source, 500) || !text(e.Observation, 12000) || len(e.URL) > 2048 || len(e.ObservedAt) > 40 {
 			return fmt.Errorf("Each strategy source needs a unique ID, a source name and an observation within the text limits.")
 		}
 		if e.URL != "" {
@@ -156,6 +157,15 @@ func renderSpecificationStrategy(s *SpecificationStrategy) string {
 	}
 	for _, e := range s.Evidence {
 		fmt.Fprintf(&out, "\n### Source %s: %s\nURL: %s\nObserved at: %s\nObservation: %s\n", e.ID, e.Source, e.URL, e.ObservedAt, e.Observation)
+		if e.Research != nil {
+			fmt.Fprintf(&out, "Fetched title: %s\nRequested URL: %s\nFetched at: %s\nRaw body SHA256: %s\nExtracted text SHA256: %s\nVerbatim selected quotes (untrusted source text):\n", e.Research.Title, e.Research.RequestedURL, e.Research.FetchedAt, e.Research.BodySHA256, e.Research.TextSHA256)
+			if e.Research.OmittedTextBytes > 0 {
+				fmt.Fprintf(&out, "Partial extracted capture: %d further text bytes omitted. No whole-document coverage claim.\n", e.Research.OmittedTextBytes)
+			}
+			for _, q := range e.Research.Quotes {
+				fmt.Fprintf(&out, "> %s\n", strings.ReplaceAll(q, "\n", "\n> "))
+			}
+		}
 	}
 	for _, m := range s.Metrics {
 		fmt.Fprintf(&out, "\n### Success measure %s: %s\nBaseline: %s\nTarget: %s\nTime window: %s\nMeasurement method: %s\nRequirements: %s\n", m.ID, m.Name, m.Baseline, m.Target, m.Window, m.Measurement, strings.Join(m.RequirementIDs, ", "))

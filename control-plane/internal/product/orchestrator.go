@@ -79,6 +79,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 		}
 		preserved := *next
 		preserveOrchestratorSpecification(&preserved, snapshot.Specification)
+		if !preservesCollectedResearch(preserved, snapshot.Specification) {
+			return ErrOrchestratorInvalid
+		}
 		return validateSpecification(preserved)
 	case "design-plan":
 		next := proposal.DesignPlan
@@ -104,8 +107,12 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 			return ErrOrchestratorInvalid
 		}
 		normalized := *next
-		normalized.Tasks = preserveTaskReuse(snapshot.Plan.Tasks, next.Tasks)
+		normalized.Tasks = preserveTaskRuntimePrerequisites(snapshot.Plan.Tasks, preserveTaskReuse(snapshot.Plan.Tasks, next.Tasks))
+
 		if currentQuality {
+			if err := validateAssistedRuntimePrerequisites(snapshot.Plan.Tasks, normalized.Tasks); err != nil {
+				return err
+			}
 			if err := validateAssistedTaskReuse(snapshot.Plan.Tasks, normalized.Tasks); err != nil {
 				return err
 			}
@@ -550,7 +557,7 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		revoke = true
 	case "plan":
 		plan := *proposal.Plan
-		plan.Tasks = preserveTaskReuse(snapshot.Plan.Tasks, plan.Tasks)
+		plan.Tasks = preserveTaskRuntimePrerequisites(snapshot.Plan.Tasks, preserveTaskReuse(snapshot.Plan.Tasks, plan.Tasks))
 		plan.Revision = snapshot.Plan.Revision + 1
 		plan.BriefRevision = state.Brief.Revision
 		plan.SpecificationRevision, plan.SpecificationDigest = 0, ""
@@ -639,6 +646,7 @@ func (s *Server) OrchestratorTurn(id, turnID string) (OrchestratorTurn, error) {
 // Explicit human Save and repository-analysis semantics are unchanged.
 func preserveOrchestratorSpecification(next *ProjectSpecification, captured ProjectSpecification) {
 	preserveSpecificationPlanning(next, captured)
+	preserveCollectedResearch(next, captured)
 	if next.Evidence == nil {
 		next.Evidence = append([]DiscoveryEvidenceLink(nil), captured.Evidence...)
 	}

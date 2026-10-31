@@ -60,6 +60,9 @@ func azureAccountPrincipal(account azureAccountMetadata) (deploymentplan.AzureCl
 // Kubernetes server independently authenticates the bearer. A forged browser
 // claim can never enter this function's CLI response or supply project rights.
 func azureClusterBearerClaims(token string, principal deploymentplan.AzureClusterPrincipal, now time.Time) (azureClusterBearer, error) {
+	return azureBearerClaimsForAudience(token, principal, now, azureAKSTokenAudience)
+}
+func azureBearerClaimsForAudience(token string, principal deploymentplan.AzureClusterPrincipal, now time.Time, audience string) (azureClusterBearer, error) {
 	if len(token) == 0 || len(token) > 16<<10 || strings.ContainsAny(token, "\r\n\x00") {
 		return azureClusterBearer{}, errAzureCluster
 	}
@@ -79,7 +82,7 @@ func azureClusterBearerClaims(token string, principal deploymentplan.AzureCluste
 		Expires   int64  `json:"exp"`
 		NotBefore int64  `json:"nbf"`
 	}
-	if json.Unmarshal(raw, &claims) != nil || claims.Audience != azureAKSTokenAudience || strings.ToLower(claims.Tenant) != principal.TenantID || (claims.Issuer != "https://sts.windows.net/"+principal.TenantID+"/" && claims.Issuer != "https://login.microsoftonline.com/"+principal.TenantID+"/v2.0") || claims.NotBefore > now.Add(time.Minute).Unix() || claims.Expires <= now.Add(2*time.Minute).Unix() || claims.Expires > now.Add(26*time.Hour).Unix() {
+	if (audience != azureAKSTokenAudience && audience != "https://management.azure.com/") || json.Unmarshal(raw, &claims) != nil || claims.Audience != audience || strings.ToLower(claims.Tenant) != principal.TenantID || (claims.Issuer != "https://sts.windows.net/"+principal.TenantID+"/" && claims.Issuer != "https://login.microsoftonline.com/"+principal.TenantID+"/v2.0") || claims.NotBefore > now.Add(time.Minute).Unix() || claims.Expires <= now.Add(2*time.Minute).Unix() || claims.Expires > now.Add(26*time.Hour).Unix() {
 		return azureClusterBearer{}, errAzureCluster
 	}
 	principal.ObjectID = strings.ToLower(claims.Object)

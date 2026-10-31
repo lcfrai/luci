@@ -9,6 +9,9 @@ import (
 )
 
 func (s *Server) continueCoordinatorDeployment(ctx context.Context, p project.Project, row coordinatorContinuationRecord) (coordinatorContinuationRecord, error) {
+	if row.KubernetesPlan != nil {
+		return s.continueCoordinatorKubernetes(ctx, p, row)
+	}
 	if row.DeploymentPlan == nil {
 		return row, nil
 	}

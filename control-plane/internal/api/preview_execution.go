@@ -13,7 +13,7 @@ import (
 )
 
 func (a *API) previewRuntime() previewruntime.Runtime {
-	return previewruntime.Runtime{CaptureActor: a.capturePreviewActor, Start: a.startPreview, Observe: a.observePreview, Stop: a.stopPreview, Restart: a.restartPreview}
+	return previewruntime.Runtime{CaptureActor: a.capturePreviewActor, BuildAndPublish: a.buildAndPublishPreview, Start: a.startPreview, Observe: a.observePreview, Stop: a.stopPreview, Restart: a.restartPreview}
 }
 
 func (a *API) authorizePreview(ctx context.Context, actor management.ExecutionActorRef, allocate bool) (management.ExecutionAuthority, error) {
@@ -67,6 +67,11 @@ func (a *API) previewBuildMutation(ctx context.Context, req previewruntime.Reque
 		lease.Identity.SourceDigest != req.SourceDigest || lease.Identity.Commit != req.Commit || req.ValidateSource == nil {
 		return errors.New("preview build authority or reviewed identity changed")
 	}
+	if lease.PublicationBinding != "" {
+		if err := a.publicationAuthority(ctx, req); err != nil {
+			return err
+		}
+	}
 	authority, err := a.authorizePreview(ctx, req.Actor, true)
 	if err != nil {
 		return err
@@ -88,6 +93,10 @@ func (a *API) previewBuildMutation(ctx context.Context, req previewruntime.Reque
 }
 
 func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error) (previewruntime.Outcome, error) {
+	return a.startPreviewPipeline(ctx, req, publish, nil)
+}
+
+func (a *API) startPreviewPipeline(ctx context.Context, req previewruntime.Request, publish func(previewruntime.Outcome) error, publication *previewruntime.Publication) (previewruntime.Outcome, error) {
 	out := previewruntime.Outcome{Identity: req.Identity, Phase: "blocked", Message: "No preview allocation was started."}
 	fail := func(code, message string, err error) (previewruntime.Outcome, error) {
 		out.ReasonCode, out.Message = code, message
@@ -135,12 +144,12 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 		resources.CPUMillis = 1000
 	}
 	id := backend.PreviewIdentity{Protocol: backend.PreviewExecutionProtocol, AllocationID: buildID, ReleaseID: req.ReleaseID, ScopeDigest: a.execution.scope, ProjectID: req.ProjectID, SourceDigest: req.SourceDigest, Commit: req.Commit}
-	spec := backend.PreviewSpec{Identity: id, Kind: "preview-build", Resources: resources, SourceDirectory: req.SourceDirectory, SourceArchive: req.SourceArchive, Dockerfile: req.Dockerfile, Port: req.Port, Environment: req.Environment, Network: req.Network, Labels: req.Labels}
+	spec := backend.PreviewSpec{Identity: id, Kind: "preview-build", Resources: resources, SourceDirectory: req.SourceDirectory, SourceArchive: req.SourceArchive, Dockerfile: req.Dockerfile, Port: req.Port, Environment: req.Environment, Network: req.Network, Labels: req.Labels, Platform: req.Platform}
 	prepared, err := executor.PreparePreview(ctx, spec)
 	if err != nil {
 		return fail("preview_build_unsupported", "The selected engine, source or base images cannot support this bounded preview build. Nothing was allocated.", err)
 	}
-	if !validPreviewIdentity(prepared.Spec.Identity) || prepared.Spec.Identity.AllocationID != buildID || prepared.Spec.Identity.ScopeDigest != a.execution.scope || prepared.Spec.Identity.ProjectID != req.ProjectID || prepared.Spec.Identity.ReleaseID != req.ReleaseID || prepared.Spec.Identity.SourceDigest != req.SourceDigest || prepared.Spec.Identity.Commit != req.Commit || prepared.Spec.Kind != "preview-build" || prepared.Spec.Resources != resources {
+	if !validPreviewIdentity(prepared.Spec.Identity) || prepared.Spec.Identity.AllocationID != buildID || prepared.Spec.Identity.ScopeDigest != a.execution.scope || prepared.Spec.Identity.ProjectID != req.ProjectID || prepared.Spec.Identity.ReleaseID != req.ReleaseID || prepared.Spec.Identity.SourceDigest != req.SourceDigest || prepared.Spec.Identity.Commit != req.Commit || prepared.Spec.Kind != "preview-build" || prepared.Spec.Resources != resources || prepared.Spec.Platform != req.Platform {
 		return fail("preview_runtime_identity", "The prepared build identity changed; no allocation was started.", errors.New("invalid prepared preview"))
 	}
 	admit := func(p backend.PreparedPreview) (executionDecision, previewExecutionLease, error) {
@@ -150,7 +159,16 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 	if err != nil || decision.State != "admitted" {
 		return fail(decision.Code, "The preview build is waiting for current authority and shared machine capacity. No build was started.", err)
 	}
+	if publication != nil {
+		lease, err = a.execution.bindPreviewPublication(ctx, lease, publication.Repository, publication.RegistryBinding)
+		if err != nil {
+			return out, err
+		}
+	}
 	out.BuildAllocationID, out.AllocationID, out.EngineID, out.InstanceID = buildID, serveID, lease.Identity.EngineID, lease.Identity.InstanceID
+	if publication != nil {
+		out.AllocationID = ""
+	}
 	out.Phase, out.ResourcesHeld, out.Message = "reserved", true, "Shared capacity reserved; the reviewed image build has not started."
 	if err = publish(out); err != nil {
 		return out, err
@@ -182,6 +200,9 @@ func (a *API) startPreview(ctx context.Context, req previewruntime.Request, publ
 		}
 		out.Phase = "unknown"
 		return fail("preview_build_unconfirmed", "The image build outcome is unconfirmed. Its capacity remains reserved; do not replay this build.", buildErr)
+	}
+	if publication != nil && buildErr == nil && result.ImageID != "" {
+		return a.publishBuiltPreview(ctx, req, *publication, lease, result, publish, out)
 	}
 	recordCtx, recordCancel := previewRecordContext(ctx)
 	_, err = a.execution.completePreview(recordCtx, lease, true, result.ImageID)
@@ -391,7 +412,7 @@ func (a *API) startReviewedSourcePreview(ctx context.Context, req previewruntime
 		resources.CPUMillis = 1000
 	}
 	id := backend.PreviewIdentity{Protocol: backend.PreviewExecutionProtocol, Kind: backend.ReviewedSourcePreview, AllocationID: serveID, ReleaseID: req.ReleaseID, ScopeDigest: a.execution.scope, ProjectID: req.ProjectID, SourceDigest: req.SourceDigest, Commit: req.Commit}
-	spec := backend.PreviewSpec{Identity: id, Kind: backend.ReviewedSourcePreview, Resources: resources, SourceDirectory: req.SourceDirectory, SourceArchive: req.SourceArchive, Port: req.Port, Network: req.Network, Labels: req.Labels}
+	spec := backend.PreviewSpec{Identity: id, Kind: backend.ReviewedSourcePreview, Resources: resources, SourceDirectory: req.SourceDirectory, SourceArchive: req.SourceArchive, Port: req.Port, Network: req.Network, Labels: req.Labels, Platform: req.Platform}
 	serving, err := a.deps.Backend.(backend.PreviewExecutor).PreparePreview(ctx, spec)
 	if err != nil {
 		return fail("preview_source_unsupported", "The trusted serving runtime or bounded static snapshot is unavailable or unsupported. Nothing was allocated.", err)
@@ -451,6 +472,28 @@ func (a *API) observePreview(ctx context.Context, id previewruntime.Identity) (p
 	if id.BuildAllocationID != "" {
 		v, e := a.execution.previewLease(ctx, id.BuildAllocationID)
 		if e == nil && matchesPreviewReference(v, id) {
+			if v.PublicationBinding != "" {
+				authority, err := a.authorizePreview(ctx, v.Actor, false)
+				if err != nil || v.Actor.Local || v.Actor.TeamID != "" && (authority.Team == nil || !authority.Team.Permissions.Secrets) {
+					return out, management.ErrExecutionAuthority
+				}
+				if actor, err := management.CaptureDeploymentActor(management.WithExecutionAuthority(ctx, authority), id.ProjectID); err != nil || actor != v.Actor {
+					return out, management.ErrExecutionAuthority
+				}
+				out.Image = v.Image
+				if v.PublicationDigest != "" {
+					out.ImmutableImage = v.PublicationRepository + "@" + v.PublicationDigest
+					out.Phase = "published"
+				} else if v.State == "finished" {
+					out.Phase = "failed"
+				} else {
+					out.Phase = v.State
+				}
+				out.ResourcesHeld = v.State != "finished"
+				out.CleanupConfirmed = v.State == "finished"
+				out.Message = "Recorded original image-publication state; no push was repeated and application readiness is separate."
+				return out, nil
+			}
 			out.Phase = v.State
 			out.ResourcesHeld = v.State != "finished"
 			out.CleanupConfirmed = v.State == "finished"

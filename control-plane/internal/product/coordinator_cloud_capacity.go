@@ -3,6 +3,7 @@ package product
 import "context"
 
 type CoordinatorCloudAttempt struct {
+	HostID              string `json:"hostId,omitempty"`
 	RunID               string `json:"runId"`
 	TaskID              string `json:"taskId"`
 	AttemptID           string `json:"attemptId"`
@@ -19,6 +20,8 @@ type CoordinatorCloudAttempt struct {
 // fresh actor policy, provider status, quota and exact allocations are checked
 // again before an irreversible Create.
 type CoordinatorCloudCapacity struct {
+	Hosts           []CoordinatorCloudHost `json:"hosts,omitempty"`
+	PlacementDigest string                 `json:"placementDigest,omitempty"`
 	// SetupNeeds is read-only, actor-scoped advice. An empty Provider means no
 	// capacity claim exists; the UI must not offer activation as ready.
 	SetupNeeds               []string `json:"setupNeeds,omitempty"`
@@ -39,6 +42,18 @@ type CoordinatorCloudCapacity struct {
 	MoreRetainedAttempts      int                       `json:"moreRetainedAttempts"`
 	ObservedAt                string                    `json:"observedAt"`
 	Limitation                string                    `json:"limitation"`
+}
+type CoordinatorCloudHost struct {
+	ID                       string `json:"id"`
+	Name                     string `json:"name"`
+	Provider                 string `json:"provider"`
+	Region                   string `json:"region"`
+	TemplateID               string `json:"templateId"`
+	Default                  bool   `json:"default"`
+	Draining                 bool   `json:"draining"`
+	ConfiguredAvailableSlots int    `json:"configuredAvailableSlots"`
+	EstimatedTaskCostMicros  int64  `json:"estimatedTaskCostMicros"`
+	MaxTaskSeconds           int    `json:"maxTaskSeconds"`
 }
 
 func (s *Server) SetCoordinatorCloudCapacity(read func(context.Context, string, string) (CoordinatorCloudCapacity, error)) {

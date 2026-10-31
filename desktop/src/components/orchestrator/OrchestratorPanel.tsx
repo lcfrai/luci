@@ -1,3 +1,4 @@
+import { requestResearchQuestion } from '../../api/researchQuestions';
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { orchestratorApi, type OrchestratorAdvanceRequest, type OrchestratorJob, type OrchestratorRequest, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
 import { errorText, productApi } from "../../api/product";
@@ -597,7 +598,7 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
     if (!messageRef.current.trim() && !pendingRequest && !recoveredDraft) editComposer(messageRef.current || text?.slice(0, 16000) || "", "");
     openComposer();
   };
-  const edit = (editor: ContextEditor, questionId?: string) => {
+  const edit = (editor: ContextEditor, questionId?: string, researchQuestion?: string) => {
     const permitted = () => permission.current.canRead && (editor === "plan" || permission.current.canEdit);
     if (!permitted()) return;
     cancelEditRequest.current?.();
@@ -605,7 +606,9 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
     const destination = editor === "definition" ? "discover" : editor === "plan" ? "develop" : "design";
     const request = () => {
       if (!alive.current || !permitted()) return;
-      const cancel = requestProjectContextEdit(scope, projectId, editor, questionId);
+      const cancelContext = requestProjectContextEdit(scope, projectId, editor, questionId);
+      const cancelResearch = researchQuestion ? requestResearchQuestion(scope, projectId, researchQuestion) : () => {};
+      const cancel = () => { cancelContext(); cancelResearch(); };
       // Exact destinations transfer focus, so compact screens can give their
       // workspace back. Generic editors keep the overview and opener visible.
       const transfersFocus = editor === "plan" || (editor === "definition" && !!questionId);
@@ -766,6 +769,7 @@ function ProjectConversation({ projectId, scope, primary, defaultCollapsed }: { 
             {turn.status === "failed" && turn.failureCode && failureAdvice.has(turn.failureCode) && <div role="alert"><p>{failureAdvice.get(turn.failureCode)}</p><Button variant="secondary" size="compact" disabled={!canAssist} onClick={() => { if (agentDetails.current) { agentDetails.current.open = true; agentDetails.current.querySelector("summary")?.focus(); } }}>Review agent and model</Button></div>}
             {turn.answer && <div className="orchestrator-answer"><strong>Luci</strong><p>{turn.answer.summary}</p>
               {turn.answer.question && <section className="orchestrator-question" aria-label="Luci question"><p><strong>{turn.answer.blocking && !turn.questionResolvedBy ? "Decision needed: " : "Question: "}</strong>{turn.answer.question}</p><p>{turn.answer.rationale}</p>
+                {canEdit && new TextEncoder().encode(turn.answer.question).length <= 300 && <Button variant="secondary" size="compact" disabled={!!busy || !canRead} onClick={() => edit("definition", undefined, turn.answer!.question)}>Research this question</Button>}
                 {!!turn.answer.impact?.length && <div><strong>Why it matters</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
                 {turn.questionResolvedBy ? <p>Answered in a later turn.</p> : <div className="orchestrator-actions">{turn.answer.options.map((option, index) => <Button key={index} variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => suggestReply(turn, option)}>{option}</Button>)}<Button variant="ghost" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(turn.id)}>Reply to this question</Button></div>}
               </section>}

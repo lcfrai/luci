@@ -53,6 +53,9 @@ func (a *API) cloudTaskCapacity(ctx context.Context, projectID, actorID string) 
 	if budget < 0 {
 		budget = 0
 	}
+	if cloud.Pool != nil {
+		return a.cloudPoolCapacity(ctx, ref, cloudPolicyBudget(policy.MonthlyBudgetUSD))
+	}
 	limits, template, usage, projectActive, rows, settled := cloud.Runtime.Controller.Capacity(projectID)
 	pending := make(map[string]bool)
 	for _, row := range rows {

@@ -54,7 +54,21 @@ func cloudObservationCandidates(rows []e2bbe.Record) []e2bbe.Record {
 func (a *API) reconcileRestoredCloud(ctx context.Context) error {
 	child, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
-	_, err := a.deps.CloudTasks.Runtime.Controller.ReconcileRestored(child, 4)
+	cloud := a.deps.CloudTasks
+	if cloud == nil {
+		return nil
+	}
+	if cloud.Pool == nil {
+		_, err := cloud.Runtime.Controller.ReconcileRestored(child, 4)
+		return err
+	}
+	hosts := make([]CloudTaskHost, 0, len(cloud.Pool.hosts))
+	for _, host := range cloud.Pool.hosts {
+		hosts = append(hosts, host)
+	}
+	sort.Slice(hosts, func(i, j int) bool { return hosts[i].ID < hosts[j].ID })
+	index := int((a.cloudObservationCursor.Load()) % uint64(len(hosts)))
+	_, err := hosts[index].Runtime.Runtime.Controller.ReconcileRestored(child, 4)
 	return err
 }
 
@@ -68,6 +82,13 @@ func (a *API) observeCloudTaskCompletions(ctx context.Context) error {
 		return nil
 	}
 	rows, _ := cloud.Runtime.Controller.Snapshot()
+	if cloud.Pool != nil {
+		rows = nil
+		for _, host := range cloud.Pool.hosts {
+			current, _ := host.Runtime.Runtime.Controller.Snapshot()
+			rows = append(rows, current...)
+		}
+	}
 	active := cloudObservationCandidates(rows)
 	if len(active) == 0 {
 		return a.reconcileRestoredCloud(ctx)
@@ -121,8 +142,11 @@ func runCloudObservationBatch(ctx context.Context, selected []e2bbe.Record, obse
 }
 
 func (a *API) observeOneCloudTask(ctx context.Context, observed e2bbe.Record) error {
-	cloud := a.deps.CloudTasks
 	identity := observed.Request.Identity
+	cloud, resolveErr := a.cloudAttemptRuntime(identity.ProjectID, identity.RunID, identity.AttemptID, identity.OperationID)
+	if resolveErr != nil {
+		return resolveErr
+	}
 	current, found := a.cloudRecord(identity.ProjectID, identity.RunID, identity.AttemptID, identity.OperationID)
 	if !found || current.RequestDigest != observed.RequestDigest {
 		return e2bbe.ErrConflict

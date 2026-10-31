@@ -23,6 +23,7 @@ type CoordinatorCheckPlan struct {
 type CoordinatorDelivery struct {
 	GitPublication    *CoordinatorGitAction        `json:"gitPublication,omitempty"`
 	Deployment        *CoordinatorDeploymentAction `json:"deployment,omitempty"`
+	Kubernetes        *CoordinatorKubernetesAction `json:"kubernetes,omitempty"`
 	Preview           *CoordinatorPreviewAction    `json:"preview,omitempty"`
 	ActionID          string                       `json:"actionId"`
 	CheckID           string                       `json:"checkId"`
@@ -112,7 +113,7 @@ func validateCoordinatorDelivery(row coordinatorContinuationRecord) error {
 		return ErrOrchestratorInvalid
 	}
 	for i, previous := range row.PriorDeliveries {
-		if previous.Status != "blocked" || previous.Preview != nil || previous.Deployment != nil || previous.GitPublication != nil {
+		if previous.Status != "blocked" || previous.Preview != nil || previous.Deployment != nil || previous.GitPublication != nil || previous.Kubernetes != nil {
 			return ErrOrchestratorInvalid
 		}
 		copy := row

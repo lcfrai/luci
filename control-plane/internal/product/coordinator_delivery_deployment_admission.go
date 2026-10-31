@@ -73,6 +73,9 @@ func coordinatorDeploymentID(id string) string {
 }
 
 func validateCoordinatorDeployment(row coordinatorContinuationRecord) error {
+	if err := validateCoordinatorKubernetesContinuation(row); err != nil {
+		return err
+	}
 	if err := validateCoordinatorGitPublication(row); err != nil {
 		return err
 	}
@@ -169,6 +172,9 @@ func (s *Server) authorizeCoordinatorDeployment(ctx context.Context, p project.P
 // through the current server authorizer outside s.mu; no browser identity or
 // captured allocation authority can substitute for this fresh decision.
 func (s *Server) reauthorizeCoordinatorDeploymentActor(ctx context.Context, p project.Project, row coordinatorContinuationRecord, allocate bool) (context.Context, error) {
+	if row.KubernetesPlan != nil {
+		return s.reauthorizeCoordinatorKubernetesActor(ctx, p, row, allocate)
+	}
 	if s.coordinatorDeploymentAuthorize == nil || row.ExecutionActor.UserID == "" || row.ExecutionActor.Local || row.ExecutionActor.UserID != row.Actor.ID || row.ExecutionActor.ProjectID != p.ID {
 		return ctx, errCoordinatorAuthority
 	}

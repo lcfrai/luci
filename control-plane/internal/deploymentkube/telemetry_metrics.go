@@ -25,19 +25,20 @@ type ProductEventSample struct {
 	ReportedCount float64 `json:"reportedCount"`
 }
 type TelemetryObservation struct {
-	State              string               `json:"state"` // recorded, partial, no-data
-	CollectorID        string               `json:"collectorId"`
-	ServiceUID         string               `json:"serviceUid"`
-	DeploymentUID      string               `json:"deploymentUid"`
-	CollectorPodUID    string               `json:"collectorPodUid"`
-	ApplicationPodUIDs []string             `json:"applicationPodUids"`
-	PlanDigest         string               `json:"planDigest"`
-	SourceCommit       string               `json:"sourceCommit"`
-	ObservedAt         string               `json:"observedAt"`
-	Continuity         string               `json:"continuity"` // baseline, continued, reset; never an inferred interval/lifetime total
-	Samples            []ProductEventSample `json:"samples"`
-	Omitted            bool                 `json:"omitted"`
-	EvidenceDigest     string               `json:"evidenceDigest"`
+	Storage            *StoredTelemetrySource `json:"storage,omitempty"`
+	State              string                 `json:"state"` // recorded, partial, no-data
+	CollectorID        string                 `json:"collectorId"`
+	ServiceUID         string                 `json:"serviceUid"`
+	DeploymentUID      string                 `json:"deploymentUid"`
+	CollectorPodUID    string                 `json:"collectorPodUid"`
+	ApplicationPodUIDs []string               `json:"applicationPodUids"`
+	PlanDigest         string                 `json:"planDigest"`
+	SourceCommit       string                 `json:"sourceCommit"`
+	ObservedAt         string                 `json:"observedAt"`
+	Continuity         string                 `json:"continuity"` // baseline, continued, reset; never an inferred interval/lifetime total
+	Samples            []ProductEventSample   `json:"samples"`
+	Omitted            bool                   `json:"omitted"`
+	EvidenceDigest     string                 `json:"evidenceDigest"`
 }
 
 var metricLabel = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)="((?:[^"\\]|\\["\\n])*)"(?:,|$)`)
@@ -49,6 +50,9 @@ func telemetryDigest(row TelemetryObservation) string { row.EvidenceDigest = "";
 func telemetryContinuity(previous *TelemetryObservation, current TelemetryObservation) string {
 	if previous == nil {
 		return "baseline"
+	}
+	if !jsonEqual(previous.Storage, current.Storage) {
+		return "reset"
 	}
 	if previous.CollectorPodUID != current.CollectorPodUID || !jsonEqual(previous.ApplicationPodUIDs, current.ApplicationPodUIDs) || len(previous.Samples) != len(current.Samples) || previous.Omitted || current.Omitted {
 		return "reset"
@@ -181,6 +185,9 @@ func validateTelemetryObservation(row *TelemetryObservation, request Request, re
 		return nil
 	}
 	collector := deploymentplan.ManagedCollector(request.Blueprint, row.CollectorID)
+	if !validStoredTelemetrySource(row.Storage, request, resources) || row.Storage != nil && (collector == nil || collector.Collector.OwnedDestination == nil || collector.Collector.OwnedDestination.MetricsServiceID != row.Storage.ServiceID) {
+		return ErrRefused
+	}
 	if collector == nil || row.PlanDigest != request.Identity.PlanDigest || row.SourceCommit != request.Blueprint.Source.Commit || row.ServiceUID == "" || len(row.ServiceUID) > 128 || row.DeploymentUID == "" || len(row.DeploymentUID) > 128 || row.CollectorPodUID == "" || len(row.CollectorPodUID) > 128 || len(row.ApplicationPodUIDs) > 128 || len(row.Samples) > telemetrySampleLimit || row.Samples == nil || row.EvidenceDigest != telemetryDigest(*row) {
 		return ErrRefused
 	}

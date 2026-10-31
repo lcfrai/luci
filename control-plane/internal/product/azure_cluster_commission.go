@@ -108,7 +108,7 @@ func (s *Server) aksNamespaceClient(ctx context.Context, j CloudJob) (kubernetes
 	if err != nil {
 		return nil, "", err
 	}
-	uri := "https://management.azure.com" + fit.ClusterResourceID + "/listClusterUserCredential?api-version=" + deploymentplan.AzureManagedClusterAPIVersion + "&format=exec"
+	uri := "https://management.azure.com" + fit.ClusterResourceID + "/listClusterUserCredential?api-version=" + deploymentplan.AzureClusterAPI(fit.Spec) + "&format=exec"
 	raw, err := s.cloudJobCommand(ctx, j, "az", []string{"rest", "--method", "POST", "--url", uri, "--output", "json"}, "")
 	if err != nil {
 		return nil, "", err

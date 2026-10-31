@@ -1,9 +1,10 @@
 import type { OrchestratorContext, OrchestratorProposal, OrchestratorTurn } from './orchestrator';
 import type { ImplementationPlan } from './product';
+import { validProjectSkillMetadata,type ProjectSkillMetadata } from './skillMetadata';
 import { validProjectSkills, type ProjectSkillAssignment, type ProjectSkillRegistry, type ProjectSkillsSave, type SkillRole } from './projectSkills';
 
 export interface OrchestratorSkillSummary {
-  id: string; revision: number; digest: string; title: string; provenance: string; roles: SkillRole[]; instructionExcerpt: string;
+  id: string; revision: number; digest: string; title: string; provenance: string; roles: SkillRole[]; instructionExcerpt: string; metadata?:ProjectSkillMetadata;
 }
 export interface OrchestratorSkillsContext {
   projectId: string; revision: number; registryDigest: string; versions: OrchestratorSkillSummary[];
@@ -26,7 +27,7 @@ export function validOrchestratorSkillsContext(value: OrchestratorSkillsContext 
   const seen = new Set<string>();
   for (const v of value.versions) {
     const key = `${v?.id}:${v?.revision}`;
-    if (!v || !id(v.id) || !positive(v.revision) || !hash(v.digest) || !text(v.title, 200) || !text(v.provenance, 256) || !text(v.instructionExcerpt, 512) ||
+    if (!v || !validProjectSkillMetadata(v.metadata)|| !id(v.id) || !positive(v.revision) || !hash(v.digest) || !text(v.title, 200) || !text(v.provenance, 256) || !text(v.instructionExcerpt, 512) ||
         !Array.isArray(v.roles) || v.roles.length < 1 || v.roles.length > 2 || v.roles.some(r => !role(r)) || new Set(v.roles).size !== v.roles.length || seen.has(key)) return false;
     seen.add(key);
   }

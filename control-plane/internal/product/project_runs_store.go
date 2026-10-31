@@ -35,6 +35,8 @@ var (
 )
 
 type ProjectRunRoute struct {
+	CloudHostIDs          []string               `json:"cloudHostIds,omitempty"`
+	CloudPoolDigest       string                 `json:"cloudPoolDigest,omitempty"`
 	NativeDelegation      string                 `json:"nativeDelegation,omitempty"`
 	NativeDelegationImage string                 `json:"nativeDelegationImage,omitempty"`
 	Harness               string                 `json:"harness"`
@@ -57,6 +59,7 @@ type ProjectRunInput struct {
 }
 
 type ProjectRunOperation struct {
+	RuntimeTiming          *ProjectRunRuntimeTiming        `json:"runtimeTiming,omitempty"`
 	CheckRepair            *ProjectSwarmCheckRepairOrigin  `json:"checkRepair,omitempty"`
 	Handoff                *TaskHandoffReference           `json:"handoff,omitempty"`
 	DependencyContext      *TaskDependencyReference        `json:"dependencyContext,omitempty"`
@@ -139,21 +142,22 @@ type ProjectRunAcceptance struct {
 }
 
 type ProjectRun struct {
-	Swarm       *ProjectSwarm               `json:"swarm,omitempty"`
-	ID          string                      `json:"id"`
-	ProjectID   string                      `json:"projectId"`
-	WorktreeID  string                      `json:"worktreeId"`
-	Revision    int                         `json:"revision"`
-	CreatedAt   string                      `json:"createdAt"`
-	UpdatedAt   string                      `json:"updatedAt"`
-	State       string                      `json:"state"`
-	Reason      string                      `json:"reason"`
-	Input       ProjectRunInput             `json:"input"`
-	Operations  []ProjectRunOperation       `json:"operations"`
-	Checks      []ProjectRunCheckEvidence   `json:"checks"`
-	Releases    []ProjectRunReleaseEvidence `json:"releases"`
-	Observation *ProjectRunObservation      `json:"observation,omitempty"`
-	Acceptance  *ProjectRunAcceptance       `json:"acceptance,omitempty"`
+	Measurements *ProjectRunMeasurements     `json:"measurements,omitempty"`
+	Swarm        *ProjectSwarm               `json:"swarm,omitempty"`
+	ID           string                      `json:"id"`
+	ProjectID    string                      `json:"projectId"`
+	WorktreeID   string                      `json:"worktreeId"`
+	Revision     int                         `json:"revision"`
+	CreatedAt    string                      `json:"createdAt"`
+	UpdatedAt    string                      `json:"updatedAt"`
+	State        string                      `json:"state"`
+	Reason       string                      `json:"reason"`
+	Input        ProjectRunInput             `json:"input"`
+	Operations   []ProjectRunOperation       `json:"operations"`
+	Checks       []ProjectRunCheckEvidence   `json:"checks"`
+	Releases     []ProjectRunReleaseEvidence `json:"releases"`
+	Observation  *ProjectRunObservation      `json:"observation,omitempty"`
+	Acceptance   *ProjectRunAcceptance       `json:"acceptance,omitempty"`
 }
 
 type storedProjectRun struct {
@@ -477,6 +481,7 @@ func (s *ProjectRunStore) Create(projectID, projectPath, key string, input Proje
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	row := storedProjectRun{Version: 1, AccountScope: s.accountScope, ProjectScope: scope, CreateKeyDigest: keyDigest, CreateRequestDigest: requestDigest, InputDigest: inputDigest, CodexConnectionID: codexConnectionID, OperationKeys: map[string]string{}, Run: ProjectRun{ID: newID("run-"), ProjectID: projectID, WorktreeID: input.Implementation.WorktreeID, Revision: 1, CreatedAt: now, UpdatedAt: now, State: "ready", Reason: "Reviewed inputs are saved. Start the coding session when ready.", Input: input, Operations: []ProjectRunOperation{}, Checks: []ProjectRunCheckEvidence{}, Releases: []ProjectRunReleaseEvidence{}}}
+	row.Run.Measurements = &ProjectRunMeasurements{Version: 1, SinceRevision: 1, HumanActions: []ProjectRunHumanAction{}}
 	if err := s.save(row); err != nil {
 		return ProjectRun{}, false, err
 	}
@@ -577,7 +582,7 @@ func validateRunInput(projectID string, in ProjectRunInput) error {
 	if c.BriefDigest != in.Approvals.BriefDigest || c.SpecificationRevision != in.Approvals.SpecificationRevision || c.SpecificationDigest != in.Approvals.SpecificationDigest || c.DesignPlanRevision != in.Approvals.DesignRevision || c.DesignPlanDigest != in.Approvals.DesignDigest {
 		return ErrProjectRunInvalid
 	}
-	if !validConnectionToken(in.Route.Harness, 128, false) || !validConnectionToken(in.Route.Model, 256, false) || (in.Route.PermissionMode != "ask" && in.Route.PermissionMode != "plan" && in.Route.PermissionMode != "bypass") ||
+	if !validCloudHostSelection(in.Route.CloudHostIDs, in.Route.CloudPoolDigest, in.Route.ExecutionLocation) || !validConnectionToken(in.Route.Harness, 128, false) || !validConnectionToken(in.Route.Model, 256, false) || (in.Route.PermissionMode != "ask" && in.Route.PermissionMode != "plan" && in.Route.PermissionMode != "bypass") ||
 		(in.Route.ExecutionLocation != "" && in.Route.ExecutionLocation != "cloud-microvm") ||
 		(in.Route.ExecutionLocation == "cloud-microvm" && (in.Route.PermissionMode != "bypass" || in.Route.Harness != "codex" && in.Route.Harness != "claude-code")) {
 		return ErrProjectRunInvalid
@@ -619,6 +624,9 @@ func validateStoredProjectRun(row storedProjectRun) error {
 		return err
 	}
 	if row.Version != 1 || !hexDigest(row.AccountScope) || !hexDigest(row.ProjectScope) || !hexDigest(row.CreateKeyDigest) || !hexDigest(row.CreateRequestDigest) || !validRunID(r.ID) || r.Revision < 1 || r.WorktreeID != r.Input.Implementation.WorktreeID || validateRunInput(r.ProjectID, r.Input) != nil || len(r.Operations) > projectRunOperationLimit || len(r.Checks) > 100 || len(r.Releases) > 100 || row.OperationKeys == nil || len(row.OperationKeys) != len(r.Operations) {
+		return ErrProjectRunInvalid
+	}
+	if !validRunMeasurements(r) {
 		return ErrProjectRunInvalid
 	}
 	if !validRunState(r.State) || len(r.Reason) > 4000 {
@@ -724,7 +732,7 @@ func projectRunOperationTerminal(status string) bool {
 	return status == "succeeded" || status == "review-required" || status == "failed" || status == "cancelled"
 }
 
-func (s *ProjectRunStore) mutate(projectID, projectPath, id string, expectedRevision int, change func(*storedProjectRun) (bool, error)) (ProjectRun, error) {
+func (s *ProjectRunStore) mutate(projectID, projectPath, id string, expectedRevision int, change func(*storedProjectRun) (bool, error), origin ...runHumanAction) (ProjectRun, error) {
 	scope, err := s.projectScope(projectID, projectPath)
 	if err != nil {
 		return ProjectRun{}, err
@@ -743,8 +751,12 @@ func (s *ProjectRunStore) mutate(projectID, projectPath, id string, expectedRevi
 	if !changed {
 		return row.Run, nil
 	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if err := appendHumanRunAction(&row.Run, origin, now); err != nil {
+		return ProjectRun{}, err
+	}
 	row.Run.Revision++
-	row.Run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	row.Run.UpdatedAt = now
 	if err = s.save(row); err != nil {
 		return ProjectRun{}, err
 	}
@@ -754,7 +766,7 @@ func (s *ProjectRunStore) mutate(projectID, projectPath, id string, expectedRevi
 // ReserveOperation persists its child ID before any session record or sandbox
 // exists. Duplicate keys return the original reservation, even with an old
 // revision. Changed payloads under the same key fail rather than retrying.
-func (s *ProjectRunStore) ReserveOperation(projectID, projectPath, id string, expectedRevision int, key, kind, requestDigest string) (ProjectRun, ProjectRunOperation, bool, error) {
+func (s *ProjectRunStore) ReserveOperation(projectID, projectPath, id string, expectedRevision int, key, kind, requestDigest string, origin ...runHumanAction) (ProjectRun, ProjectRunOperation, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validRunKey(key) || kind != "session" || !hexDigest(requestDigest) {
@@ -806,7 +818,7 @@ func (s *ProjectRunStore) ReserveOperation(projectID, projectPath, id string, ex
 		row.Run.Reason = "Coding session is reserved. No coding outcome is verified."
 		row.Run.Observation = nil
 		return true, nil
-	})
+	}, origin...)
 	return run, op, err == nil, err
 }
 
@@ -913,7 +925,7 @@ func (s *ProjectRunStore) ObserveOperation(projectID, projectPath, id string, ex
 	})
 }
 
-func (s *ProjectRunStore) Cancel(projectID, projectPath, id string, expectedRevision int) (ProjectRun, error) {
+func (s *ProjectRunStore) Cancel(projectID, projectPath, id string, expectedRevision int, origin ...runHumanAction) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.mutate(projectID, projectPath, id, expectedRevision, func(row *storedProjectRun) (bool, error) {
@@ -932,12 +944,12 @@ func (s *ProjectRunStore) Cancel(projectID, projectPath, id string, expectedRevi
 			}
 		}
 		return true, nil
-	})
+	}, origin...)
 }
 
 // Observe records an explicit reconciliation, never a GET or a boot repair.
 // Completion is reserved for Accept, after valid check and release joins.
-func (s *ProjectRunStore) Observe(projectID, projectPath, id string, expectedRevision int, observation ProjectRunObservation) (ProjectRun, error) {
+func (s *ProjectRunStore) Observe(projectID, projectPath, id string, expectedRevision int, observation ProjectRunObservation, origin ...runHumanAction) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !validRunState(observation.State) || observation.State == "complete" || observation.State == "cancelled" || len(observation.Reason) > 4000 {
@@ -951,7 +963,7 @@ func (s *ProjectRunStore) Observe(projectID, projectPath, id string, expectedRev
 			row.Run.Reason = observation.Reason
 		}
 		return true, nil
-	})
+	}, origin...)
 }
 
 func (s *ProjectRunStore) PrivateCodexConnectionID(projectID, projectPath, id string) (string, error) {
@@ -1020,7 +1032,7 @@ func validProjectRunRelease(input ProjectRunInput, check ProjectRunCheckEvidence
 // JoinCheck accepts only the bounded snapshot produced by the private evidence
 // adapter. It cannot execute checks, and does not rely on ordinary history's
 // later retention. A second candidate is appended, never substituted for one.
-func (s *ProjectRunStore) JoinCheck(projectID, projectPath, id string, expectedRevision int, check ProjectRunCheckEvidence) (ProjectRun, error) {
+func (s *ProjectRunStore) JoinCheck(projectID, projectPath, id string, expectedRevision int, check ProjectRunCheckEvidence, origin ...runHumanAction) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.mutate(projectID, projectPath, id, expectedRevision, func(row *storedProjectRun) (bool, error) {
@@ -1054,12 +1066,12 @@ func (s *ProjectRunStore) JoinCheck(projectID, projectPath, id string, expectedR
 		// Previous observations cannot certify this newly selected candidate.
 		row.Run.Observation = nil
 		return true, nil
-	})
+	}, origin...)
 }
 
 // JoinRelease is observation-only. The adapter must establish fresh ownership,
 // health and current reviews before passing this private snapshot to the store.
-func (s *ProjectRunStore) JoinRelease(projectID, projectPath, id string, expectedRevision int, release ProjectRunReleaseEvidence) (ProjectRun, error) {
+func (s *ProjectRunStore) JoinRelease(projectID, projectPath, id string, expectedRevision int, release ProjectRunReleaseEvidence, origin ...runHumanAction) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.mutate(projectID, projectPath, id, expectedRevision, func(row *storedProjectRun) (bool, error) {
@@ -1103,13 +1115,13 @@ func (s *ProjectRunStore) JoinRelease(projectID, projectPath, id string, expecte
 		row.Run.Reason = "A matching release has been observed. Review the behavior and explicitly accept this outcome."
 		row.Run.Observation = &ProjectRunObservation{State: row.Run.State, Reason: row.Run.Reason, ObservedAt: release.ObservedAt, Valid: true}
 		return true, nil
-	})
+	}, origin...)
 }
 
 // Accept records explicit human acceptance after the controller has revalidated
 // current source/reviews and freshly observed the selected release. No client
 // completion flag can replace the immutable technical evidence joins.
-func (s *ProjectRunStore) Accept(projectID, projectPath, id string, expectedRevision int) (ProjectRun, error) {
+func (s *ProjectRunStore) Accept(projectID, projectPath, id string, expectedRevision int, origin ...runHumanAction) (ProjectRun, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.mutate(projectID, projectPath, id, expectedRevision, func(row *storedProjectRun) (bool, error) {
@@ -1143,7 +1155,7 @@ func (s *ProjectRunStore) Accept(projectID, projectPath, id string, expectedRevi
 		row.Run.State = "complete"
 		row.Run.Reason = "The selected outcome has matching technical evidence and explicit acceptance."
 		return true, nil
-	})
+	}, origin...)
 }
 
 func runEvidenceError(message string) error { return fmt.Errorf("project run evidence: %s", message) }

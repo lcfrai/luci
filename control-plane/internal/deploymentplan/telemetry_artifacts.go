@@ -26,6 +26,9 @@ func configureTelemetryContainer(b Blueprint, s Service, planDigest string, cont
 		container["ports"] = []any{map[string]any{"name": "service", "containerPort": 4318, "protocol": "TCP"}, map[string]any{"name": "metrics", "containerPort": CollectorMetricsPort, "protocol": "TCP"}}
 		container["readinessProbe"] = map[string]any{"tcpSocket": map[string]any{"port": 4318}, "periodSeconds": 10, "timeoutSeconds": 2, "failureThreshold": 3, "successThreshold": 1}
 		addTLS("luci-otel-server", "/luci-otel/server", s.Collector.ReceiverTLS)
+		if d := s.Collector.OwnedDestination; d != nil {
+			addTLS("luci-otel-storage", "/luci-otel/storage", d.ClientTLS)
+		}
 	}
 	if s.Telemetry != nil && s.Telemetry.ClientTLS != nil {
 		addTLS("luci-otel-client", "/luci-otel/client", *s.Telemetry.ClientTLS)
@@ -101,6 +104,10 @@ export async function withLuciOperation(event, work) {
   });
 }`, events)
 		dependencies, _ := json.MarshalIndent(map[string]any{"private": true, "dependencies": s.Telemetry.Instrumentation.Dependencies}, "", "  ")
+		destination := collector.Collector.Destination.Endpoint
+		if owned := collector.Collector.OwnedDestination; owned != nil {
+			destination = "the separately planned private stores " + owned.MetricsServiceID + " (closed product metrics) and " + owned.TracesServiceID + " (operation traces), using the reviewed backend client mTLS reference"
+		}
 		instructions := fmt.Sprintf(`# Include telemetry in %s
 
 1. Review the exact dependency fragment against your existing application lockfile. It is NOT an installation, lockfile or compatible-image verification. Resolve incompatible SDK versions in your normal source/build process.
@@ -111,11 +118,37 @@ export async function withLuciOperation(event, work) {
 6. The Collector distribution must match profile %s; review/validate the supplied image/config independently. The chosen image digest is user-supplied, not acquired or attested by Luci. The OTLP destination is %s; credentials are only existing Secret references. No raw telemetry is sent to Luci.
 7. In Deploy, explicitly Read recorded event counters. Samples are reported cumulative values from current owned Pod identities, not unique people, conversion rates, funnels, revenue or lifetime totals. A new Pod/Collector or decreasing counter starts a new baseline. The backend is responsible for durable retention; the Collector's metrics cache expires after five minutes without updates.
 8. Call shutdownTelemetry from the app's EXISTING graceful shutdown path. This adapter does not own process exit or application control.
-`, s.ID, s.ID, s.ID, ResourceName(b.ProjectID, collector.ID)+"."+b.Infrastructure.Namespace+".svc", CollectorProfile, collector.Collector.Destination.Endpoint)
+`, s.ID, s.ID, s.ID, ResourceName(b.ProjectID, collector.ID)+"."+b.Infrastructure.Namespace+".svc", CollectorProfile, destination)
 		add(s.ID+".bootstrap.mjs", "text/javascript", []byte(bootstrap))
 		add(s.ID+".events.mjs", "text/javascript", []byte(helper))
 		add(s.ID+".dependencies.json", "application/json", dependencies)
 		add(s.ID+".instrumentation.md", "text/markdown", []byte(instructions))
+	}
+	return out, nil
+}
+
+// PreparationArtifacts validates the complete blueprint with the normal
+// compiler, then returns only nonsecret app SDK files. Missing image decisions
+// remain unresolved; this does not synthesize a deployable plan or image proof.
+func PreparationArtifacts(b Blueprint) ([]Artifact, error) {
+	plan, err := Compile(b)
+	if err != nil {
+		return nil, err
+	}
+	all, err := telemetrySupportingArtifacts(plan.Blueprint, plan.Digest)
+	if err != nil {
+		return nil, err
+	}
+	out := []Artifact{}
+	for _, a := range all {
+		for _, s := range plan.Blueprint.Services {
+			if s.Kind != "app" || s.Telemetry == nil || s.Telemetry.Instrumentation == nil {
+				continue
+			}
+			if a.Name == s.ID+".bootstrap.mjs" || a.Name == s.ID+".events.mjs" || a.Name == s.ID+".dependencies.json" || a.Name == s.ID+".instrumentation.md" {
+				out = append(out, a)
+			}
+		}
 	}
 	return out, nil
 }

@@ -44,6 +44,7 @@ type settledAttempt struct {
 // SettledSpend is budget evidence only. It cannot be used as an allocation,
 // process observation, provider billing settlement or source-review receipt.
 type SettledSpend struct {
+	RequestDigest       string
 	OperationID         string
 	BillingUserID       string
 	CreatedAt           time.Time
@@ -96,6 +97,16 @@ func (c *Controller) EgressDomains() []string {
 	return append([]string{}, c.config.EgressAllow...)
 }
 
+// Immutable selected profile and local charged usage, without copying private
+// attempt/settlement inventories merely to rank an approved host.
+func (c *Controller) PlacementProfile() (Limits, Template) { return c.config.Limits, c.config.Template }
+func (c *Controller) ConfiguredUsage() (Limits, Template, Usage) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	usage, _ := c.usageLocked()
+	return c.config.Limits, c.config.Template, usage
+}
+
 func supportedEmbedInstanceType(instance string) bool {
 	switch instance {
 	case "m8i.xlarge", "m8i.2xlarge", "m8i.4xlarge", "m8i.8xlarge":
@@ -124,7 +135,7 @@ func (c *Controller) Capacity(projectID string) (Limits, Template, Usage, int, [
 func (c *Controller) settledSpendLocked() []SettledSpend {
 	out := make([]SettledSpend, 0, len(c.journal.Settled))
 	for op, row := range c.journal.Settled {
-		out = append(out, SettledSpend{OperationID: op, BillingUserID: row.BillingUserID, CreatedAt: row.CreatedAt, EstimatedCostMicros: row.EstimatedCostMicros, SandboxCreated: row.SandboxCreated})
+		out = append(out, SettledSpend{RequestDigest: row.RequestDigest, OperationID: op, BillingUserID: row.BillingUserID, CreatedAt: row.CreatedAt, EstimatedCostMicros: row.EstimatedCostMicros, SandboxCreated: row.SandboxCreated})
 	}
 	return out
 }
@@ -478,6 +489,23 @@ func (c *Controller) Snapshot() ([]Record, Usage) {
 	}
 	u, _ := c.usageLocked()
 	return out, u
+}
+
+// OwnershipSnapshot is local journal evidence only, never provider absence.
+// An unacknowledged checkpoint or closed original cannot establish that an
+// operation was never allocated. No provider call is made under this lock.
+func (c *Controller) OwnershipSnapshot() ([]Record, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	body, err := json.Marshal(c.journal)
+	if err != nil || c.closed || c.checkpointDigest == "" || bytesDigest(body) != c.checkpointDigest {
+		return nil, ErrUnknown
+	}
+	out := make([]Record, 0, len(c.journal.Records))
+	for _, row := range c.journal.Records {
+		out = append(out, row)
+	}
+	return out, nil
 }
 
 // RestoredPending is a read of the process-local admission fence. It never

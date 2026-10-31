@@ -1,7 +1,8 @@
 import { productApi, type CheckCommand } from './product';
 import { coordinatorDeploymentPlanValid, type CoordinatorDeploymentPlan } from './coordinatorDeployment';
 import { MAX_SWARM_PARALLEL_TASKS } from './swarmLimits';
-import { validNativeDelegation, type CreateProjectRun, type ProjectRun } from './projectRuns';
+import { validCoordinatorKubernetesPlan,validCoordinatorKubernetesAction,type CoordinatorKubernetesPlan,type CoordinatorKubernetesAction } from './coordinatorKubernetes';
+import { validNativeDelegation,validCloudHostRoute, type CreateProjectRun, type ProjectRun } from './projectRuns';
 import type { OrchestratorView } from './orchestrator';
 
 export type CoordinatorActionKind = 'create-run' | 'prepare-tasks' | 'queue-tasks';
@@ -12,7 +13,7 @@ export interface CoordinatorContinuation {
   runId?: string; queueIds: string[];
   actions: { id: string; kind: CoordinatorActionKind; status: 'pending' | 'confirmed' | 'unknown' | 'refused'; referenceId?: string; message?: string; startedAt: string; finishedAt?: string }[];
   priorDeliveries?: NonNullable<CoordinatorContinuation['delivery']>[];
-  delivery?: { actionId: string; checkId: string; status: 'pending' | 'running' | 'verified' | 'unknown' | 'blocked'; commit: string; sourceDigest: string; integrationDigest: string; message: string; startedAt: string; updatedAt: string; preview?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } }; gitPublication?: { actionId: string; status: 'pending' | 'unknown' | 'verified' | 'blocked'; repository: string; branch: string; commit: string; startedAt: string; updatedAt: string; message: string }; deployment?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } } };
+  delivery?: { kubernetes?:CoordinatorKubernetesAction; actionId: string; checkId: string; status: 'pending' | 'running' | 'verified' | 'unknown' | 'blocked'; commit: string; sourceDigest: string; integrationDigest: string; message: string; startedAt: string; updatedAt: string; preview?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } }; gitPublication?: { actionId: string; status: 'pending' | 'unknown' | 'verified' | 'blocked'; repository: string; branch: string; commit: string; startedAt: string; updatedAt: string; message: string }; deployment?: { actionId: string; releaseId: string; status: 'pending' | 'running' | 'ready' | 'unknown' | 'blocked'; message: string; startedAt: string; updatedAt: string; evidence?: ProjectRun['releases'][number] & { projectId: string } } };
   createdAt: string; updatedAt: string; nextAction?: OrchestratorView['nextAction'];
 }
 export interface CoordinatorCheckPlan {
@@ -26,17 +27,30 @@ export interface CoordinatorSavedRoute {
   revision: number;
   autoDiscussFindings?: boolean;
   route: Omit<CreateProjectRun, 'idempotencyKey' | 'implementationContext' | 'orchestrationContract'>;
-  maxParallel: number; updatedAt: string; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
+  maxParallel: number; updatedAt: string; kubernetesPlan?:CoordinatorKubernetesPlan; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
 }
 export interface CoordinatorContextCommitView { eventId: string; status: 'pending' | 'confirmed'; commit?: string; createdAt: string }
 export interface CoordinatorCloudCapacity {
-  provider: 'e2b-embed' | 'azure-e2b-embed' | ''; setupNeeds?: string[]; region: string; configuredGlobalSlots: number; configuredProjectSlots: number;
+  provider: 'e2b-embed' | 'azure-e2b-embed' | 'cloud-pool' | ''; setupNeeds?: string[]; region: string; configuredGlobalSlots: number; configuredProjectSlots: number;
+  placementDigest?:string;hosts?:CoordinatorCloudHost[];
   configuredAvailableSlots: number; estimatedTaskCostMicros: number; estimatedMonthMicros: number;
   retiredBillingUnconfirmed?: number;
   monthlyBudgetMicros: number; maxTaskSeconds: number; observedAt: string; limitation: string;
   retainedProjectVMs: number; moreRetainedAttempts: number;
-  retainedAttempts: { runId: string; taskId: string; attemptId: string; operationId: string; state: string; recoveryPending?: boolean;
+  retainedAttempts: { hostId?:string;runId: string; taskId: string; attemptId: string; operationId: string; state: string; recoveryPending?: boolean;
     resourcesHeld: true; estimatedCostMicros: number; updatedAt: string }[];
+}
+export interface CoordinatorCloudHost {id:string;name:string;provider:string;region:string;templateId:string;default:boolean;draining:boolean;configuredAvailableSlots:number;estimatedTaskCostMicros:number;maxTaskSeconds:number}
+export function validCloudPoolFields(capacity:{provider:unknown;hosts?:unknown;placementDigest?:unknown}):boolean{
+ if(capacity.provider!=='cloud-pool')return capacity.hosts===undefined&&capacity.placementDigest===undefined;
+ if(typeof capacity.placementDigest!=='string'||!/^[a-f0-9]{64}$/.test(capacity.placementDigest)||!Array.isArray(capacity.hosts)||capacity.hosts.length<1||capacity.hosts.length>8)return false;
+ const hosts=capacity.hosts as unknown[];
+ const bounded=(value:unknown,max:number):value is string=>typeof value==='string'&&new TextEncoder().encode(value).length>0&&new TextEncoder().encode(value).length<=max&&!/[\p{Cc}\p{Cf}]/u.test(value);
+ const valid=hosts.every(value=>{
+  if(!value||typeof value!=='object'||Array.isArray(value))return false;const h=value as Record<string,unknown>;
+  return Object.keys(h).every(key=>['id','name','provider','region','templateId','default','draining','configuredAvailableSlots','estimatedTaskCostMicros','maxTaskSeconds'].includes(key))&&typeof h.id==='string'&&/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(h.id)&&bounded(h.name,120)&&(h.provider==='aws'||h.provider==='azure')&&bounded(h.region,128)&&bounded(h.templateId,256)&&typeof h.default==='boolean'&&typeof h.draining==='boolean'&&Number.isSafeInteger(h.configuredAvailableSlots)&&(h.configuredAvailableSlots as number)>=0&&(h.configuredAvailableSlots as number)<=4096&&Number.isSafeInteger(h.estimatedTaskCostMicros)&&(h.estimatedTaskCostMicros as number)>0&&(h.estimatedTaskCostMicros as number)<=2**50&&Number.isSafeInteger(h.maxTaskSeconds)&&(h.maxTaskSeconds as number)>0&&(h.maxTaskSeconds as number)<=86400;
+ });
+ return valid&&new Set((hosts as CoordinatorCloudHost[]).map(host=>host.id)).size===hosts.length&&(hosts as CoordinatorCloudHost[]).filter(host=>host.default).length===1;
 }
 export interface CoordinatorAcceptedReview { eventId: string; status: 'waiting' | 'review-required' | 'approved'; reason: string; selection?: {
   projectId: string; briefRevision: number; planRevision: number; specificationRevision: number; designPlanRevision: number; taskIds: string[];
@@ -45,7 +59,7 @@ export interface CoordinatorContinuationState { continuations: CoordinatorContin
 export interface CoordinatorContinuationRequest {
   idempotencyKey: string; originTurnId: string; expectedContextDigest: string; expectedPolicyRevision: number;
   run: Omit<CreateProjectRun, 'idempotencyKey'>; maxParallel: number;
-  rememberRoute?: boolean; expectedRouteRevision?: number; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
+  rememberRoute?: boolean; expectedRouteRevision?: number; kubernetesPlan?:CoordinatorKubernetesPlan; checkPlan?: CoordinatorCheckPlan; previewPlan?: CoordinatorPreviewPlan; deploymentPlan?: CoordinatorDeploymentPlan;
   autoDiscussFindings?: boolean;
 }
 const base = (project: string) => `/v1/product/projects/${encodeURIComponent(project)}/orchestrator/continuations`;
@@ -62,12 +76,13 @@ function verified(value: CoordinatorContinuation, project: string, actor: string
         action.kind !== kinds[index] || action.id !== `${value.id}-${action.kind}` || !['pending', 'confirmed', 'unknown', 'refused'].includes(action.status) || !text(action.startedAt)) ||
       ['checks-verified', 'previewing', 'preview-ready', 'preview-blocked', 'deploying', 'deployed', 'deployment-blocked'].includes(value.status) && value.delivery?.status !== 'verified' ||
       value.status === 'preview-ready' && value.delivery?.preview?.status !== 'ready' ||
-      value.status === 'deployed' && value.delivery?.deployment?.status !== 'ready' ||
-      ['deploying', 'deployed', 'deployment-blocked'].includes(value.status) && !value.delivery?.deployment ||
+      value.status === 'deployed' && value.delivery?.deployment?.status !== 'ready' && value.delivery?.kubernetes?.status!=='ready' ||
+      ['deploying', 'deployed', 'deployment-blocked'].includes(value.status) && !value.delivery?.deployment && !value.delivery?.kubernetes ||
+      value.delivery?.kubernetes && (!validCoordinatorKubernetesAction(value.delivery.kubernetes,value.id)||!!value.delivery.deployment||!!value.delivery.gitPublication) ||
       value.delivery?.gitPublication && !gitVerified(value.delivery.gitPublication, value) ||
       value.delivery?.deployment && !deploymentVerified(value.delivery.deployment, value, project) ||
       value.delivery?.preview && !previewVerified(value.delivery.preview, value, project) ||
-      value.priorDeliveries !== undefined && (!Array.isArray(value.priorDeliveries) || value.priorDeliveries.length > 2 || value.priorDeliveries.some((item, index) => !deliveryVerified(item, value.id, index) || item.status !== 'blocked' || !!item.preview || !!item.deployment || !!item.gitPublication)) ||
+      value.priorDeliveries !== undefined && (!Array.isArray(value.priorDeliveries) || value.priorDeliveries.length > 2 || value.priorDeliveries.some((item, index) => !deliveryVerified(item, value.id, index) || item.status !== 'blocked' || !!item.preview || !!item.deployment || !!item.gitPublication || !!item.kubernetes)) ||
       value.delivery && (value.delivery.actionId !== checkActionId(value.id, value.priorDeliveries?.length ?? 0) || !text(value.delivery.checkId) || !['pending', 'running', 'verified', 'unknown', 'blocked'].includes(value.delivery.status) || !/^[0-9a-f]{40,64}$/.test(value.delivery.commit) || !/^[0-9a-f]{64}$/.test(value.delivery.sourceDigest) || !/^[0-9a-f]{64}$/.test(value.delivery.integrationDigest) || typeof value.delivery.message !== 'string') ||
       !Number.isFinite(Date.parse(value.createdAt)) || !Number.isFinite(Date.parse(value.updatedAt)) ||
       value.nextAction && (!['discover', 'design', 'develop', 'deploy'].includes(value.nextAction.lens) || !text(value.nextAction.label) || typeof value.nextAction.reason !== 'string')) {
@@ -127,12 +142,13 @@ function savedRoute(value: CoordinatorSavedRoute | null | undefined) {
   if (value == null) return null;
   const route = value.route;
   if (!Number.isSafeInteger(value.revision) || value.revision < 1 || (value.autoDiscussFindings !== undefined && typeof value.autoDiscussFindings !== 'boolean') || !Number.isSafeInteger(value.maxParallel) || value.maxParallel < 1 || value.maxParallel > MAX_SWARM_PARALLEL_TASKS ||
-      !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'agentConnectionId', 'outcome', 'nativeDelegation'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
-      !validNativeDelegation(route.nativeDelegation) || route.nativeDelegation && (route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation === 'cloud-microvm') ||
+      !Number.isFinite(Date.parse(value.updatedAt)) || !route || Object.keys(route).some(key => !['worktreeId', 'harness', 'model', 'permissionMode', 'effort', 'executionLocation', 'cloudHostIds', 'cloudPoolDigest', 'agentConnectionId', 'outcome', 'nativeDelegation'].includes(key)) || !text(route.worktreeId) || !text(route.harness) || typeof route.model !== 'string' ||
+      !validCloudHostRoute(route) || !validNativeDelegation(route.nativeDelegation) || route.nativeDelegation && (route.harness !== 'codex' || route.permissionMode !== 'bypass' || route.executionLocation === 'cloud-microvm') ||
       !['ask', 'bypass', 'plan'].includes(route.permissionMode) || !['preview', 'publish'].includes(route.outcome) ||
       route.executionLocation !== undefined && (route.executionLocation !== 'cloud-microvm' || route.permissionMode !== 'bypass' || !['codex', 'claude-code'].includes(route.harness)) ||
       route.effort !== undefined && typeof route.effort !== 'string' || route.agentConnectionId !== undefined && typeof route.agentConnectionId !== 'string' ||
       value.checkPlan !== undefined && !checkPlanValid(value.checkPlan) || value.previewPlan !== undefined && (!value.checkPlan || !coordinatorPreviewPlanValid(value.previewPlan)) ||
+      value.kubernetesPlan!==undefined&&(!validCoordinatorKubernetesPlan(value.kubernetesPlan)||!!value.deploymentPlan||!value.checkPlan||route.outcome!=='publish') ||
       value.deploymentPlan !== undefined && (!value.checkPlan || !value.previewPlan || route.outcome !== 'publish' || !coordinatorDeploymentPlanValid(value.deploymentPlan))) throw new Error('The saved continuation route or check delegation could not be verified. Reconfigure it before continuing.');
   return value;
 }
@@ -144,12 +160,13 @@ async function listState(project: string, actor: string, signal?: AbortSignal): 
   if (accepted != null && (!/^coord-event-[a-zA-Z0-9_-]+$/.test(accepted.eventId) || !['waiting', 'review-required', 'approved'].includes(accepted.status) || typeof accepted.reason !== 'string' || new TextEncoder().encode(accepted.reason).length > 1000 ||
     (accepted.status === 'waiting') !== (accepted.selection === undefined) || accepted.selection && (accepted.selection.projectId !== project || ![accepted.selection.briefRevision, accepted.selection.planRevision, accepted.selection.specificationRevision, accepted.selection.designPlanRevision].every(x => Number.isSafeInteger(x) && x > 0) || !Array.isArray(accepted.selection.taskIds) || !accepted.selection.taskIds.length || accepted.selection.taskIds.length > 200 || accepted.selection.taskIds.some(id => !text(id) || id.length > 256) || new Set(accepted.selection.taskIds).size !== accepted.selection.taskIds.length))) throw new Error('The accepted change review could not be verified. Refresh its exact outcome.');
   const capacity = result.cloudCapacity;
+  if(capacity!=null&&!validCloudPoolFields(capacity))throw new Error('The approved host catalogue could not be verified. Refresh cloud capacity before reviewing placement.');
   if (capacity != null && (!Array.isArray(capacity.setupNeeds ?? []) || (capacity.setupNeeds ?? []).length > 4 || (capacity.setupNeeds ?? []).some(need => !text(need) || need.length > 500) ||
     capacity.provider === '' && !(capacity.setupNeeds ?? []).length ||
-    capacity.provider !== '' && (!['e2b-embed', 'azure-e2b-embed'].includes(capacity.provider) || !text(capacity.region) || !text(capacity.limitation) || !Number.isFinite(Date.parse(capacity.observedAt)) ||
+    capacity.provider !== '' && (!['e2b-embed', 'azure-e2b-embed', 'cloud-pool'].includes(capacity.provider) || !text(capacity.region) || !text(capacity.limitation) || !Number.isFinite(Date.parse(capacity.observedAt)) ||
     ![capacity.configuredGlobalSlots, capacity.configuredProjectSlots, capacity.configuredAvailableSlots, capacity.maxTaskSeconds, capacity.retainedProjectVMs, capacity.moreRetainedAttempts, capacity.retiredBillingUnconfirmed ?? 0].every(value => Number.isSafeInteger(value) && value >= 0) ||
     !Array.isArray(capacity.retainedAttempts) || capacity.retainedAttempts.length > 20 || capacity.retainedProjectVMs !== capacity.retainedAttempts.length + capacity.moreRetainedAttempts ||
-    capacity.retainedAttempts.some(row => !text(row.runId) || !text(row.taskId) || !text(row.attemptId) || !text(row.operationId) || !['creating', 'allocated', 'unknown', 'cancelling'].includes(row.state) || row.resourcesHeld !== true || row.recoveryPending !== undefined && typeof row.recoveryPending !== 'boolean' || !Number.isSafeInteger(row.estimatedCostMicros) || row.estimatedCostMicros <= 0 || !Number.isFinite(Date.parse(row.updatedAt))) ||
+    capacity.retainedAttempts.some(row => !text(row.runId) || !text(row.taskId) || !text(row.attemptId) || !text(row.operationId) || !['creating', 'allocated', 'unknown', 'cancelling', 'placement-held'].includes(row.state) || row.resourcesHeld !== true || row.recoveryPending !== undefined && typeof row.recoveryPending !== 'boolean' || !Number.isSafeInteger(row.estimatedCostMicros) || row.estimatedCostMicros <= 0 || !Number.isFinite(Date.parse(row.updatedAt))) ||
     ![capacity.estimatedTaskCostMicros, capacity.estimatedMonthMicros, capacity.monthlyBudgetMicros].every(value => Number.isSafeInteger(value) && value >= 0)))) throw new Error('The cloud task capacity observation could not be verified. Refresh before choosing cloud execution.');
   return { continuations: result.continuations.map(row => verified(row, project, actor)), savedRoute: savedRoute(result.savedRoute), contextCommits: result.contextCommits ?? [], cloudCapacity: capacity ?? null, acceptedReview: accepted ?? null };
 }

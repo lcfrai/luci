@@ -13,20 +13,25 @@ export interface BlueprintProbe { kind: 'http'|'tcp'; path?: string; initialDela
 export interface BlueprintHealth { startup?: BlueprintProbe; readiness?: BlueprintProbe }
 export interface TelemetryTLSReference { resourceName: string; caKey: string; certKey: string; keyKey: string }
 export interface NodeInstrumentation { runtime: 'nodejs'; dependencies: Record<string,string> }
-export interface CollectorConfiguration { profile:'otelcol-contrib-0.163.0'; destination:{resourceId:string;endpoint:string;authorization?:{resourceName:string;key:string}}; receiverTLS:TelemetryTLSReference; events:{id:string;description:string}[] }
+export interface CollectorConfiguration { profile:'otelcol-contrib-0.163.0'; destination:{resourceId:string;endpoint:string;authorization?:{resourceName:string;key:string}}; ownedDestination?:{metricsServiceId:string;tracesServiceId:string;clientTLS:TelemetryTLSReference}; receiverTLS:TelemetryTLSReference; events:{id:string;description:string}[] }
+export interface TelemetryStorage {profile:'prometheus-3.15.1'|'tempo-2.10.10-azure';claimName:string;capacityGiB:number;retentionHours:number;serverTLS:TelemetryTLSReference;queryTLS:TelemetryTLSReference;azure?:{accountName:string;containerName:string;accountKey:{resourceName:string;key:string}}}
 export interface BlueprintTelemetry { resourceId:string;endpoint:string;clientTLS?:TelemetryTLSReference;instrumentation?:NodeInstrumentation }
 export const nodeTelemetryPackages = ['@opentelemetry/api','@opentelemetry/sdk-node','@opentelemetry/sdk-metrics','@opentelemetry/resources','@opentelemetry/exporter-trace-otlp-http','@opentelemetry/exporter-metrics-otlp-http'] as const;
 export interface BlueprintService {
-  id: string; kind: 'app' | 'inference' | 'collector'; image: string; port: number; replicas: number; resources: BlueprintResources;
+  imagePullSecrets?: string[];
+  id: string; kind: 'app' | 'inference' | 'collector'|'metrics-store'|'trace-store'; image: string; port: number; replicas: number; resources: BlueprintResources;
+  telemetryStorage?:TelemetryStorage;
   command?: string[]; args?: string[]; dependsOn?: string[];
-  model?: { name: string; claimName: string; mountPath: string; relativePath?: string };
+  model?: { name: string; claimName: string; mountPath: string; relativePath?: string; accessGroup?:1000 };
   telemetry?: BlueprintTelemetry;
   collector?: CollectorConfiguration;
   environment?: BlueprintEnvironmentReference[];
   health?: BlueprintHealth;
   deploymentStrategy?: 'recreate';
 }
+export interface BlueprintPublicRoute {profile:'traefik-websecure';serviceId:string;ingressClassName:string;hostname:string;path:string;pathType:'Prefix'|'Exact';tlsSecretName:string}
 export interface DeploymentBlueprint {
+ publicRoute?:BlueprintPublicRoute;
   version: 1; projectId: string; source: BlueprintSource;
   infrastructure: { id: string; kind: 'kubernetes' | 'existing-vm' | 'local-docker'; reference: string; namespace?: string };
   services: BlueprintService[];
@@ -67,29 +72,41 @@ export function validBlueprintTelemetry(v:unknown):v is BlueprintTelemetry {
   return object(i)&&only(i,['runtime','dependencies'])&&i.runtime==='nodejs'&&object(i.dependencies)&&Object.keys(i.dependencies).length===nodeTelemetryPackages.length&&nodeTelemetryPackages.every(key=>typeof (i.dependencies as Record<string,unknown>)[key]==='string'&&/^[0-9]+\.[0-9]+\.[0-9]+$/.test(String((i.dependencies as Record<string,unknown>)[key])));
 }
 export function validCollector(v:unknown):v is CollectorConfiguration {
-  return object(v)&&only(v,['profile','destination','receiverTLS','events'])&&v.profile==='otelcol-contrib-0.163.0'&&object(v.destination)&&only(v.destination,['resourceId','endpoint','authorization'])&&text(v.destination.resourceId,63)&&text(v.destination.endpoint,2048)&&
+  return object(v)&&only(v,['profile','destination','ownedDestination','receiverTLS','events'])&&(v.ownedDestination===undefined||object(v.ownedDestination)&&only(v.ownedDestination,['metricsServiceId','tracesServiceId','clientTLS'])&&text(v.ownedDestination.metricsServiceId,63)&&text(v.ownedDestination.tracesServiceId,63)&&validTelemetryTLS(v.ownedDestination.clientTLS)&&object(v.destination)&&v.destination.resourceId===''&&v.destination.endpoint===''&&v.destination.authorization===undefined)&&v.profile==='otelcol-contrib-0.163.0'&&object(v.destination)&&only(v.destination,['resourceId','endpoint','authorization'])&&text(v.destination.resourceId,63)&&text(v.destination.endpoint,2048)&&
     (v.destination.authorization===undefined||object(v.destination.authorization)&&only(v.destination.authorization,['resourceName','key'])&&text(v.destination.authorization.resourceName,253)&&text(v.destination.authorization.key,253))&&validTelemetryTLS(v.receiverTLS)&&Array.isArray(v.events)&&v.events.length>=1&&v.events.length<=16&&new Set(v.events.map(row=>object(row)?row.id:undefined)).size===v.events.length&&v.events.every(row=>object(row)&&only(row,['id','description'])&&text(row.id,63)&&/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(row.id)&&text(row.description,256));
 }
+export function validTelemetryStorage(v:unknown):v is TelemetryStorage{
+ return object(v)&&only(v,['profile','claimName','capacityGiB','retentionHours','serverTLS','queryTLS','azure'])&&(v.profile==='prometheus-3.15.1'||v.profile==='tempo-2.10.10-azure')&&text(v.claimName,253)&&count(v.capacityGiB)&&v.capacityGiB>=1&&v.capacityGiB<=1024&&count(v.retentionHours)&&v.retentionHours>=1&&v.retentionHours<=744&&validTelemetryTLS(v.serverTLS)&&validTelemetryTLS(v.queryTLS)&&(v.profile==='prometheus-3.15.1'?v.azure===undefined:object(v.azure)&&only(v.azure,['accountName','containerName','accountKey'])&&text(v.azure.accountName,24)&&text(v.azure.containerName,63)&&object(v.azure.accountKey)&&only(v.azure.accountKey,['resourceName','key'])&&text(v.azure.accountKey.resourceName,253)&&text(v.azure.accountKey.key,253));
+}
 
+export function validBlueprintPublicRoute(value:unknown):value is BlueprintPublicRoute {
+ if(!object(value)||value.profile!=='traefik-websecure'||typeof value.serviceId!=='string'||!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value.serviceId)||value.serviceId.length>63||typeof value.ingressClassName!=='string'||!value.ingressClassName||value.ingressClassName.length>253||typeof value.tlsSecretName!=='string'||!value.tlsSecretName||value.tlsSecretName.length>253||typeof value.hostname!=='string'||value.hostname.length>253||!value.hostname.includes('.')||value.hostname!==value.hostname.toLowerCase()||!value.hostname.split('.').every(label=>label.length>=1&&label.length<=63&&/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))||/\.[0-9]+$/.test(value.hostname)||/\.(localhost|local|internal)$/.test(value.hostname)||value.pathType!=='Prefix'&&value.pathType!=='Exact'||typeof value.path!=='string'||value.path.length>256||!value.path.startsWith('/')||/[\\%?#\x00-\x20\x7f-\uffff]/.test(value.path)||value.path.includes('//')||value.path.split('/').some(part=>part==='.'||part==='..')||value.path!=='/'&&value.path.endsWith('/'))return false;
+ return [value.ingressClassName,value.tlsSecretName].every(name=>name.split('.').every(label=>label.length>=1&&label.length<=63&&/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)));
+}
 export function validStoredBlueprint(value: unknown, projectId: string): value is DeploymentBlueprint {
+ if(object(value)&&value.publicRoute!==undefined&&!validBlueprintPublicRoute(value.publicRoute))return false;
   if (!object(value) || value.version !== 1 || value.projectId !== projectId || !object(value.source) ||
       !text(value.source.commit, 40) || value.source.commit !== '' && !/^[a-f0-9]{40}$/.test(value.source.commit) || !count(value.source.configurationRevision) ||
       !object(value.infrastructure) || !text(value.infrastructure.id, 63) || typeof value.infrastructure.kind !== 'string' || !['kubernetes', 'existing-vm', 'local-docker'].includes(value.infrastructure.kind) ||
       !text(value.infrastructure.reference, 512) || value.infrastructure.namespace !== undefined && !text(value.infrastructure.namespace, 63) ||
       !Array.isArray(value.services) || value.services.length < 1 || value.services.length > 32) return false;
+  const publicRoute=value.publicRoute;
+  if(publicRoute!==undefined&&(!validBlueprintPublicRoute(publicRoute)||value.infrastructure.kind!=='kubernetes'||!value.services.some(row=>object(row)&&row.id===publicRoute.serviceId&&row.kind==='app'&&row.collector===undefined)))return false;
   const context = value.source.context;
   if (context !== undefined && (!object(context) || !count(context.briefRevision) || !count(context.specificationRevision) || !count(context.designRevision) ||
       context.specificationDigest !== undefined && !hash(context.specificationDigest) || context.designDigest !== undefined && !hash(context.designDigest))) return false;
   const ids = new Set<string>();
   if (!value.services.every(row => {
-    if (!object(row) || !text(row.id, 63) || ids.has(row.id) || typeof row.kind !== 'string' || !['app', 'inference','collector'].includes(row.kind) || !text(row.image, 512) || !count(row.port) || !count(row.replicas) || !object(row.resources)) return false;
+    if (!object(row) || !text(row.id, 63) || ids.has(row.id) || typeof row.kind !== 'string' || !['app', 'inference','collector','metrics-store','trace-store'].includes(row.kind) || !text(row.image, 512) || !count(row.port) || !count(row.replicas) || !object(row.resources)) return false;
+    if(row.kind==='metrics-store'||row.kind==='trace-store'){if(!validTelemetryStorage(row.telemetryStorage)||(row.kind==='metrics-store')!==(row.telemetryStorage.profile==='prometheus-3.15.1'))return false;}else if(row.telemetryStorage!==undefined)return false;
     ids.add(row.id);
     for (const key of ['requestMilliCpu', 'limitMilliCpu', 'requestMemoryMiB', 'limitMemoryMiB']) if (!count(row.resources[key])) return false;
     if (row.resources.gpuCount !== undefined && !count(row.resources.gpuCount)) return false;
     for (const key of ['command', 'args', 'dependsOn']) if (row[key] !== undefined && (!Array.isArray(row[key]) || row[key].length > 97 || row[key].some(v => !text(v, 4096)))) return false;
-    if (row.model !== undefined && (!object(row.model) || !text(row.model.name, 128) || !text(row.model.claimName, 63) || !text(row.model.mountPath, 256) || row.model.relativePath !== undefined && !text(row.model.relativePath, 256))) return false;
+    if (row.model !== undefined && (!object(row.model) || !text(row.model.name, 128) || !text(row.model.claimName, 63) || !text(row.model.mountPath, 256) || row.model.relativePath !== undefined && !text(row.model.relativePath, 256) || row.model.accessGroup!==undefined&&row.model.accessGroup!==1000)) return false;
     if (row.telemetry !== undefined && !validBlueprintTelemetry(row.telemetry)) return false;
     if (row.kind==='collector' ? !validCollector(row.collector) : row.collector!==undefined) return false;
+    if (row.imagePullSecrets !== undefined && (!Array.isArray(row.imagePullSecrets) || row.imagePullSecrets.length>8 || new Set(row.imagePullSecrets).size!==row.imagePullSecrets.length || row.imagePullSecrets.some(name=>typeof name!=='string'||name.length>253||!name.split('.').every(part=>part.length<=63&&/^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$/.test(part))))) return false;
     if (row.deploymentStrategy !== undefined && row.deploymentStrategy !== 'recreate') return false;
     if (row.environment !== undefined && (!Array.isArray(row.environment) || row.environment.length > 16 || row.environment.some(ref => !object(ref) || Object.keys(ref).some(key => !['name','kind','resourceName','key'].includes(key)) || !text(ref.name,128) || (ref.kind !== 'secret' && ref.kind !== 'config-map') || !text(ref.resourceName,253) || !text(ref.key,253)))) return false;
     if (row.health !== undefined && (!object(row.health) || Object.keys(row.health).some(key => key !== 'startup' && key !== 'readiness') || Object.values(row.health).some(probe => !object(probe) || Object.keys(probe).some(key => !['kind','path','initialDelaySeconds','periodSeconds','timeoutSeconds','failureThreshold'].includes(key)) || (probe.kind !== 'http' && probe.kind !== 'tcp') || probe.path !== undefined && !text(probe.path,512) || !count(probe.initialDelaySeconds) || probe.initialDelaySeconds>600 || !count(probe.periodSeconds) || probe.periodSeconds>300 || !count(probe.timeoutSeconds) || probe.timeoutSeconds>30 || !count(probe.failureThreshold) || probe.failureThreshold>120))) return false;
@@ -123,7 +140,7 @@ function normalizedBlueprint(input: DeploymentBlueprint): DeploymentBlueprint {
     if (!service.environment?.length) delete service.environment;
     else service.environment.sort((a,c) => a.name<c.name ? -1 : a.name>c.name ? 1 : 0);
     if (service.health) for (const probe of [service.health.startup,service.health.readiness]) if (probe && !probe.path) delete probe.path;
-    service.dependsOn = [...new Set([b.infrastructure.id, ...(service.dependsOn ?? []), ...(service.telemetry ? [service.telemetry.resourceId] : []),...(service.collector?[service.collector.destination.resourceId]:[])])].sort();
+    service.dependsOn = [...new Set([b.infrastructure.id, ...(service.dependsOn ?? []), ...(service.telemetry ? [service.telemetry.resourceId] : []),...(service.collector?(service.collector.ownedDestination?[service.collector.ownedDestination.metricsServiceId,service.collector.ownedDestination.tracesServiceId]:[service.collector.destination.resourceId]):[])])].sort();
     if (!service.command?.length) delete service.command;
     if (!service.args?.length) delete service.args;
     if (!service.resources.gpuCount) delete service.resources.gpuCount;
@@ -132,29 +149,38 @@ function normalizedBlueprint(input: DeploymentBlueprint): DeploymentBlueprint {
   return b;
 }
 
+function validPublicIngressResource(resource:Record<string,unknown>,request:DeploymentBlueprint,artifacts:unknown[]):boolean {
+ const r=request.publicRoute;if(!r||resource.kind!=='Ingress'||resource.apiVersion!=='networking.k8s.io/v1'||!object(resource.metadata)||!object(resource.metadata.annotations)||resource.metadata.annotations['traefik.ingress.kubernetes.io/router.entrypoints']!=='websecure'||resource.metadata.annotations['traefik.ingress.kubernetes.io/router.tls']!=='true'||!object(resource.spec)||resource.spec.ingressClassName!==r.ingressClassName||resource.spec.defaultBackend!==undefined||!Array.isArray(resource.spec.tls)||resource.spec.tls.length!==1||!Array.isArray(resource.spec.rules)||resource.spec.rules.length!==1)return false;
+ const tls=resource.spec.tls[0],rule=resource.spec.rules[0];if(!object(tls)||tls.secretName!==r.tlsSecretName||!Array.isArray(tls.hosts)||tls.hosts.length!==1||tls.hosts[0]!==r.hostname||!object(rule)||rule.host!==r.hostname||!object(rule.http)||!Array.isArray(rule.http.paths)||rule.http.paths.length!==1)return false;
+ const route=rule.http.paths[0];if(!object(route)||route.path!==r.path||route.pathType!==r.pathType||!object(route.backend)||!object(route.backend.service)||!object(route.backend.service.port))return false;
+ const backend=route.backend.service;
+ const app=request.services.find(s=>s.id===r.serviceId&&s.kind==='app');if(!app||route.backend.service.port.number!==app.port)return false;
+ return artifacts.some(a=>{if(!object(a)||typeof a.name!=='string'||!a.name.endsWith('.service.json')||typeof a.content!=='string')return false;const service=JSON.parse(a.content) as unknown;return object(service)&&object(service.metadata)&&object(service.metadata.labels)&&service.metadata.labels['luci.ai/component']===r.serviceId&&service.metadata.name===backend.name;});
+}
 export function validDeploymentBlueprintPlan(value: unknown, request: DeploymentBlueprint): value is DeploymentBlueprintPlan {
   try {
     if (!object(value) || value.version !== 1 || !hash(value.digest) || value.sourceVerified !== false || value.effectsApplied !== false ||
         !['decisions-required', 'compiled-prototype'].includes(String(value.state)) || !object(value.blueprint) ||
         jsonKey(value.blueprint) !== jsonKey(normalizedBlueprint(request)) ||
         !Array.isArray(value.steps) || value.steps.length > 97 || !Array.isArray(value.decisions) || value.decisions.length > 512 ||
-        !Array.isArray(value.artifacts) || value.artifacts.length > 64 || !Array.isArray(value.capabilities) || value.capabilities.length > 32 ||
+        !Array.isArray(value.artifacts) || value.artifacts.length > 68 || !Array.isArray(value.capabilities) || value.capabilities.length > 32 ||
         !Array.isArray(value.warnings) || value.warnings.length > 32 || value.warnings.some(item => !text(item, 4096)) || !object(value.resourceSummary)) return false;
     if (value.decisions.some(row => !object(row) || !text(row.path, 256) || !text(row.code, 128) || !text(row.message, 4096)) ||
         value.capabilities.some(row => !object(row) || !text(row.id, 128) || !text(row.state, 128) || !text(row.description, 4096)) ||
         value.steps.some(row => !object(row) || !text(row.componentId, 128) || !text(row.action, 128) || !Array.isArray(row.dependsOn) || row.dependsOn.length > 97 || row.dependsOn.some(id => !text(id, 128)))) return false;
     for (const key of ['replicas', 'requestMilliCpu', 'limitMilliCpu', 'requestMemoryMiB', 'limitMemoryMiB', 'gpuCount']) if (!count(value.resourceSummary[key])) return false;
-    if (value.state === 'compiled-prototype' ? value.decisions.length !== 0 || value.artifacts.length !== request.services.length * 2 : value.decisions.length === 0 || value.artifacts.length !== 0) return false;
+    if (value.state === 'compiled-prototype' ? value.decisions.length !== 0 || value.artifacts.length !== request.services.length * 2 + request.services.filter(row=>row.telemetryStorage).length + (request.publicRoute?1:0) : value.decisions.length === 0 || value.artifacts.length !== 0) return false;
     if(!validSupportingArtifacts(value,request))return false;
+    if(value.artifacts.filter(a=>object(a)&&typeof a.name==='string'&&a.name.endsWith('.ingress.json')).length!==(request.publicRoute?1:0))return false;
     const names = new Set<string>();
     return value.artifacts.every(artifact => {
-      if (!object(artifact) || !text(artifact.name, 100) || !/^[a-z0-9-]+\.(deployment|service)\.json$/.test(artifact.name) || names.has(artifact.name) ||
+      if (!object(artifact) || !text(artifact.name, 100) || !/^[a-z0-9-]+\.(deployment|service|ingress|configmap)\.json$/.test(artifact.name) || names.has(artifact.name) ||
           artifact.mediaType !== 'application/json' || !hash(artifact.sha256) || !text(artifact.content, 256 << 10)) return false;
       names.add(artifact.name);
       const resource = JSON.parse(artifact.content) as Record<string, unknown>;
       return object(resource.metadata) && resource.metadata.namespace === request.infrastructure.namespace && object(resource.metadata.annotations) &&
         resource.metadata.annotations['luci.ai/plan-digest'] === value.digest &&
-        (artifact.name.endsWith('.deployment.json') ? resource.kind === 'Deployment' && resource.apiVersion === 'apps/v1' : resource.kind === 'Service' && resource.apiVersion === 'v1');
+        (artifact.name.endsWith('.deployment.json') ? resource.kind === 'Deployment' && resource.apiVersion === 'apps/v1' : artifact.name.endsWith('.ingress.json') ? validPublicIngressResource(resource,request,value.artifacts) : artifact.name.endsWith('.configmap.json') ? resource.kind === 'ConfigMap' && resource.apiVersion === 'v1' : resource.kind === 'Service' && resource.apiVersion === 'v1');
     });
   } catch { return false; }
 }

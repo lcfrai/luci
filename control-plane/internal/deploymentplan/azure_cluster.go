@@ -26,13 +26,14 @@ var azureKubernetesVersion = regexp.MustCompile(`^1\.[1-9][0-9]\.[0-9]{1,3}$`)
 var azureClusterName = regexp.MustCompile(`^[a-z][a-z0-9-]{1,39}$`)
 
 type AzureClusterSpec struct {
-	SubscriptionID     string   `json:"subscriptionId"`
-	TenantID           string   `json:"tenantId"`
-	KubernetesVersion  string   `json:"kubernetesVersion"`
-	NodeSKU            string   `json:"nodeSku"`
-	NodeCount          int      `json:"nodeCount"`
-	PrivateAPI         bool     `json:"privateApi"`
-	AuthorizedAPICIDRs []string `json:"authorizedApiCidrs"`
+	GPUPool            *AzureGPUNodePoolSpec `json:"gpuPool,omitempty"`
+	SubscriptionID     string                `json:"subscriptionId"`
+	TenantID           string                `json:"tenantId"`
+	KubernetesVersion  string                `json:"kubernetesVersion"`
+	NodeSKU            string                `json:"nodeSku"`
+	NodeCount          int                   `json:"nodeCount"`
+	PrivateAPI         bool                  `json:"privateApi"`
+	AuthorizedAPICIDRs []string              `json:"authorizedApiCidrs"`
 }
 
 // Only the server derives this from the current authorized CLI/token response.
@@ -124,19 +125,28 @@ func AzureClusterFoundation(request AzureFoundationRequest, spec AzureClusterSpe
 		fit.Fits = false
 		fit.Decisions = append(fit.Decisions, Decision{path, code, message})
 	}
-	cpu, mem := fit.NominalNodeMilliCPU-fit.ReservedMilliCPUPerNode, fit.NominalNodeMemoryMiB-fit.ReservedMemoryMiBPerNode
-	for _, service := range plan.Blueprint.Services {
-		if service.Resources.RequestMilliCPU > cpu || service.Resources.RequestMemoryMiB > mem {
-			block("services."+service.ID, "pod-too-large", "One declared Pod exceeds this node's nominal capacity after the explicit reserve.")
+	if fit.Spec.GPUPool != nil {
+		if err := azureGPUFit(&fit, plan); err != nil {
+			return AzureClusterFit{}, err
+		}
+	} else {
+		cpu, mem := fit.NominalNodeMilliCPU-fit.ReservedMilliCPUPerNode, fit.NominalNodeMemoryMiB-fit.ReservedMemoryMiBPerNode
+		for _, service := range plan.Blueprint.Services {
+			if service.Resources.RequestMilliCPU > cpu || service.Resources.RequestMemoryMiB > mem {
+				block("services."+service.ID, "pod-too-large", "One declared Pod exceeds this node's nominal capacity after the explicit reserve.")
+			}
+		}
+		if plan.ResourceSummary.RequestMilliCPU > cpu*spec.NodeCount || plan.ResourceSummary.RequestMemoryMiB > mem*spec.NodeCount {
+			block("services.resources", "nodes-too-small", "Aggregate requests exceed this fixed pool after explicit reserves.")
+		}
+		if plan.ResourceSummary.GPUCount > 0 {
+			block("services.resources.gpuCount", "gpu-pool-not-configured", "This fixed system pool has no reviewed GPU node pool or device plugin.")
 		}
 	}
-	if plan.ResourceSummary.RequestMilliCPU > cpu*spec.NodeCount || plan.ResourceSummary.RequestMemoryMiB > mem*spec.NodeCount {
-		block("services.resources", "nodes-too-small", "Aggregate requests exceed this fixed pool after explicit reserves.")
-	}
-	if plan.ResourceSummary.GPUCount > 0 {
-		block("services.resources.gpuCount", "gpu-pool-not-configured", "This fixed system pool has no reviewed GPU node pool or device plugin.")
-	}
 	fit.Decisions = append(fit.Decisions, Decision{"infrastructure", "provider-admission-required", "SKU/version availability, quota, actual allocatable resources, scheduling, network reachability and monetary cost are unverified. No automatic larger SKU, autoscaling or retry is selected."}, Decision{"infrastructure.access", "separate-access-grant", "Namespace bootstrap requires a separate explicit grant of the fixed AKS RBAC Cluster Admin role to the captured provider principal, scoped only to this new cluster; operator roleAssignments/write privilege is required."}, Decision{"services", "workloads-not-deployed", "Cluster creation does not create a project namespace, model/PVC, image, GPU plugin, telemetry collector, application or product analytics."})
+	if fit.Spec.GPUPool != nil {
+		fit.Decisions[len(fit.Decisions)-1].Message = "Cluster creation includes the reviewed managed GPU driver, plugin and DCGM stack. Project namespace, models/PVCs, application images, telemetry storage and workloads remain separate steps."
+	}
 	return fit, nil
 }
 
@@ -157,12 +167,20 @@ func AzureClusterTemplate(fit AzureClusterFit, group, region, sshPublicKey, plan
 	if !fit.Spec.PrivateAPI {
 		access["authorizedIPRanges"] = fit.Spec.AuthorizedAPICIDRs
 	}
-	cluster := map[string]any{"type": "Microsoft.ContainerService/managedClusters", "apiVersion": AzureManagedClusterAPIVersion, "name": fit.ClusterName, "location": region, "identity": map[string]string{"type": "SystemAssigned"}, "sku": map[string]string{"name": "Base", "tier": "Free"}, "tags": map[string]string{"managed-by": "luci", "luci-plan": planID}, "properties": map[string]any{
+	cluster := map[string]any{"type": "Microsoft.ContainerService/managedClusters", "apiVersion": AzureClusterAPI(fit.Spec), "name": fit.ClusterName, "location": region, "identity": map[string]string{"type": "SystemAssigned"}, "sku": map[string]string{"name": "Base", "tier": "Free"}, "tags": map[string]string{"managed-by": "luci", "luci-plan": planID}, "properties": map[string]any{
 		"dnsPrefix": group + "-" + strings.TrimPrefix(fit.NodeResourceGroup, group+"-nodes-"), "kubernetesVersion": fit.Spec.KubernetesVersion, "nodeResourceGroup": fit.NodeResourceGroup, "enableRBAC": true, "disableLocalAccounts": true,
 		"aadProfile": map[string]any{"managed": true, "enableAzureRBAC": true, "tenantID": fit.Spec.TenantID}, "apiServerAccessProfile": access, "networkProfile": network,
 		"linuxProfile":      map[string]any{"adminUsername": "luci", "ssh": map[string]any{"publicKeys": []any{map[string]string{"keyData": sshPublicKey}}}},
 		"agentPoolProfiles": []any{map[string]any{"name": "system", "count": fit.Spec.NodeCount, "vmSize": fit.Spec.NodeSKU, "mode": "System", "osType": "Linux", "osSKU": "Ubuntu", "type": "VirtualMachineScaleSets", "enableAutoScaling": false, "osDiskSizeGB": 128, "osDiskType": "Managed", "enableNodePublicIP": false}},
 	}}
+	if fit.Spec.GPUPool != nil {
+		pool, err := azureGPUAgentPool(fit.Spec.GPUPool)
+		if err != nil {
+			return "", err
+		}
+		properties := cluster["properties"].(map[string]any)
+		properties["agentPoolProfiles"] = append(properties["agentPoolProfiles"].([]any), pool)
+	}
 	// No IAM assignment is hidden in cluster creation. The separate commission
 	// review shows exact principal/tenant/role/scope and requires its own consent.
 	value := map[string]any{"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#", "contentVersion": "1.0.0.0", "resources": []any{cluster}, "outputs": map[string]any{"clusterResourceId": map[string]string{"type": "string", "value": fit.ClusterResourceID}}}

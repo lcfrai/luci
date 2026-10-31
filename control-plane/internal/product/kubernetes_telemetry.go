@@ -13,6 +13,12 @@ import (
 // raw metrics/credentials. Late denial withholds the response; retained samples
 // are not rolled back or silently changed into current/lifetime evidence.
 func (s *Server) ReadKubernetesTelemetry(ctx context.Context, actor management.ExecutionActorRef, id string) (KubernetesDeploymentStatus, error) {
+	return s.readKubernetesTelemetrySource(ctx, actor, id, false)
+}
+func (s *Server) ReadKubernetesStoredTelemetry(ctx context.Context, actor management.ExecutionActorRef, id string) (KubernetesDeploymentStatus, error) {
+	return s.readKubernetesTelemetrySource(ctx, actor, id, true)
+}
+func (s *Server) readKubernetesTelemetrySource(ctx context.Context, actor management.ExecutionActorRef, id string, stored bool) (KubernetesDeploymentStatus, error) {
 	ctx = WithKubernetesTargetResolution(ctx)
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
@@ -45,7 +51,12 @@ func (s *Server) ReadKubernetesTelemetry(ctx context.Context, actor management.E
 		}
 		return s.authorizeKubernetesTelemetryRead(current, row)
 	})
-	operation, err := connector.ReadTelemetry(ctx, row.Request.Identity)
+	var operation deploymentkube.Operation
+	if stored {
+		operation, err = connector.ReadStoredTelemetry(ctx, row.Request.Identity)
+	} else {
+		operation, err = connector.ReadTelemetry(ctx, row.Request.Identity)
+	}
 	if s.kubernetesAuthority(ctx, actor, false, true, 0) != nil {
 		return KubernetesDeploymentStatus{}, management.ErrExecutionAuthority
 	}

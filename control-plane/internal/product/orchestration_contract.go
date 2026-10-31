@@ -19,13 +19,15 @@ const orchestrationContractLimit = 200
 const orchestrationContractFileLimit = 2 << 20
 
 type OrchestrationRouteRequest struct {
-	NativeDelegation  string  `json:"nativeDelegation,omitempty"`
-	Harness           string  `json:"harness"`
-	Model             string  `json:"model"`
-	PermissionMode    string  `json:"permissionMode"`
-	Effort            string  `json:"effort,omitempty"`
-	ExecutionLocation string  `json:"executionLocation"`
-	AgentConnectionID *string `json:"agentConnectionId,omitempty"`
+	CloudHostIDs      []string `json:"cloudHostIds,omitempty"`
+	CloudPoolDigest   string   `json:"cloudPoolDigest,omitempty"`
+	NativeDelegation  string   `json:"nativeDelegation,omitempty"`
+	Harness           string   `json:"harness"`
+	Model             string   `json:"model"`
+	PermissionMode    string   `json:"permissionMode"`
+	Effort            string   `json:"effort,omitempty"`
+	ExecutionLocation string   `json:"executionLocation"`
+	AgentConnectionID *string  `json:"agentConnectionId,omitempty"`
 }
 
 type OrchestrationPrepareRequest struct {
@@ -341,7 +343,7 @@ func (s *Server) prepareOrchestrationInput(ctx context.Context, p project.Projec
 	if placement == "local-docker" {
 		placement = ""
 	} // existing run input convention
-	out = OrchestrationPreparedInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: placement, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots, Tasks: tasks, Controls: controls, Standards: standards, DecisionPolicy: OrchestrationDecisionPolicy{Routine: routine, HumanInput: "outside saved authority, contradictory intent, or missing evidence"}}
+	out = OrchestrationPreparedInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{CloudPoolDigest: req.Route.CloudPoolDigest, CloudHostIDs: normalizedCloudHosts(req.Route.CloudHostIDs), Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: placement, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots, Tasks: tasks, Controls: controls, Standards: standards, DecisionPolicy: OrchestrationDecisionPolicy{Routine: routine, HumanInput: "outside saved authority, contradictory intent, or missing evidence"}}
 	if err := s.captureNativeDelegation(req.Route.NativeDelegation, &out.Route); err != nil {
 		return OrchestrationPreparedInput{}, err
 	}
@@ -493,7 +495,7 @@ func normalizeOrchestrationPrepare(req *OrchestrationPrepareRequest) error {
 	if err := validateNativeDelegationRequest(req.Route.NativeDelegation, req.Route.Harness, req.Route.PermissionMode, req.Route.ExecutionLocation); err != nil {
 		return err
 	}
-	if req.Route.ExecutionLocation == "cloud-microvm" && (req.Route.PermissionMode != "bypass" || req.Route.Harness != "codex" && req.Route.Harness != "claude-code") {
+	if !validCloudHostSelection(req.Route.CloudHostIDs, req.Route.CloudPoolDigest, req.Route.ExecutionLocation) || req.Route.ExecutionLocation == "cloud-microvm" && (req.Route.PermissionMode != "bypass" || req.Route.Harness != "codex" && req.Route.Harness != "claude-code") {
 		return ErrProjectRunInvalid
 	}
 	return nil

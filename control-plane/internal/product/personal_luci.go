@@ -53,6 +53,7 @@ type PersonalAnswer struct {
 	Discussion *PersonalDiscussion `json:"discussion"`
 }
 type PersonalHandoff struct {
+	Purpose              string `json:"purpose,omitempty"` // empty remains discussion; work-request requires explicit user choice
 	ID                   string `json:"id"`
 	ProjectID            string `json:"projectId"`
 	Message              string `json:"message"`
@@ -215,7 +216,7 @@ func validatePersonalConversation(row PersonalConversation, scope string) (Perso
 		if turn.Status == "succeeded" && turn.Answer == nil {
 			return empty, ErrPersonalUnavailable
 		}
-		if turn.Handoff != nil && (!prototypeReleaseID.MatchString(turn.Handoff.ID) || !prototypeReleaseID.MatchString(turn.Handoff.ProjectID) || !hexDigest(turn.Handoff.RequestDigest) || !hexDigest(turn.Handoff.ProjectContextDigest) || turn.Handoff.ProjectRevision < 0 || turn.Handoff.Message == "" || len(turn.Handoff.Message) > 16000 || !validArtifactStoredText(turn.Handoff.Message) || !validRunKey(turn.Handoff.ProjectRequestKey) || turn.Handoff.Status != "dispatching" && turn.Handoff.Status != "forwarded" && turn.Handoff.Status != "unknown") {
+		if turn.Handoff != nil && (!validPersonalHandoffPurpose(turn.Handoff.Purpose) || !prototypeReleaseID.MatchString(turn.Handoff.ID) || !prototypeReleaseID.MatchString(turn.Handoff.ProjectID) || !hexDigest(turn.Handoff.RequestDigest) || !hexDigest(turn.Handoff.ProjectContextDigest) || turn.Handoff.ProjectRevision < 0 || turn.Handoff.Message == "" || len(turn.Handoff.Message) > 16000 || !validArtifactStoredText(turn.Handoff.Message) || !validRunKey(turn.Handoff.ProjectRequestKey) || turn.Handoff.Status != "dispatching" && turn.Handoff.Status != "forwarded" && turn.Handoff.Status != "unknown") {
 			return empty, ErrPersonalUnavailable
 		}
 		if turn.Handoff != nil {

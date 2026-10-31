@@ -11,6 +11,7 @@ export interface PrepareOrchestrationContract {
   route: {
     harness: 'codex' | 'claude-code' | 'opencode'; model: string; permissionMode: 'ask' | 'bypass';
     effort?: string; executionLocation: 'local-docker' | 'cloud-microvm'; agentConnectionId?: string;
+    cloudHostIds?:string[];cloudPoolDigest?:string;
     nativeDelegation?: 'codex-native-helpers-2-v1';
   };
   outcome: 'preview' | 'publish';

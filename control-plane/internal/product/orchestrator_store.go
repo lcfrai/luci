@@ -561,7 +561,7 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		}
 		if status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Plan != nil {
 			answer = cloneOrchestratorAnswer(answer)
-			answer.Proposal.Plan.Tasks = preserveTaskReuse(turn.Context.Plan.Tasks, answer.Proposal.Plan.Tasks)
+			answer.Proposal.Plan.Tasks = preserveTaskRuntimePrerequisites(turn.Context.Plan.Tasks, preserveTaskReuse(turn.Context.Plan.Tasks, answer.Proposal.Plan.Tasks))
 		}
 		if terminalOrchestrator(turn.Status) {
 			// An exact completion replay confirms the already persisted outcome.

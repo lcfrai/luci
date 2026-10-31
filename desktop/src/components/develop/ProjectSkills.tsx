@@ -6,6 +6,7 @@ import { useProjectDraftScope } from '../../hooks/useProjectDraft';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useUnsavedProjectDraft } from '../../hooks/useUnsavedProjectDraft';
 import { Button } from '../fluid/components/button';
+import { normalizeProjectSkillMetadata,validProjectSkillMetadata } from '../../api/skillMetadata';
 
 export function ProjectSkills({ projectId }: { projectId: string }) {
   const scope = useProjectDraftScope(projectId);
@@ -50,11 +51,13 @@ function SkillEditor({ projectId, scope }: { projectId: string; scope: string | 
   useUnsavedProjectDraft(projectId, dirty, 'Project skills', 'develop');
   async function save(includeSkill: boolean) {
     if (!saved || !latest.current.canEdit || busy) return;
+    const normalizedSkill={...skill,metadata:normalizeProjectSkillMetadata(skill.metadata)};
+    if(includeSkill&&!validProjectSkillMetadata(normalizedSkill.metadata)){setError('Check the optional skill metadata: HTTPS source without credentials, bounded licence/revision, and up to 16 unique tool names.');return;}
     const ticket = epoch.current;
     const permissionTicket = permissionEpoch.current;
     setBusy(true); setError('');
     try {
-      const value = await projectSkillsApi.save(projectId, { expectedRevision: saved.revision, assignments, ...(includeSkill ? { skill } : {}) });
+      const value = await projectSkillsApi.save(projectId, { expectedRevision: saved.revision, assignments, ...(includeSkill ? { skill:normalizedSkill } : {}) });
       if (ticket !== epoch.current || permissionTicket !== permissionEpoch.current || !latest.current.canEdit) return;
       setSaved(value); setAssignments(value.assignments); setEditing(false);
       if (includeSkill) setSkill({ id: '', title: '', provenance: '', roles: ['coding'], instructions: '' });
@@ -67,7 +70,7 @@ function SkillEditor({ projectId, scope }: { projectId: string; scope: string | 
   return <div className="project-work-body">
     <p>Create reusable instructions for your agents. Assign a saved version to coding, review, or a specific task.</p>
     <p className="journey-muted">Skills inherit the task's existing permissions and limits; saving a skill does not start work.</p>
-    <details><summary>How skills are used</summary><p>Reviewed tasks receive the exact selected versions in their captured task contract. Manual sessions do not automatically load these skills. A changed assignment needs a newly reviewed run.</p><p>Skills are project-local and exported with project context. Do not include credentials. Provenance is your declaration, not verified attribution. Each immutable version permits 16 KiB of instructions; a reviewed run permits 64 KiB of selected skills. Instructions cannot grant tools, permissions or execution.</p></details>
+    <details><summary>How skills are used</summary><p>Reviewed tasks receive the exact selected versions in their captured task contract. Manual sessions do not automatically load these skills. A changed assignment needs a newly reviewed run.</p><p>Skills are project-local and exported with project context. Do not include credentials. Provenance is your declaration, not verified attribution. Each immutable version permits 16 KiB of instructions; a reviewed run permits 64 KiB of selected skills. Instructions and declared tools cannot grant tools, permissions or execution. Optional source and licence fields are your attribution and compatibility notes; Luci does not fetch, install or verify them.</p></details>
     {access.message && <p role="status">{access.message}</p>}
     {error && <p role="alert">{error}</p>}
     {!saved ? <><p role="status">{busy ? 'Reading project skills…' : 'Project skills are unavailable.'}</p><Button disabled={busy} onClick={() => setRetry(value => value + 1)}>Reload skills</Button></> : <>
@@ -76,11 +79,18 @@ function SkillEditor({ projectId, scope }: { projectId: string; scope: string | 
         <label>Skill ID<input value={skill.id} maxLength={80} onChange={event => { setSkill({ ...skill, id: event.target.value }); setEditing(true); }} /></label>
         <label>Title<input value={skill.title} maxLength={200} onChange={event => { setSkill({ ...skill, title: event.target.value }); setEditing(true); }} /></label>
         <label>Declared provenance<textarea value={skill.provenance} maxLength={2000} onChange={event => { setSkill({ ...skill, provenance: event.target.value }); setEditing(true); }} /></label>
+        <details><summary>Source and compatibility · optional</summary>
+          <label>Declared licence<input value={skill.metadata?.license??''} maxLength={128} placeholder="MIT, Apache-2.0, proprietary, or unknown" onChange={event=>{setSkill({...skill,metadata:{...skill.metadata,license:event.target.value}});setEditing(true);}}/></label>
+          <label>Source URL<input type="url" value={skill.metadata?.sourceUrl??''} maxLength={2048} placeholder="https://…" onChange={event=>{setSkill({...skill,metadata:{...skill.metadata,sourceUrl:event.target.value}});setEditing(true);}}/></label>
+          <label>Source version or commit<input value={skill.metadata?.sourceRevision??''} maxLength={200} onChange={event=>{setSkill({...skill,metadata:{...skill.metadata,sourceRevision:event.target.value}});setEditing(true);}}/></label>
+          <label>Expected tools · comma separated<input value={skill.metadata?.declaredTools?.join(',')??''} maxLength={1295} placeholder="git, node, mcp:glasses.search" onChange={event=>{setSkill({...skill,metadata:{...skill.metadata,declaredTools:event.target.value.split(',')}});setEditing(true);}}/></label>
+          <p className="journey-muted">These notes travel with the exact skill version. They describe what it expects; existing agent tools and permissions still apply.</p>
+        </details>
         <label>Applicable role<select value={skill.roles.join(',')} onChange={event => { setSkill({ ...skill, roles: event.target.value.split(',') as SkillRole[] }); setEditing(true); }}><option value="coding">Coding</option><option value="reviewer">Independent reviewer</option><option value="coding,reviewer">Both roles</option></select></label>
         <label>Instructions<textarea rows={6} value={skill.instructions} maxLength={16384} onChange={event => { setSkill({ ...skill, instructions: event.target.value }); setEditing(true); }} /></label>
         <Button disabled={!editing || !skill.id || !skill.title.trim() || !skill.provenance.trim() || !skill.instructions.trim()} onClick={() => void save(true)}>Save new immutable version</Button>
       </fieldset>
-      <details><summary>Saved skill versions</summary>{saved.versions.map(version => <section key={`${version.id}:${version.revision}`}><h4>{version.title} · {version.id} revision {version.revision}</h4><p>{version.roles.join(', ')} · Declared source: {version.provenance}</p><pre>{version.instructions}</pre><p className="journey-muted">Digest {version.digest}</p><Button disabled={locked} onClick={() => { setSkill({ id: version.id, title: version.title, provenance: version.provenance, roles: version.roles, instructions: version.instructions }); setEditing(true); }}>Revise {version.id} from revision {version.revision}</Button></section>)}</details>
+      <details><summary>Saved skill versions</summary>{saved.versions.map(version => <section key={`${version.id}:${version.revision}`}><h4>{version.title} · {version.id} revision {version.revision}</h4><p>{version.roles.join(', ')} · Declared source: {version.provenance}</p>{version.metadata&&<dl><dt>Declared licence</dt><dd>{version.metadata.license||'Not supplied'}</dd><dt>Source</dt><dd>{version.metadata.sourceUrl?<a href={version.metadata.sourceUrl} target="_blank" rel="noopener noreferrer">Open declared source</a>:'Not supplied'}{version.metadata.sourceRevision&&<> · {version.metadata.sourceRevision}</>}</dd><dt>Expected tools</dt><dd>{version.metadata.declaredTools?.join(', ')||'Not supplied'}</dd></dl>}<pre>{version.instructions}</pre><p className="journey-muted">Digest {version.digest}</p><Button disabled={locked} onClick={() => { setSkill({ id: version.id, title: version.title, provenance: version.provenance, roles: version.roles, instructions: version.instructions,metadata:version.metadata?{...version.metadata,declaredTools:version.metadata.declaredTools?.slice()}:undefined }); setEditing(true); }}>Revise {version.id} from revision {version.revision}</Button></section>)}</details>
       <fieldset disabled={locked} className="workflow-form"><legend>Exact task assignments</legend>
         {assignments.map((assignment, index) => <fieldset key={index}><legend>Assignment {index + 1}</legend>
           <label>Role<select value={assignment.role} onChange={event => setAssignments(assignments.map((row, i) => i === index ? { ...row, role: event.target.value as SkillRole, taskId: '' } : row))}><option value="coding">Coding</option><option value="reviewer">Independent reviewer</option></select></label>

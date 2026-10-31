@@ -300,9 +300,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	var deploymentAuthority management.DeploymentAuthorizer
 	var runtimeInstallerAuthority management.RuntimeInstallerAuthorizer
 	var executionControlAuthority management.ExecutionControlAuthorizer
+	var researchAuthority management.ResearchAuthorizer
 	var executionReady atomic.Bool
 	if cfg.Worker {
 		scope := management.FileExecutionAuthorityScope{IdentityPath: os.Getenv("LUCI_EXECUTION_AUTHORITY_FILE"), UserID: os.Getenv("LUCI_ACTOR_ID"), TeamID: os.Getenv("LUCI_TEAM_ID"), ManagedTeamID: os.Getenv("LUCI_EXECUTION_MANAGED_TEAM"), BillingConfigID: os.Getenv("LUCI_EXECUTION_BILLING_CONFIG")}
+		researchAuthority, err = management.NewFileResearchAuthorizer(scope)
+		if err != nil {
+			return fmt.Errorf("initialize research authority: %w", err)
+		}
 		executionAuthority, err = management.NewFileExecutionAuthorizer(scope)
 		if err != nil {
 			return fmt.Errorf("initialize current execution authority: %w", err)
@@ -357,6 +362,12 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ManagedExecution:         cfg.Worker,
 		FindingRecipients:        findingRecipients,
 		AuthorizeProjectRead:     authorizeProjectRead,
+		AuthorizeResearch: func(ctx context.Context, ref management.ExecutionActorRef, secrets bool) error {
+			if !executionReady.Load() || researchAuthority == nil {
+				return management.ErrExecutionAuthority
+			}
+			return researchAuthority(ctx, ref, secrets)
+		},
 		AuthorizeRuntimeInstaller: func(ctx context.Context, ref management.ExecutionActorRef) (management.ExecutionAuthority, error) {
 			if !executionReady.Load() || runtimeInstallerAuthority == nil {
 				return management.ExecutionAuthority{}, management.ErrExecutionAuthority
@@ -485,6 +496,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		deploymentAuthority = control.AuthorizeDeployment
 		runtimeInstallerAuthority = control.AuthorizeRuntimeInstaller
 		executionControlAuthority = control.AuthorizeExecutionControl
+		researchAuthority = control.AuthorizeResearch
 		executionReady.Store(true)
 		defer func() {
 			if controlClosed {

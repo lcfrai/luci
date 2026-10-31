@@ -9,6 +9,7 @@ import (
 const Version = 1
 
 type Blueprint struct {
+	PublicRoute       *PublicRoute       `json:"publicRoute,omitempty"`
 	Version           int                `json:"version"`
 	ProjectID         string             `json:"projectId"`
 	Source            Source             `json:"source"`
@@ -51,6 +52,7 @@ type ResourceBudget struct {
 }
 
 type ModelReference struct {
+	AccessGroup  int64  `json:"accessGroup,omitempty"` // optional fixed owned-model reader group1000
 	Name         string `json:"name"`
 	ClaimName    string `json:"claimName"` // existing PVC, provisioned and populated elsewhere
 	MountPath    string `json:"mountPath"`
@@ -80,10 +82,11 @@ type ProductEvent struct {
 	Description string `json:"description"`
 }
 type CollectorConfiguration struct {
-	Profile     string                `json:"profile"` // exact configuration contract, not an image attestation
-	Destination TelemetryDestination  `json:"destination"`
-	ReceiverTLS TelemetryTLSReference `json:"receiverTLS"`
-	Events      []ProductEvent        `json:"events"`
+	OwnedDestination *OwnedTelemetryDestination `json:"ownedDestination,omitempty"`
+	Profile          string                     `json:"profile"` // exact configuration contract, not an image attestation
+	Destination      TelemetryDestination       `json:"destination"`
+	ReceiverTLS      TelemetryTLSReference      `json:"receiverTLS"`
+	Events           []ProductEvent             `json:"events"`
 }
 type TelemetryDestination struct {
 	ResourceID    string                           `json:"resourceId"`
@@ -122,6 +125,8 @@ type ServiceHealth struct {
 }
 
 type Service struct {
+	TelemetryStorage   *TelemetryStorage       `json:"telemetryStorage,omitempty"`
+	ImagePullSecrets   []string                `json:"imagePullSecrets,omitempty"`
 	ID                 string                  `json:"id"`
 	Kind               string                  `json:"kind"`  // app, inference or collector
 	Image              string                  `json:"image"` // explicit immutable OCI image@sha256 reference

@@ -53,6 +53,7 @@ func (s *Server) SetProjectRunSelectionResolver(resolve func(context.Context, Pr
 }
 
 func (s *Server) registerProjectRuns(mux Registrar) {
+	s.registerOutcomeCosts(mux)
 	s.registerProjectSwarm(mux)
 	s.registerOrchestrationContracts(mux)
 	const base = "/v1/product/projects/{id}/runs"
@@ -82,6 +83,7 @@ func projectRunProblem(w http.ResponseWriter, err error) {
 }
 
 func (s *Server) projectRunView(run ProjectRun) ProjectRunView {
+	run.Measurements = nil
 	var state journeyState
 	var ledger orchestratorLedger
 	p, err := s.resolveProject(run.ProjectID)
@@ -139,6 +141,7 @@ func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool, fres
 	run.Operations = append([]ProjectRunOperation{}, run.Operations...)
 	for i := range run.Operations {
 		run.Operations[i] = publicSwarmOperation(run.Operations[i])
+		run.Operations[i].RuntimeTiming = nil
 	}
 	actions := []string{"reconcile"}
 	currentInputs := freshness.Status == "current" && blocker == nil
@@ -218,6 +221,8 @@ func (s *Server) getProjectRun(w http.ResponseWriter, r *http.Request) {
 }
 
 type projectRunCreateRequest struct {
+	CloudHostIDs          []string                        `json:"cloudHostIds,omitempty"`
+	CloudPoolDigest       string                          `json:"cloudPoolDigest,omitempty"`
 	NativeDelegation      string                          `json:"nativeDelegation,omitempty"`
 	IdempotencyKey        string                          `json:"idempotencyKey"`
 	WorktreeID            string                          `json:"worktreeId"`
@@ -244,6 +249,11 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 	req.WorktreeID, req.Harness, req.Model = strings.TrimSpace(req.WorktreeID), strings.TrimSpace(req.Harness), strings.TrimSpace(req.Model)
 	req.PermissionMode, req.Effort = strings.TrimSpace(req.PermissionMode), strings.TrimSpace(req.Effort)
 	req.ExecutionLocation = strings.TrimSpace(req.ExecutionLocation)
+	if !validCloudHostSelection(req.CloudHostIDs, req.CloudPoolDigest, req.ExecutionLocation) {
+		journeyError(w, 400, "cloud_hosts_invalid", "Choose at most eight distinct configured cloud host IDs for this cloud route.")
+		return
+	}
+	req.CloudHostIDs = normalizedCloudHosts(req.CloudHostIDs)
 	if req.ExecutionLocation == "local-docker" {
 		req.ExecutionLocation = "" // preserve the historical local route digest
 	}
@@ -330,7 +340,7 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 		projectRunProblem(w, err)
 		return
 	}
-	input := ProjectRunInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: req.ExecutionLocation, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots}
+	input := ProjectRunInput{Implementation: *implementation, Approvals: approvals, Route: ProjectRunRoute{CloudPoolDigest: req.CloudPoolDigest, CloudHostIDs: normalizedCloudHosts(req.CloudHostIDs), Harness: selected.Harness, Model: selected.Model, PermissionMode: selected.PermissionMode, Effort: selected.Effort, ExecutionLocation: req.ExecutionLocation, Connection: selected.Connection}, Outcome: req.Outcome, Requirements: binding.RequirementSnapshots}
 	if err := s.captureNativeDelegation(req.NativeDelegation, &input.Route); err != nil {
 		projectRunProblem(w, err)
 		return
@@ -461,7 +471,7 @@ func (s *Server) reserveProjectRunOperation(w http.ResponseWriter, r *http.Reque
 	}
 	candidate := projectRunCandidate(selected, implementation)
 	s.projectRunDispatchMu.Lock()
-	run, op, created, err := s.projectRuns.ReserveOperation(p.ID, p.Path, run.ID, req.ExpectedRevision, req.IdempotencyKey, req.Kind, ProjectRunSessionRequestDigest(candidate))
+	run, op, created, err := s.projectRuns.ReserveOperation(p.ID, p.Path, run.ID, req.ExpectedRevision, req.IdempotencyKey, req.Kind, ProjectRunSessionRequestDigest(candidate), humanRunAction(r, "start-coding", req.ExpectedRevision)...)
 	s.projectRunDispatchMu.Unlock()
 	if err != nil {
 		projectRunProblem(w, err)
@@ -517,15 +527,19 @@ func (s *Server) mutateProjectRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if action == "cancel" {
 		s.projectRunDispatchMu.Lock()
-		run, err = s.projectRuns.Cancel(p.ID, p.Path, run.ID, req.ExpectedRevision)
+		run, err = s.projectRuns.Cancel(p.ID, p.Path, run.ID, req.ExpectedRevision, humanRunAction(r, "cancel", req.ExpectedRevision)...)
 		s.projectRunDispatchMu.Unlock()
 	} else if action == "reconcile" || action == "accept" {
-		run, err = s.reconcileProjectRun(r.Context(), p, run)
+		var reconcileOrigin []runHumanAction
+		if action == "reconcile" {
+			reconcileOrigin = humanRunAction(r, "reconcile", req.ExpectedRevision)
+		}
+		run, err = s.reconcileProjectRun(r.Context(), p, run, reconcileOrigin...)
 		if err == nil && action == "accept" {
 			if run.Observation == nil || !run.Observation.Valid {
 				err = errors.New("The current run evidence needs attention before acceptance.")
 			} else {
-				run, err = s.projectRuns.Accept(p.ID, p.Path, run.ID, run.Revision)
+				run, err = s.projectRuns.Accept(p.ID, p.Path, run.ID, run.Revision, humanRunAction(r, "accept", req.ExpectedRevision)...)
 			}
 		}
 	} else {
@@ -539,7 +553,7 @@ func (s *Server) mutateProjectRun(w http.ResponseWriter, r *http.Request) {
 				var check ProjectRunCheckEvidence
 				check, err = s.SnapshotProjectRunCheck(r.Context(), p.ID, req.CheckID, run.Input.Approvals, run.Input.Requirements)
 				if err == nil {
-					run, err = s.projectRuns.JoinCheck(p.ID, p.Path, run.ID, run.Revision, check)
+					run, err = s.projectRuns.JoinCheck(p.ID, p.Path, run.ID, run.Revision, check, humanRunAction(r, "checks", req.ExpectedRevision)...)
 				}
 			case "releases":
 				if len(run.Checks) == 0 {
@@ -549,7 +563,7 @@ func (s *Server) mutateProjectRun(w http.ResponseWriter, r *http.Request) {
 				var release ProjectRunReleaseEvidence
 				release, err = s.SnapshotProjectRunRelease(r.Context(), p.ID, req.ReleaseID, req.Target, run.Input.Outcome, run.Input.Approvals, run.Checks[len(run.Checks)-1])
 				if err == nil {
-					run, err = s.projectRuns.JoinRelease(p.ID, p.Path, run.ID, run.Revision, release)
+					run, err = s.projectRuns.JoinRelease(p.ID, p.Path, run.ID, run.Revision, release, humanRunAction(r, "releases", req.ExpectedRevision)...)
 				}
 			}
 		}
@@ -561,7 +575,7 @@ func (s *Server) mutateProjectRun(w http.ResponseWriter, r *http.Request) {
 	s.writeProjectRun(w, http.StatusOK, run)
 }
 
-func (s *Server) reconcileProjectRun(ctx context.Context, p project.Project, run ProjectRun) (ProjectRun, error) {
+func (s *Server) reconcileProjectRun(ctx context.Context, p project.Project, run ProjectRun, origin ...runHumanAction) (ProjectRun, error) {
 	observation := ProjectRunObservation{State: "ready", Reason: "Reviewed inputs and model selection are current. Start coding when ready.", Valid: true}
 	_, validationErr := s.resolveProjectRunSelection(ctx, run)
 	// Serialize with actual session dispatch. A missing claimed child is unknown,
@@ -678,5 +692,5 @@ func (s *Server) reconcileProjectRun(ctx context.Context, p project.Project, run
 	if observation.State == "complete" || observation.State == "cancelled" {
 		observation.State = "awaiting-checks"
 	}
-	return s.projectRuns.Observe(p.ID, p.Path, run.ID, run.Revision, observation)
+	return s.projectRuns.Observe(p.ID, p.Path, run.ID, run.Revision, observation, origin...)
 }

@@ -236,6 +236,13 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 				if published {
 					return nil
 				}
+				observation, observationErr := s.refreshCoordinatorObservations(ctx, p, rows, authorize)
+				if observationErr != nil {
+					return observationErr
+				}
+				if observation {
+					return nil
+				}
 				followed, e := s.continueCoordinatorFinding(ctx, p, rows, authorize, dispatch)
 				if e != nil {
 					return e
@@ -289,7 +296,17 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 					}
 				}
 				if row.Status == "checks-verified" {
-					if row.PreviewPlan == nil {
+					if row.KubernetesPlan != nil {
+						s.mu.RLock()
+						policy, policyErr := s.readCoordinatorPolicy(p)
+						s.mu.RUnlock()
+						if policyErr != nil {
+							return policyErr
+						}
+						if policy.DeploymentMode != "existing-target" {
+							continue
+						}
+					} else if row.PreviewPlan == nil {
 						continue
 					}
 					s.mu.RLock()
@@ -298,7 +315,7 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 					if policyErr != nil {
 						return policyErr
 					}
-					if !coordinatorPreviewPolicyMatches(policy.PreviewMode, row.PreviewPlan) {
+					if (row.KubernetesPlan == nil || row.PreviewPlan != nil) && !coordinatorPreviewPolicyMatches(policy.PreviewMode, row.PreviewPlan) {
 						continue
 					}
 				}

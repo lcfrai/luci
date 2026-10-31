@@ -64,10 +64,10 @@ export function RuntimePreparation({
     setStatus(value);
     return true;
   };
-  const prepare = (selected: ProductClient) => {
+  const prepare = (selected: ProductClient, mode?: "advanced-build") => {
     const existing = installations.current.get(selected);
     if (existing) return existing;
-    const pending = selected.installRuntime();
+    const pending = mode ? selected.installRuntime(mode) : selected.installRuntime();
     installations.current.set(selected, pending);
     const clear = () => {
       if (installations.current.get(selected) === pending)
@@ -104,6 +104,7 @@ export function RuntimePreparation({
           docker &&
           !storagePreparationBlock(next) &&
           !image &&
+          !next.checks.find((check) => check.id === "sandbox-image")?.preparationMode &&
           runtime.status === "idle" &&
           !automaticStarted.current.has(client)
         ) {
@@ -224,6 +225,7 @@ export function RuntimePreparation({
   const imageReady =
     shownStatus?.checks.find((check) => check.id === "sandbox-image")?.status ===
     "ready";
+  const sourceUpgrade = shownStatus?.checks.find((check) => check.id === "sandbox-image")?.preparationMode === "advanced-build";
   const storageBlocked = storagePreparationBlock(shownStatus);
   return (
     <section
@@ -291,6 +293,7 @@ export function RuntimePreparation({
           project now.
         </p>
       )}
+      {sourceUpgrade && manageBacking && <p className="preparation-action">Build the current runtime from the source included with Luci. This downloads Linux base images and pinned tools, uses local disk and memory, and can take several minutes. No model is called. Existing permissions and capacity limits still apply.</p>}
       <div className="setup-actions">
         <Button type="button"
           variant="secondary"
@@ -323,7 +326,7 @@ export function RuntimePreparation({
                 setChecking(true);
                 pendingCallback.current?.(true);
                 setError("");
-                void prepare(client)
+                void prepare(client, sourceUpgrade ? "advanced-build" : undefined)
                   .then(async (next) => {
                     if (generation.current !== currentGeneration) return;
                     setJob(next);
@@ -346,7 +349,7 @@ export function RuntimePreparation({
                   });
               }}
             >
-              {job?.status === "failed"
+              {sourceUpgrade ? "Build current agent runtime" : job?.status === "failed"
                 ? "Retry runtime preparation"
                 : "Prepare agent runtime"}
             </Button>

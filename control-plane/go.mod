@@ -19,6 +19,9 @@ require (
 )
 
 require (
+	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/moby/spdystream v0.4.0 // indirect
+	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect

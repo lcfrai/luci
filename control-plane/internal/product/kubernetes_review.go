@@ -17,28 +17,31 @@ import (
 )
 
 type KubernetesReviewInput struct {
-	TargetID          string  `json:"targetId"`
-	BlueprintRevision int     `json:"blueprintRevision"`
-	BlueprintDigest   string  `json:"blueprintDigest"`
-	RunID             string  `json:"runId"`
-	CheckID           string  `json:"checkId"`
-	MonthlyBudgetUSD  float64 `json:"monthlyBudgetUsd"`
+	AcknowledgePublicRoute bool    `json:"acknowledgePublicRoute,omitempty"`
+	TargetID               string  `json:"targetId"`
+	BlueprintRevision      int     `json:"blueprintRevision"`
+	BlueprintDigest        string  `json:"blueprintDigest"`
+	RunID                  string  `json:"runId"`
+	CheckID                string  `json:"checkId"`
+	MonthlyBudgetUSD       float64 `json:"monthlyBudgetUsd"`
 }
 type KubernetesReview struct {
-	ID                string                     `json:"id"`
-	Request           deploymentkube.Request     `json:"request"`
-	Target            KubernetesTargetDescriptor `json:"target"`
-	BlueprintRevision int                        `json:"blueprintRevision"`
-	BlueprintDigest   string                     `json:"blueprintDigest"`
-	RunID             string                     `json:"runId"`
-	CheckID           string                     `json:"checkId"`
-	RunInputDigest    string                     `json:"runInputDigest"`
-	CheckDigest       string                     `json:"checkDigest"`
-	ContextDigest     string                     `json:"contextDigest"`
-	MonthlyBudgetUSD  float64                    `json:"monthlyBudgetUsd"`
-	CreatedAt         string                     `json:"createdAt"`
-	ExpiresAt         string                     `json:"expiresAt"`
-	Applied           bool                       `json:"applied"` // admission attempted, never a successful-deployment claim
+	PublicRouteAcknowledged bool                         `json:"publicRouteAcknowledged,omitempty"`
+	ID                      string                       `json:"id"`
+	CoordinatorOrigin       *coordinatorKubernetesOrigin `json:"coordinatorOrigin,omitempty"`
+	Request                 deploymentkube.Request       `json:"request"`
+	Target                  KubernetesTargetDescriptor   `json:"target"`
+	BlueprintRevision       int                          `json:"blueprintRevision"`
+	BlueprintDigest         string                       `json:"blueprintDigest"`
+	RunID                   string                       `json:"runId"`
+	CheckID                 string                       `json:"checkId"`
+	RunInputDigest          string                       `json:"runInputDigest"`
+	CheckDigest             string                       `json:"checkDigest"`
+	ContextDigest           string                       `json:"contextDigest"`
+	MonthlyBudgetUSD        float64                      `json:"monthlyBudgetUsd"`
+	CreatedAt               string                       `json:"createdAt"`
+	ExpiresAt               string                       `json:"expiresAt"`
+	Applied                 bool                         `json:"applied"` // admission attempted, never a successful-deployment claim
 }
 type kubernetesReviewLedger struct {
 	Version      int                `json:"version"`
@@ -91,6 +94,15 @@ func (s *Server) readKubernetesReviews(projectID string) (string, kubernetesRevi
 		expiry, ee := time.Parse(time.RFC3339Nano, row.ExpiresAt)
 		plan, pe := deploymentplan.Compile(row.Request.Blueprint)
 		if ce != nil || ee != nil || !expiry.Equal(created.Add(10*time.Minute)) || pe != nil || plan.State != "compiled-prototype" || row.ID != row.Request.ApprovalReference || row.ID != row.Request.Identity.OperationID || row.Request.Identity.ProjectID != projectID || !validKubeReceipt(row.ID) || seen[row.ID] || row.Target.ID != row.Request.Identity.TargetID || row.Target.Fingerprint != row.Request.Identity.TargetFingerprint || row.Target.ProjectID != projectID || row.Target.Namespace != plan.Blueprint.Infrastructure.Namespace || row.Request.Identity.PlanDigest != plan.Digest || !hexDigest(row.BlueprintDigest) || !hexDigest(row.ContextDigest) || !hexDigest(row.RunInputDigest) || !hexDigest(row.CheckDigest) || row.BlueprintRevision < 1 || row.MonthlyBudgetUSD <= 0 || math.IsNaN(row.MonthlyBudgetUSD) || math.IsInf(row.MonthlyBudgetUSD, 0) {
+			return "", empty, ErrKubernetesReview
+		}
+		if row.CoordinatorOrigin != nil {
+			origin := row.CoordinatorOrigin
+			if !prototypeReleaseID.MatchString(origin.ContinuationID) || origin.ActorID != row.Request.Identity.ActorID || origin.ActionID != origin.ContinuationID+"-kubernetes" || !hexDigest(origin.BindingDigest) {
+				return "", empty, ErrKubernetesReview
+			}
+		}
+		if (row.Request.Blueprint.PublicRoute != nil) != row.PublicRouteAcknowledged {
 			return "", empty, ErrKubernetesReview
 		}
 		seen[row.ID] = true
@@ -184,6 +196,13 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	if err != nil || plan.State != "compiled-prototype" {
 		return KubernetesReview{}, ErrKubernetesReview
 	}
+	if plan.Blueprint.PublicRoute != nil {
+		if !input.AcknowledgePublicRoute || s.kubernetesPublicAuthority(ctx, actor) != nil {
+			return KubernetesReview{}, ErrKubernetesReview
+		}
+	} else if input.AcknowledgePublicRoute {
+		return KubernetesReview{}, ErrKubernetesReview
+	}
 	needsReferences := deploymentplan.RuntimeReferenceCount(plan.Blueprint) > 0
 	if err := s.kubernetesAuthority(ctx, actor, false, needsReferences, 0); err != nil {
 		return KubernetesReview{}, err
@@ -201,7 +220,33 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	if selected.ID == "" || selected.Namespace != plan.Blueprint.Infrastructure.Namespace || selected.ID != plan.Blueprint.Infrastructure.Reference {
 		return KubernetesReview{}, ErrKubernetesReview
 	}
-	id, err := kubeOpaqueID("workload-")
+	var id string
+	var origin *coordinatorKubernetesOrigin
+	if captured, internal := ctx.Value(coordinatorKubernetesContextKey{}).(coordinatorKubernetesOrigin); internal {
+		origin = &captured
+		id, err = s.coordinatorKubernetesRequestedReview(ctx, actor, input, captured)
+		if err == nil {
+			s.kubernetesReviewMu.Lock()
+			_, existing, readErr := s.readKubernetesReviews(actor.ProjectID)
+			s.kubernetesReviewMu.Unlock()
+			if readErr != nil {
+				return KubernetesReview{}, readErr
+			}
+			for _, prior := range existing.Reviews {
+				if prior.ID == id {
+					if reviewDigest(prior.CoordinatorOrigin) != reviewDigest(origin) || !sameCoordinatorKubernetesReviewInput(prior, input) {
+						return KubernetesReview{}, ErrKubernetesReview
+					}
+					if err = s.authorizeKubernetesReview(ctx, prior, false, true); err != nil {
+						return KubernetesReview{}, err
+					}
+					return prior, nil
+				}
+			}
+		}
+	} else {
+		id, err = kubeOpaqueID("workload-")
+	}
 	if err != nil {
 		return KubernetesReview{}, err
 	}
@@ -232,6 +277,10 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 		var object metav1.Object
 		if row.Kind == "Deployment" {
 			object, err = target.Client.AppsV1().Deployments(target.Namespace).Get(ctx, row.Name, metav1.GetOptions{})
+		} else if row.Kind == "ConfigMap" {
+			object, err = target.Client.CoreV1().ConfigMaps(target.Namespace).Get(ctx, row.Name, metav1.GetOptions{})
+		} else if row.Kind == "Ingress" {
+			object, err = target.Client.NetworkingV1().Ingresses(target.Namespace).Get(ctx, row.Name, metav1.GetOptions{})
 		} else if row.Kind == "Service" {
 			object, err = target.Client.CoreV1().Services(target.Namespace).Get(ctx, row.Name, metav1.GetOptions{})
 		} else {
@@ -252,9 +301,14 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	if err != nil {
 		return KubernetesReview{}, ErrKubernetesReview
 	}
+	publicBinding, err := deploymentkube.ReadPublicRouteBinding(ctx, target, plan.Blueprint, func(call context.Context) error { return s.kubernetesAuthority(call, actor, false, true, 0) })
+	if err != nil {
+		return KubernetesReview{}, ErrKubernetesReview
+	}
 	now := time.Now().UTC()
-	review := KubernetesReview{ID: id, Request: deploymentkube.Request{Identity: identity, Blueprint: plan.Blueprint, ApprovalReference: id, Expected: expected}, Target: selected, BlueprintRevision: saved.Revision, BlueprintDigest: saved.Digest, RunID: input.RunID, CheckID: input.CheckID, RunInputDigest: runDigest, CheckDigest: checkDigest, ContextDigest: contextDigest, MonthlyBudgetUSD: input.MonthlyBudgetUSD, CreatedAt: now.Format(time.RFC3339Nano), ExpiresAt: now.Add(10 * time.Minute).Format(time.RFC3339Nano)}
+	review := KubernetesReview{PublicRouteAcknowledged: input.AcknowledgePublicRoute, ID: id, CoordinatorOrigin: origin, Request: deploymentkube.Request{Identity: identity, Blueprint: plan.Blueprint, ApprovalReference: id, Expected: expected}, Target: selected, BlueprintRevision: saved.Revision, BlueprintDigest: saved.Digest, RunID: input.RunID, CheckID: input.CheckID, RunInputDigest: runDigest, CheckDigest: checkDigest, ContextDigest: contextDigest, MonthlyBudgetUSD: input.MonthlyBudgetUSD, CreatedAt: now.Format(time.RFC3339Nano), ExpiresAt: now.Add(10 * time.Minute).Format(time.RFC3339Nano)}
 	review.Request.References = importedReferences
+	review.Request.PublicRouteBinding = publicBinding
 	if err := s.authorizeKubernetesReview(ctx, review, false, true); err != nil {
 		return KubernetesReview{}, err
 	}
@@ -263,6 +317,17 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	path, ledger, err := s.readKubernetesReviews(actor.ProjectID)
 	if err != nil {
 		return KubernetesReview{}, err
+	}
+	for _, prior := range ledger.Reviews {
+		if prior.ID == id {
+			if origin == nil || reviewDigest(prior.CoordinatorOrigin) != reviewDigest(origin) || !sameCoordinatorKubernetesReviewInput(prior, input) {
+				return KubernetesReview{}, ErrKubernetesReview
+			}
+			if err = s.authorizeKubernetesReview(ctx, prior, false, true); err != nil {
+				return KubernetesReview{}, err
+			}
+			return prior, nil
+		}
 	}
 	kept := []KubernetesReview{}
 	// Keep all unresolved originals, but a rolling recent window of positively
@@ -307,6 +372,17 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 
 func (s *Server) authorizeKubernetesReview(ctx context.Context, row KubernetesReview, mutation, source bool) error {
 	actor := kubeActor(row.Request.Identity)
+	if row.Request.Blueprint.PublicRoute != nil {
+		if !row.PublicRouteAcknowledged {
+			return ErrKubernetesReview
+		}
+		if (mutation || source) && s.kubernetesPublicAuthority(ctx, actor) != nil {
+			return ErrKubernetesReview
+		}
+	}
+	if err := s.validateCoordinatorKubernetesOrigin(ctx, row, mutation); err != nil {
+		return err
+	}
 	needsReferences := deploymentplan.RuntimeReferenceCount(row.Request.Blueprint) > 0
 	if err := s.kubernetesAuthority(ctx, actor, mutation, needsReferences, row.MonthlyBudgetUSD); err != nil {
 		return err
