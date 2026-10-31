@@ -75,6 +75,15 @@ it('passes a selected-view cancellation signal only to its read request',async()
   expect(await projectRunsApi.get('p-1','run-1',controller.signal)).toBe(receipt);
   expect(request).toHaveBeenCalledExactlyOnceWith('/v1/product/projects/p-1/runs/run-1',undefined,'GET',30_000,controller.signal);
 });
+it('passes list cancellation compatibly and refuses a malformed or oversized recorded history', async () => {
+  const controller = new AbortController(), request = vi.spyOn(productApi, 'request').mockResolvedValueOnce({ runs: [receipt] });
+  expect(await projectRunsApi.list('p-1', controller.signal)).toEqual([receipt]);
+  expect(request).toHaveBeenCalledExactlyOnceWith('/v1/product/projects/p-1/runs', undefined, 'GET', 30_000, controller.signal);
+  request.mockResolvedValueOnce({ runs: null });
+  await expect(projectRunsApi.list('p-1', controller.signal)).rejects.toThrow(/history limit/);
+  request.mockResolvedValueOnce({ runs: Array.from({ length: 201 }, () => receipt) });
+  await expect(projectRunsApi.list('p-1', controller.signal)).rejects.toThrow(/history limit/);
+});
 
 it('validates the child reservation and propagates stale-revision failure without replay', async () => {
   const request = vi.spyOn(productApi, 'request').mockResolvedValue({ run: receipt, operation: { id: 'op-1', childId: 's-foreign' } });

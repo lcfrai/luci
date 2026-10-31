@@ -164,8 +164,11 @@ async function mutate(project: string, run: string, action: string, body: unknow
   return owned(project, result.run, run);
 }
 export const projectRunsApi = {
-  async list(project: string) {
-    const result = await productApi.request<{ runs: ProjectRun[] }>(path(project));
+  async list(project: string, signal?: AbortSignal) {
+    const result = signal
+      ? await productApi.request<{ runs: ProjectRun[] }>(path(project), undefined, 'GET', 30_000, signal)
+      : await productApi.request<{ runs: ProjectRun[] }>(path(project));
+    if (!result || !Array.isArray(result.runs) || result.runs.length > 200) throw new Error('The recorded run list could not be verified within its history limit. Refresh this project before continuing.');
     return result.runs.map(run => owned(project, run));
   },
   async get(project: string, id: string, signal?: AbortSignal) {

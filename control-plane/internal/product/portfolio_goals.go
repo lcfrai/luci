@@ -109,10 +109,12 @@ type PortfolioGoalApplication struct {
 }
 
 type PortfolioGoalApply struct {
-	GoalID               string `json:"goalId"`
-	ExpectedGoalRevision int    `json:"expectedGoalRevision"`
-	ExpectedPlanDigest   string `json:"expectedPlanDigest"`
-	IdempotencyKey       string `json:"idempotencyKey"`
+	Mode                 string                 `json:"mode,omitempty"`
+	Focus                *PortfolioFocusRequest `json:"focus,omitempty"`
+	GoalID               string                 `json:"goalId"`
+	ExpectedGoalRevision int                    `json:"expectedGoalRevision"`
+	ExpectedPlanDigest   string                 `json:"expectedPlanDigest"`
+	IdempotencyKey       string                 `json:"idempotencyKey"`
 }
 
 type PortfolioGoalsView struct {
@@ -121,6 +123,7 @@ type PortfolioGoalsView struct {
 	Applications   []PortfolioGoalApplication `json:"applications"`
 	Partial        bool                       `json:"partial"`
 	OutcomeRouting *PortfolioOutcomeRouting   `json:"outcomeRouting,omitempty"`
+	Focus          *PortfolioFocusView        `json:"focus,omitempty"`
 }
 
 type portfolioGoalsLedger struct {
@@ -537,6 +540,9 @@ func portfolioApplicationStatus(results []PortfolioPriorityResult) string {
 // A returned pending/unknown write is never automatically retried. Reusing the
 // same key returns retained evidence only; a new effect requires a new review.
 func (s *Server) ApplyPortfolioGoal(ctx context.Context, req PortfolioGoalApply, access PortfolioGoalAccess) (PortfolioGoalApplication, error) {
+	if req.Mode != "" || req.Focus != nil {
+		return PortfolioGoalApplication{}, ErrPortfolioGoalInvalid
+	}
 	actor, err := portfolioGoalActor(ctx)
 	if err != nil {
 		return PortfolioGoalApplication{}, err

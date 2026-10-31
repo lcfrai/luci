@@ -1,5 +1,6 @@
 import { productApi } from './product';
 import type { PortfolioIntervention, PortfolioProject } from './portfolio';
+import { validFocusView, type FocusView } from './portfolioFocus';
 
 export type GoalPriority = 'low' | 'normal' | 'high';
 export interface GoalProject { projectId: string; priority: GoalPriority; requestedSlots: number; dependsOn: string[] }
@@ -24,7 +25,7 @@ export interface PortfolioOutcomeRouting {
   version: 1; status: 'ready' | 'partial'; observedAt: string; routes: PortfolioOutcomeRoute[];
   readProjects: number; omittedProjects: number; omittedRoutes: number; unknownProjects: number;
 }
-export interface GoalsView { revision: number; goals: PortfolioGoal[]; applications: GoalApplication[]; partial: boolean; outcomeRouting?: PortfolioOutcomeRouting }
+export interface GoalsView { revision: number; goals: PortfolioGoal[]; applications: GoalApplication[]; partial: boolean; outcomeRouting?: PortfolioOutcomeRouting; focus?: FocusView }
 const id = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const digest = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const integer = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum;
@@ -72,7 +73,8 @@ export function validGoalsView(value: GoalsView): boolean {
   return !!value && integer(value.revision) && typeof value.partial === 'boolean' && Array.isArray(value.goals) && value.goals.length <= 16 && value.goals.every(validGoal) &&
     new Set(value.goals.map(goal => goal.id)).size === value.goals.length && Array.isArray(value.applications) && value.applications.length <= 32 && value.applications.every(validGoalApplication) &&
     new Set(value.applications.map(application => application.id)).size === value.applications.length && value.applications.every(application => value.goals.some(goal => goal.id === application.goalId)) &&
-    (value.outcomeRouting === undefined || validOutcomeRouting(value.outcomeRouting, value.goals, value.partial));
+    (value.outcomeRouting === undefined || validOutcomeRouting(value.outcomeRouting, value.goals, value.partial)) &&
+    (value.focus === undefined || validFocusView(value.focus));
 }
 export function validOutcomeRouting(value: PortfolioOutcomeRouting, goals: PortfolioGoal[], partial: boolean): boolean {
   const pairs = goals.reduce((count, goal) => count + goal.projects.length, 0);

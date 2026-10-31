@@ -1,4 +1,5 @@
 import type { ProjectSpecification } from "../api/definition";
+import { specificationStrategyDraftValid } from "../api/specificationStrategy";
 import { discoverySourceLinksValid } from "../api/discoveryDocuments";
 import type { DesignPlan } from "../api/designPlan";
 import { editableDesignSceneValid, designRasterPinValid } from '../api/designScene';
@@ -9,7 +10,7 @@ export const definitionDraftValid = (value: unknown): value is ProjectSpecificat
   requirements: [{ id: "", title: "", priority: "", acceptance: "" }], journeys: [{ id: "", name: "", actor: "", steps: "", requirementIds: [""] }],
   roles: [{ id: "", name: "", canDo: "", cannotDo: "" }], entities: [{ id: "", name: "", fields: "", privacy: "" }], integrations: [{ id: "", name: "", purpose: "", constraint: "" }],
   glossary: [{ id: "", term: "", meaning: "" }], decisions: [{ id: "", title: "", decision: "", reason: "", alternatives: "" }], questions: [{ id: "", question: "", answer: "" }], status: "", digest: "", updatedAt: "",
-}) && ((value as ProjectSpecification).evidence === undefined || discoverySourceLinksValid((value as ProjectSpecification).evidence));
+}) && ((value as ProjectSpecification).strategy === undefined || specificationStrategyDraftValid((value as ProjectSpecification).strategy)) && ((value as ProjectSpecification).evidence === undefined || discoverySourceLinksValid((value as ProjectSpecification).evidence));
 export const designPlanDraftValid = (value: unknown): value is DesignPlan => draftMatches(value, {
   projectId: "", revision: 0, briefRevision: 0, specificationRevision: 0, sketchRevision: 0,
   screens: [{ id: "", name: "", route: "", purpose: "", states: [""], widths: [0], requirementIds: [""], accessibility: "" }],

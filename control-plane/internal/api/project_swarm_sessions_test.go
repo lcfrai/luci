@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http/httptest"
@@ -17,6 +20,8 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
@@ -168,6 +173,91 @@ func (f *swarmSessionFixture) reserve(t *testing.T, task string) {
 }
 
 func (f *swarmSessionFixture) base() string { return "/v1/product/projects/" + f.owner.ID + "/runs" }
+
+// Private hook tests begin after reservation, so persist the scheduler-owned
+// row that the real dispatch loop would already have written. This is fixture
+// state, not a production admission bypass or permission grant. Do not wake the
+// scheduler: the test invokes its exact admission/dispatch hooks explicitly.
+func (f *swarmSessionFixture) persistQueuedAttempt(t *testing.T, queueID string, actor management.ExecutionActorRef) {
+	t.Helper()
+	digest := func(value any) string {
+		data, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(data)
+		return hex.EncodeToString(sum[:])
+	}
+	path := filepath.Join(f.options.StateDir, "swarm-scheduler.json")
+	var ledger map[string]json.RawMessage
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		stateDir, pathErr := hostpath.Real(f.options.StateDir)
+		if pathErr != nil {
+			t.Fatal(pathErr)
+		}
+		policy, policyErr := f.env.api.deps.Product.SwarmSchedulerPolicy()
+		if policyErr != nil {
+			t.Fatal(policyErr)
+		}
+		data, err = json.Marshal(map[string]any{"version": 1, "accountScope": digest(stateDir), "revision": 1, "policyRevision": 1, "policy": policy, "lastServed": map[string]uint64{}, "items": []any{}})
+	}
+	if err != nil || json.Unmarshal(data, &ledger) != nil {
+		t.Fatal("scheduler fixture", err)
+	}
+	var rows []json.RawMessage
+	if err := json.Unmarshal(ledger["items"], &rows); err != nil {
+		t.Fatal(err)
+	}
+	task := f.run.Swarm.Tasks[0]
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	item := product.SwarmQueueItem{Revision: 1, ID: queueID, ProjectID: f.owner.ID, RunID: f.run.ID, TaskID: task.ID, TaskTitle: task.Title, Priority: "normal", State: "queued", QueuedAt: now, UpdatedAt: now}
+	if len(f.ops) > 0 {
+		item.TaskID, item.TaskTitle, item.State, item.OperationID, item.ChildID = f.ops[0].TaskID, task.Title, "reserved", f.ops[0].ID, f.ops[0].ChildID
+	}
+	row, err := json.Marshal(struct {
+		product.SwarmQueueItem
+		Actor          management.ExecutionActorRef `json:"actor"`
+		InputDigest    string                       `json:"inputDigest"`
+		KeyDigest      string                       `json:"keyDigest"`
+		BatchKeyDigest string                       `json:"batchKeyDigest"`
+		RequestDigest  string                       `json:"requestDigest"`
+	}{item, actor, digest(string(mustSwarmFixtureJSON(t, f.run.Input))), digest(queueID), digest(queueID + "/batch"), digest(queueID + "/request")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows = append(rows, row)
+	ledger["items"], err = json.Marshal(rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = json.Marshal(ledger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	view, err := f.env.api.deps.Product.ProjectSwarmQueueSnapshot(f.owner.ID)
+	if err != nil {
+		t.Fatal("invalid persisted queue ownership", err)
+	}
+	for _, saved := range view.Items {
+		if saved.ID == queueID && saved.RunID == f.run.ID && saved.OperationID == item.OperationID && saved.ChildID == item.ChildID {
+			return
+		}
+	}
+	t.Fatal("persisted queue ownership was not loaded")
+}
+
+func mustSwarmFixtureJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
 
 func (f *swarmSessionFixture) readRun(t *testing.T, w *httptest.ResponseRecorder, status int) {
 	t.Helper()

@@ -88,9 +88,9 @@
   padding: 10px 8px;
 }
 .sub-row {
-  min-block-size: 42px;
+  min-block-size: var(--nav-row-size);
   gap: 10px;
-  padding: 10px;
+  padding: var(--rail-row-pad-block) 10px;
   margin-block-end: 4px;
   font-weight: 550;
 }
@@ -147,7 +147,7 @@
   .sub-row {
     padding: 9px 5px;
     gap: 6px;
-    min-block-size: 44px;
+    min-block-size: max(44px, var(--nav-row-size));
     font-size: 13px;
   }
   .sub-glyph,
@@ -155,3 +155,12 @@
     inline-size: 16px;
   }
 }
+/* Keep every activity visible at narrow widths, including browser zoom. DOM and
+   keyboard order remain Discover → Design → Develop → Deploy → Distribute. */
+@media (max-width: 480px) {
+  .sub-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+  .sub-row { grid-column: span 2; inline-size: 100%; min-inline-size: 0; white-space: normal; overflow-wrap: anywhere; }
+  .sub-row:nth-child(n + 4) { grid-column: span 3; }
+  .sub-glyph { flex: 0 0 auto; }
+}
+@media (max-width: 760px), (pointer: coarse) { .sub-row, .sub-back { min-block-size: max(44px, var(--nav-row-size)); } }

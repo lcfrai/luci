@@ -162,6 +162,18 @@ func runtimeContext(spec backend.RuntimeImageSpec) ([]previewFile, string, error
 			return nil, "", err
 		}
 	}
+	// Legacy recipes retain their exact old closure. The new recipe admits only
+	// this fixed pair, under the same original-handle limits and identity guards.
+	for _, f := range files {
+		if f.name == "images/sandbox/Dockerfile" && strings.Contains(string(f.data), "COPY images/sandbox/codex-task-result.cjs /usr/local/lib/luci/codex-task-result.cjs") {
+			for _, name := range []string{"codex-task-result.cjs", "task-handoff.schema.json"} {
+				if err = readFile(sandbox, name, "images/sandbox/"+name); err != nil {
+					return nil, "", err
+				}
+			}
+			break
+		}
+	}
 	for _, check := range []struct {
 		root *os.Root
 		name string
@@ -266,6 +278,8 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 	logical := ""
 	fromCount := 0
 	copies := map[string]bool{}
+	terminalCapability := false
+	normalZeroCapability := false
 	for _, line := range lines {
 		clean := strings.TrimSpace(line)
 		if strings.ContainsAny(line, "\x00\r") || strings.Contains(line, "<<") {
@@ -321,11 +335,24 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 			// The source is the trusted bundle, not a project Dockerfile.
 			// RUN keeps its original shell text and ordinary continuations.
 		case "COPY":
-			allowed := fromCount == 1 && instruction == "COPY sandboxd ./sandboxd" || fromCount == 2 && (instruction == "COPY --from=build /out/sandboxd /usr/local/bin/sandboxd" || instruction == "COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz" || instruction == "COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs" || instruction == "COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh")
+			allowed := fromCount == 1 && instruction == "COPY sandboxd ./sandboxd" || fromCount == 2 && (instruction == "COPY --from=build /out/sandboxd /usr/local/bin/sandboxd" || instruction == "COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz" || instruction == "COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs" || instruction == "COPY images/sandbox/codex-task-result.cjs /usr/local/lib/luci/codex-task-result.cjs" || instruction == "COPY images/sandbox/task-handoff.schema.json /usr/local/lib/luci/task-handoff.schema.json" || instruction == "COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh")
 			if !allowed || copies[instruction] {
 				return nil, nil, backend.ErrUnsupported
 			}
 			copies[instruction] = true
+		case "LABEL":
+			if instruction == `LABEL ai.lcfr.task-exit-normal-zero="v1"` {
+				if fromCount != 2 || normalZeroCapability {
+					return nil, nil, backend.ErrUnsupported
+				}
+				normalZeroCapability = true
+				break
+			}
+			expected := `LABEL ai.lcfr.codex-task-result="v1" ai.lcfr.codex-task-result.schema-sha256="` + backend.CodexTaskResultSchemaDigest + `"`
+			if fromCount != 2 || terminalCapability || instruction != expected {
+				return nil, nil, backend.ErrUnsupported
+			}
+			terminalCapability = true
 		case "WORKDIR":
 			if fromCount == 1 && instruction != "WORKDIR /src" || fromCount == 2 && instruction != "WORKDIR /home/dev" {
 				return nil, nil, backend.ErrUnsupported
@@ -347,12 +374,22 @@ func runtimePreparedContext(files []previewFile, identity backend.RuntimeImageId
 				return nil, nil, backend.ErrUnsupported
 			}
 		default:
-			// This also refuses LABEL, ARG, ONBUILD, VOLUME and remote ADD.
+			// This refuses arbitrary labels, ARG, ONBUILD, VOLUME and remote ADD.
 			return nil, nil, backend.ErrUnsupported
 		}
 		out = append(out, line)
 	}
-	if logical != "" || fromCount != 2 || len(copies) != 5 {
+	expectedCopies := 5
+	if normalZeroCapability && !terminalCapability {
+		return nil, nil, backend.ErrUnsupported
+	}
+	if terminalCapability {
+		expectedCopies = 7
+		if !copies["COPY images/sandbox/codex-task-result.cjs /usr/local/lib/luci/codex-task-result.cjs"] || !copies["COPY images/sandbox/task-handoff.schema.json /usr/local/lib/luci/task-handoff.schema.json"] {
+			return nil, nil, backend.ErrUnsupported
+		}
+	}
+	if logical != "" || fromCount != 2 || len(copies) != expectedCopies {
 		return nil, nil, backend.ErrUnsupported
 	}
 	preparedFiles := append([]previewFile(nil), files...)

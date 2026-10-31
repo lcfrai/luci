@@ -509,6 +509,7 @@ func New(d Deps) (*API, error) {
 		d.Product.SetProjectSwarmWorktreeObserver(a.observeSwarmWorktree)
 		d.Product.SetCoordinatorFindingDispatcher(a.dispatchCoordinatorFinding)
 		d.Product.SetCoordinatorFindingRecipients(d.FindingRecipients, d.AuthorizeProjectRead)
+		d.Product.SetPortfolioFocusReadAuthorizer(d.AuthorizeProjectRead)
 		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
 	}
 
@@ -530,6 +531,14 @@ func New(d Deps) (*API, error) {
 	guarded.HandleFunc("POST /v1/product/portfolio-goals/{goalId}/apply", a.handlePortfolioGoalApply)
 	guarded.HandleFunc("GET /v1/product/portfolio-goals/applications/{applicationId}", a.handlePortfolioGoalApplication)
 	guarded.HandleFunc("POST /v1/product/projects/{id}/deployment-blueprint", a.handleDeploymentBlueprint)
+	guarded.HandleFunc("GET /v1/product/projects/{id}/deployment-blueprint/saved", a.handleSavedDeploymentBlueprint)
+	guarded.HandleFunc("PUT /v1/product/projects/{id}/deployment-blueprint/saved", a.handleSavedDeploymentBlueprint)
+	guarded.HandleFunc("GET /v1/product/projects/{id}/kubernetes/targets", a.handleKubernetesDeployment)
+	guarded.HandleFunc("PUT /v1/product/projects/{id}/kubernetes/targets", a.handleKubernetesDeployment)
+	guarded.HandleFunc("GET /v1/product/projects/{id}/kubernetes/deployments", a.handleKubernetesDeployment)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/review", a.handleKubernetesDeployment)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/apply", a.handleKubernetesDeployment)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/kubernetes/deployments/{operationId}/observe", a.handleKubernetesDeployment)
 	guarded.HandleFunc("PUT /v1/product/home/pins", a.handleHomePin)
 	guarded.HandleFunc("POST /v1/product/home/stops/ack", a.handleHomeAcknowledge)
 	a.registerAttach(guarded)

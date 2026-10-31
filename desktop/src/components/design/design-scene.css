@@ -7,6 +7,18 @@
 .design-scene-editor select, .design-scene-editor input:not([type="checkbox"]), .design-scene-editor textarea { min-inline-size: 0; inline-size: 100%; min-block-size: 40px; border: 1px solid var(--line-soft); border-radius: var(--r-ctl); padding: 8px; background: var(--surface); color: var(--ink); }
 .design-scene-editor textarea { resize: vertical; }
 .design-scene-editor fieldset { min-inline-size: 0; border: 0; padding: 0; margin: 0; }
+.design-frame-variants { border-block: 1px solid var(--line-strong); margin-block: var(--layout-gap); }
+.design-frame-variants > summary { cursor: pointer; padding-block: 12px; font-size: 13px; overflow-wrap: anywhere; }
+.design-frame-variants[open] { padding-bottom: var(--layout-gap); }
+.design-frame-variants h3 { margin: 0; font-size: 14px; }
+.design-frame-variants p { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; margin-block: 8px; }
+.design-frame-variant-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; }
+.design-frame-variant-actions label { flex: 1 1 150px; max-inline-size: 260px; }
+.design-frame-coverage summary { cursor: pointer; padding-block: 12px; overflow-wrap: anywhere; }
+.design-frame-coverage ul { list-style: none; padding: 0; margin: 0; }
+.design-frame-coverage li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding-block: 8px; border-block-end: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.design-frame-coverage li > button { white-space: normal; text-align: start; }
+@media (max-width: 760px), (pointer: coarse) { .design-frame-variants summary, .design-frame-variants select { min-block-size: 44px; } }
 .design-scene-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr) 230px; min-block-size: 480px; border-block: 1px solid var(--line-soft); }
 .design-scene-layers, .design-scene-properties { min-inline-size: 0; padding: 12px; max-block-size: 720px; overflow: auto; background: var(--surface); }
 .design-scene-layers { border-inline-end: 1px solid var(--line-soft); }

@@ -206,17 +206,24 @@
   color: var(--ink);
 }
 .appearance-panel .setup-field-grid {
-  margin-block: 26px;
+  margin-block: var(--form-gap);
+  gap: var(--form-gap);
 }
 .appearance-preview {
-  padding-block: 22px;
+  padding-block: var(--panel-padding);
   border-block: 1px solid var(--line-strong);
-  line-height: 1.8;
+  margin-block: var(--form-gap);
+  line-height: 1.6;
 }
-.appearance-preview > span {
+.appearance-preview h3, .appearance-preview h4 {
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
-  display: block;
 }
+.appearance-preview p { color: var(--ink-2); font-size: 13px; margin: 6px 0 0; }
+.appearance-preview-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--layout-gap); margin-top: var(--layout-gap); }
+.appearance-preview-cards article { min-inline-size: 0; overflow-wrap: anywhere; padding: var(--panel-padding); border: 1px solid var(--line-strong); border-radius: var(--r-card); background: var(--surface); }
+@media (max-width: 480px) { .appearance-preview-cards { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) {
   .onboarding-portal {
     display: block;
@@ -580,7 +587,7 @@
   gap: 10px;
 }
 .luci-button {
-  min-block-size: 40px;
+  min-block-size: var(--control-size);
   padding-block: var(--control-pad-block);
   font-size: 14px;
   font-weight: 550;
@@ -815,3 +822,4 @@ label.setup-check {
 @media (max-width: 560px) {
   .docker-storage-capacity { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
+@media (pointer: coarse) { .luci-button, .setup-close { min-block-size: max(44px, var(--control-size)); } }

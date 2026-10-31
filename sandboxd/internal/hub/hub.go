@@ -30,9 +30,12 @@ type Hub struct {
 	nextID int
 	closed bool
 
-	done       chan struct{}
-	doneOnce   sync.Once
-	exitReason string
+	done          chan struct{}
+	doneOnce      sync.Once
+	exitReason    string
+	waitObserved  bool
+	normalZero    bool
+	completedWait bool
 }
 
 // Start launches the command in a PTY and begins pumping its output into the
@@ -64,7 +67,7 @@ func (h *Hub) pump() {
 			h.publish(buf[:n])
 		}
 		if err != nil {
-			h.finish(h.reapExitReason())
+			h.finishWithWait(h.reapExitReason(), true)
 			return
 		}
 	}
@@ -91,13 +94,29 @@ func (h *Hub) publish(chunk []byte) {
 // it is the PTY closing, which reads as a plain I/O error and says nothing
 // about how the process actually ended.
 func (h *Hub) reapExitReason() string {
-	if err := h.sess.Wait(); err != nil {
+	err := h.sess.Wait()
+	h.mu.Lock()
+	h.waitObserved, h.normalZero = true, err == nil
+	h.mu.Unlock()
+	if err != nil {
 		return err.Error()
 	}
 	return "exit status 0"
 }
 
+// Only an actual successful Wait after the PTY read loop ended supplies this
+// fact. Diagnostic strings, detached subscribers and manual finish do not.
+func (h *Hub) NormalZero() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.closed && h.completedWait && h.waitObserved && h.normalZero
+}
+
 func (h *Hub) finish(reason string) {
+	h.finishWithWait(reason, false)
+}
+
+func (h *Hub) finishWithWait(reason string, completedWait bool) {
 	h.doneOnce.Do(func() {
 		// done is closed inside the same critical section that sets closed,
 		// so the two can never be observed out of step. A Subscribe that
@@ -113,6 +132,7 @@ func (h *Hub) finish(reason string) {
 		// A later cancel still stops that relay even though it left the map.
 		h.mu.Lock()
 		h.exitReason = reason
+		h.completedWait = completedWait
 		h.closed = true
 		close(h.done)
 		subs := h.subs

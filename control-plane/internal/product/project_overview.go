@@ -31,6 +31,7 @@ type ProjectOverview struct {
 	PrivateFinding ProjectOverviewPrivateFinding `json:"privateFinding"`
 	NextAction     OrchestratorAction            `json:"nextAction"`
 	Limitations    []string                      `json:"limitations"`
+	Outcomes       *ProjectOutcomes              `json:"outcomes,omitempty"`
 }
 type ProjectOverviewSharedChange struct {
 	Status string                      `json:"status"` // recorded, none, unavailable
@@ -170,6 +171,17 @@ func (s *Server) getProjectOverview(w http.ResponseWriter, r *http.Request) {
 		} else if !runContextNeedsReview && !view.LatestRun.taskReviewRequired && len(view.Attention.Items) == 0 && c.Running+c.Reserved+c.Queued+c.Paused > 0 && len(view.Questions.Items) == 0 {
 			view.NextAction = OrchestratorAction{ID: "inspect-queue", Label: "Follow queued work", Lens: "develop", Reason: "Open the project's queue to inspect recorded progress or change its priority."}
 		}
+	}
+	// Opt in only: ordinary overview polling must not scan retained run history.
+	if r.URL.Query().Get("includeOutcomes") == "true" {
+		outcomes := unavailableProjectOutcomes()
+		if s.projectRuns != nil {
+			runs, readErr := s.projectRuns.List(p.ID, p.Path)
+			if readErr == nil {
+				outcomes = summarizeProjectOutcomes(r.Context(), p.ID, runs)
+			}
+		}
+		view.Outcomes = &outcomes
 	}
 	if r.Context().Err() == nil {
 		writeJSON(w, http.StatusOK, view)

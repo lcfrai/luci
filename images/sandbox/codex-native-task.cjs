@@ -11,7 +11,7 @@ const FAILURE = 78;
 const SIGNALS = constants.signals;
 
 function validArguments(args) {
-  if (!Array.isArray(args) || args.length < PREFIX.length + 5 || args.length > 24 ||
+  if (!Array.isArray(args) || args.length < PREFIX.length + 5 || args.length > 28 ||
       args.some(value => typeof value !== 'string' || Buffer.byteLength(value) > 512 * 1024 || value.includes('\0')) ||
       PREFIX.some((value, index) => args[index] !== value)) return false;
   let i = PREFIX.length;
@@ -40,6 +40,12 @@ function validArguments(args) {
   if (args[i] === '--model') {
     if (!args[i + 1] || args[i + 1].length > 512) return false;
     i += 2;
+  }
+  // Only the fixed controller final-output pair is admitted; no caller path.
+  if (args[i] === '--output-schema') {
+    if (args[i + 1] !== '/usr/local/lib/luci/task-handoff.schema.json' || args[i + 2] !== '--output-last-message' ||
+        args[i + 3] !== '/home/dev/.luci-task-output/.codex-terminal/result.json') return false;
+    i += 4;
   }
   return args[i++] === '--' && i + 1 === args.length && args[i] !== '';
 }

@@ -22,6 +22,23 @@ async function openScreenPlan() {
   if (tab.getAttribute('aria-selected') !== 'true') await userEvent.click(tab);
 }
 async function screenPlanField(name: string) { await openScreenPlan(); return screen.findByRole('textbox', {name}); }
+it("reads saved design history without replacing a dirty screen draft or saving a selected snapshot", async () => {
+  ready();
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-history-draft");
+  const row = { ...fixture(), updatedAt: '2026-10-31T00:00:00Z' };
+  const history = vi.spyOn(designPlanApi, 'history').mockResolvedValue({ revisions: [row] });
+  const save = vi.spyOn(designPlanApi, 'save');
+  render(<DesignWorkspace projectId="p-1" />);
+  const name = await screenPlanField('Screen name') as HTMLInputElement;
+  await userEvent.type(name, ' local draft');
+  expect(history).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('tab', { name: 'Saved revisions' }));
+  await screen.findByRole('region', { name: `Saved design revision ${row.revision}` });
+  expect(screen.queryByRole('button', { name: 'Save design plan' })).toBeNull();
+  await userEvent.click(screen.getByRole('tab', { name: 'Screens and states' }));
+  expect(screen.getByRole('textbox', { name: 'Screen name' })).toHaveProperty('value', 'Home local draft');
+  expect(save).not.toHaveBeenCalled();
+});
 it("refreshes a clean Design editor after same-window definition approval before new edits", async () => {
   ready();
   vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-context-clean");

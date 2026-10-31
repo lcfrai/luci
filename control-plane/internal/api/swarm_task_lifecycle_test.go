@@ -58,6 +58,7 @@ func TestSwarmTaskAllocatorUsesNativeOneShotForManualAndQueuedLaunch(t *testing.
 				a.deps.ResourceSnapshot = executionFixtureSnapshot
 				a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
 				actor := management.ExecutionActorRef{Local: true, ProjectID: f.owner.ID}
+				f.persistQueuedAttempt(t, "queue-native-task", actor)
 				policy, err := a.deps.Product.SwarmSchedulerPolicy()
 				if err != nil {
 					t.Fatal(err)
@@ -79,8 +80,12 @@ func TestSwarmTaskAllocatorUsesNativeOneShotForManualAndQueuedLaunch(t *testing.
 			}
 			sessionsAwaitWatch(t, done)
 			spec := f.env.be.spec(t, 0)
-			at := slices.Index(spec.Args, "exec")
-			if spec.Command != "codex" || at < 0 || slices.Contains(spec.Args, "--no-alt-screen") || slices.Contains(spec.Args[at+1:], "-c") || !slices.Contains(spec.Args, "--dangerously-bypass-approvals-and-sandbox") {
+			if spec.Command != "/usr/local/bin/node" || len(spec.Args) < 4 || spec.Args[0] != taskTerminalWrapper || !reviewedDigest.MatchString(spec.Args[1]) || spec.Args[2] != "/usr/local/bin/codex" {
+				t.Fatal("task lost terminal contract", spec.Command, spec.Args)
+			}
+			originalArgs := spec.Args[3:]
+			at := slices.Index(originalArgs, "exec")
+			if at < 0 || slices.Contains(originalArgs, "--no-alt-screen") || slices.Contains(originalArgs[at+1:], "-c") || !slices.Contains(originalArgs, "--dangerously-bypass-approvals-and-sandbox") {
 				t.Fatalf("swarm allocated an interactive or conflicting Codex invocation: %s %v", spec.Command, spec.Args)
 			}
 			if !strings.Contains(strings.Join(spec.Args, "\n"), "developer_instructions=") || !strings.Contains(strings.Join(spec.Args, "\n"), "model_providers.luci-openai") {

@@ -14,6 +14,7 @@ import (
 // A specification is an immutable, revisioned product definition. The legacy
 // brief remains a compatible summary; saving either cannot silently approve it.
 type ProjectSpecification struct {
+	Strategy      *SpecificationStrategy      `json:"strategy,omitempty"`
 	Evidence      []DiscoveryEvidenceLink     `json:"evidence,omitempty"`
 	Roadmap       []SpecificationRoadmapPhase `json:"roadmap,omitempty"`
 	ProjectID     string                      `json:"projectId"`
@@ -155,6 +156,9 @@ func currentSpecification(state journeyState) ProjectSpecification {
 func ValidateSpecification(spec ProjectSpecification) error { return validateSpecification(spec) }
 
 func validateSpecification(spec ProjectSpecification) error {
+	if err := validateSpecificationStrategy(spec); err != nil {
+		return err
+	}
 	if err := validateDiscoveryEvidenceTargets(spec); err != nil {
 		return err
 	}
@@ -306,6 +310,13 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 	current := currentSpecification(state)
 	if current.Revision != req.ExpectedRevision || state.Brief.Revision != req.ExpectedBriefRevision {
 		problem(w, 409, "revision_conflict", "The definition changed. Reload saved work before merging your draft.")
+		return
+	}
+	if spec.Strategy == nil {
+		spec.Strategy = current.Strategy
+	}
+	if err := validateSpecification(spec); err != nil {
+		problem(w, 400, "invalid_specification", err.Error())
 		return
 	}
 	if len(current.Roadmap) > 0 && spec.Roadmap == nil {
@@ -474,5 +485,6 @@ func renderSpecification(spec ProjectSpecification) []byte {
 	}
 	out.WriteString(renderDiscoveryEvidence(spec.Evidence))
 	out.WriteString(renderSpecificationRoadmap(spec.Roadmap))
+	out.WriteString(renderSpecificationStrategy(spec.Strategy))
 	return []byte(out.String())
 }

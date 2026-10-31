@@ -1194,7 +1194,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	var conversation, conversationStore string
 	var source sessionResumeSource
-	if harnessID == harness.Codex {
+	if harnessID == harness.ID("codex") {
 		a.codexAccountMu.Lock()
 		defer a.codexAccountMu.Unlock()
 		// A concurrent create may have persisted this exact reserved child
@@ -1255,7 +1255,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		model = boundModel
 	}
 	authMode = agentConnection.AuthMode
-	if harnessID == harness.Codex && (agentConnection.Kind == "legacy" || agentConnection.Kind == "codex-subscription") {
+	if harnessID == harness.ID("codex") && (agentConnection.Kind == "legacy" || agentConnection.Kind == "codex-subscription") {
 		account, authMode, err = a.selectCodexConnection(ctx, sourceSession, req.AuthOnly, "")
 		if err != nil {
 			codexAccountProblem(w, err)
@@ -1514,6 +1514,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		sandboxMounts = append(sandboxMounts, mount)
 	}
 
+	terminalImage := ""
+	if taskWorker && harnessID == harness.ID("codex") && a.deps.Backend.Kind() == backend.KindDocker {
+		terminalOwner := registry.Session{ID: sessionID, ProjectID: projectID, WorktreeID: req.WorktreeID, Harness: "codex", ProjectRunID: req.ProjectRunID, ProjectRunOperationID: req.ProjectRunOperationID, ImplementationContext: implementationContext}
+		var terminalMount backend.Mount
+		command, argv, terminalMount, terminalImage, err = a.prepareTaskTerminal(r.Context(), terminalOwner, reviewedDescriptor, command, argv, a.sessionImage())
+		if err != nil {
+			a.internal(w, r, "prepare structured task terminal", err)
+			return
+		}
+		sandboxMounts = append(sandboxMounts, terminalMount)
+	}
+
 	var revalidateExecution func(context.Context) error
 	var markExecutionStart func(context.Context) error
 	var markExecutionSettled func(context.Context, string) error
@@ -1596,7 +1608,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 
 			CarriedConversationID: carriedConversation,
 		},
-		Spec:    backend.Spec{ID: sessionID, SessionID: sessionID, Image: a.sessionImage(), Command: command, Args: argv, Env: sandboxEnv, AttachToken: token, Resources: allocatedResources, WorkDir: sessionWorkDir, Mounts: sandboxMounts},
+		Spec:    backend.Spec{ID: sessionID, SessionID: sessionID, Image: taskTerminalSelectedImage(terminalImage, a.sessionImage()), Command: command, Args: argv, Env: sandboxEnv, AttachToken: token, Resources: allocatedResources, WorkDir: sessionWorkDir, Mounts: sandboxMounts},
 		Account: account, Revalidate: runAdmission.Revalidate, BeforeAllocate: revalidateExecution, BeforeBackendStart: markExecutionStart, AfterBackendCreate: markExecutionSettled, Staging: staging, HasReviewedContext: reviewedDescriptor != nil, ExecutionLeaseID: executionLeaseID, ManagedConnection: agentConnection,
 	})
 	if err != nil {
@@ -1808,6 +1820,16 @@ func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 	defer cancel()
 
 	if err := sessionWaitReady(ctx, endpoint, timeout); err != nil {
+		if row, readErr := a.deps.Store.Get(sessionID); readErr == nil && terminalSession(row) && row.TaskTerminalImage != "" && row.SandboxID == sandboxID {
+			if observed, _ := a.observeTaskContainerExit(ctx, row); observed {
+				return
+			}
+			// A readiness failure is not an original-child exit fact. Keep the
+			// exact allocation for normal bounded reaper observation, including
+			// running, unavailable and identity-uncertain responses.
+			a.sessionLog().Warn("structured task readiness is unconfirmed; retained original awaits observation", "sessionId", sessionID)
+			return
+		}
 		a.sessionLog().Warn("the sandbox never became ready",
 			"sessionId", sessionID, "sandboxId", sandboxID, "timeout", timeout, "err", err)
 
@@ -1837,7 +1859,7 @@ func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 		return
 	}
 
-	if _, err := a.deps.Store.Update(sessionID, func(sess *registry.Session) error {
+	if ready, err := a.deps.Store.Update(sessionID, func(sess *registry.Session) error {
 		// starting is the only status this transition is allowed to leave. A
 		// session killed while the watch was in flight stays exited.
 		if sess.SandboxID != sandboxID || sess.Status != registry.StatusStarting {
@@ -1846,11 +1868,15 @@ func (a *API) watchSessionReady(sessionID, sandboxID, endpoint string) {
 		sess.Status = registry.StatusRunning
 		sess.Endpoint = endpoint
 		sess.ExitReason = ""
+		sess.TaskTerminalExitZero = false
+		sess.TaskTerminalObserverStarted = terminalSession(*sess) // one observer intent in the original starting->running write
 		sess.StartFailure = registry.SessionStartFailure{}
 		sess.StartAdmissionEvidence = registry.StartAdmissionEvidence{}
 		return nil
 	}); err != nil && !errors.Is(err, sessionErrMoved) && !errors.Is(err, registry.ErrNotFound) {
 		a.sessionLog().Error("mark the session running", "sessionId", sessionID, "err", err)
+	} else if err == nil && terminalSession(ready) {
+		go a.observeTaskTerminal(ready.Clone())
 	}
 }
 
@@ -2427,6 +2453,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.EarlierConversationIDs = earlier
 		sess.Status = registry.StatusStarting
 		sess.ExitReason = ""
+		sess.TaskTerminalExitZero = false
+		sess.TaskTerminalObserverStarted = false
+		sess.TaskTerminalImage = ""
+		sess.TaskTerminalCreatedAt, sess.TaskTerminalStartedAt = time.Time{}, time.Time{}
+		sess.TaskTerminalResult = nil
 		sess.StartFailure = registry.SessionStartFailure{}
 		sess.StartAdmissionEvidence = registry.StartAdmissionEvidence{}
 		// AttachCount is deliberately untouched. Task 12's relay defer

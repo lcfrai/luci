@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { projectOverviewApi, type ProjectOverview } from './projectOverview';
+import { projectOverviewApi, validProjectOutcomes, type ProjectOverview, type ProjectOutcomes } from './projectOverview';
 import { productApi } from './product';
 afterEach(() => vi.restoreAllMocks());
 it('rejects summaries from a different project before rendering private context', async () => {
@@ -11,6 +11,20 @@ it('uses a read-only project route and passes cancellation through the product t
   const controller = new AbortController();
   await expect(projectOverviewApi.get('project/one', controller.signal)).rejects.toThrow('offline');
   expect(request).toHaveBeenCalledWith('/v1/product/projects/project%2Fone/overview', undefined, 'GET', 30_000, controller.signal);
+});
+it('opts into retained outcomes without changing ordinary overview reads', async () => {
+  const request = vi.spyOn(productApi, 'request').mockResolvedValue(summary());
+  await projectOverviewApi.get('p-1', undefined, { includeOutcomes: true });
+  expect(request).toHaveBeenCalledWith('/v1/product/projects/p-1/overview?includeOutcomes=true', undefined, 'GET', 30_000, undefined);
+});
+it('rejects unknown-as-zero or inconsistent retained outcome evidence while allowing legacy omission', () => {
+  const value: ProjectOutcomes = { status: 'recorded', scope: 'retained-run-history', observedAt: '2026-10-31T00:00:00Z', retainedRuns: 0, recordedAcceptances: 0, unconfirmedAcceptedObservations: 0, reviewRequiredRuns: 0, unresolvedCheckRepairTasks: 0, omittedRuns: 0, latestAccepted: null };
+  expect(validProjectOutcomes(undefined)).toBe(true);
+  expect(validProjectOutcomes(value)).toBe(true);
+  expect(validProjectOutcomes({ ...value, status: 'unavailable' })).toBe(false);
+  expect(validProjectOutcomes({ ...value, recordedAcceptances: 1 })).toBe(false);
+  expect(validProjectOutcomes({ ...value, unconfirmedAcceptedObservations: 1 })).toBe(false);
+  expect(validProjectOutcomes({ ...value, retainedRuns: 201 })).toBe(false);
 });
 
 const attention = { id: 'earlier-build', state: 'awaiting-checks', kind: 'task-review' as const, contextStatus: 'changed' as const };

@@ -41,6 +41,12 @@ func (s *Server) ReadPortfolioGoalsWithOutcomes(ctx context.Context, access Port
 	if err != nil {
 		return PortfolioGoalsView{}, err
 	}
+	focus, focusErr := s.ReadPortfolioFocus(ctx, access)
+	if focusErr == nil {
+		view.Focus = &focus
+	} else {
+		view.Partial = true
+	}
 	return portfolioGoalOutcomes(ctx, view, access, func(ctx context.Context, id, actor string) (PortfolioProject, []PortfolioIntervention, error) {
 		p, err := s.resolveProject(id)
 		if err != nil {

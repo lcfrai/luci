@@ -116,6 +116,8 @@ func (s *Server) Done() <-chan struct{} { return s.h.Done() }
 // line. Empty until Done is closed.
 func (s *Server) ExitReason() string { return s.h.ExitReason() }
 
+func (s *Server) NormalZero() bool { return s.h.NormalZero() }
+
 // authorised checks the bearer token. New guarantees AttachToken is non-empty
 // here unless AllowUnauthenticated was set, so an empty token at this point
 // means auth was deliberately disabled. ConstantTimeCompare avoids leaking

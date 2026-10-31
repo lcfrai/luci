@@ -139,12 +139,12 @@ export function ProjectsHome() {
           {home?.error && <p className="journey-error" role="status">{home.error} <Button variant="secondary" onClick={home.refresh}>Refresh activity</Button></p>}
           {!home?.home && <p role="status">{home?.busy ? 'Loading project activity…' : 'Project activity is unavailable. Refresh activity to verify your accessible projects.'}</p>}
           {home?.home && !home.activityAvailable && <p role="status">Showing last verified projects. Activity is unavailable; refresh before changing pins or queue controls.</p>}
-          {(!home || home.home) && <ul className="home-activity-list">{filtered.map(project => {
+          {(!home || home.home) && <ul className="home-activity-list" aria-label="Your project cards">{filtered.map(project => {
             const row = activity.get(project.id);
             const pinned = !!home?.home?.pinnedProjectIds.includes(project.id);
-            return <li key={project.id}>
-              <div><strong>{project.name}</strong><div className="home-activity-status" aria-label={`Activity for ${project.name}`}>
-                {row?.working && <span>Working</span>}{row?.needsInput && <span>Needs input</span>}
+            return <li key={project.id} className="home-project-card">
+              <div className="home-project-summary"><h2>{project.name}</h2><div className="home-activity-status" aria-label={`Activity for ${project.name}`}>
+                {row?.working && <span data-state="working">Working</span>}{row?.needsInput && <span data-state="needs-input">Needs input</span>}
                 {row?.queued && <span>Queued</span>}{row?.stops.length ? <span>Stopped · {row.stops[row.stops.length - 1].kind}</span> : null}
                 {row?.unknown && <span>Some activity unconfirmed</span>}{!row && <span>Activity unavailable</span>}
                 {row && !row.working && !row.needsInput && !row.queued && !row.unknown && !row.stops.length && <span>Ready to open</span>}

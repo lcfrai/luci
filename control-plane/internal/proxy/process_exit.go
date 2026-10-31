@@ -16,6 +16,9 @@ type ProcessExit struct {
 
 func (e ProcessExit) Known() bool { return e.hasCode || e.signal != "" }
 
+// Successful is only a known typed process code, never task correctness.
+func (e ProcessExit) Successful() bool { return e.hasCode && e.code == 0 && e.signal == "" }
+
 func (e ProcessExit) Reason() string {
 	if e.hasCode {
 		return "process exited with code " + strconv.Itoa(e.code)

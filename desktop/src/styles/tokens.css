@@ -152,6 +152,13 @@
   --rail-row-min-size: 40px;
   --field-min-size: 44px;
   --project-row-padding: 22px;
+  --control-size: 36px;
+  --control-pad-inline: 16px;
+  --nav-row-size: 42px;
+  --panel-padding: 22px;
+  --layout-gap: 18px;
+  --form-gap: 22px;
+  --workspace-gutter: 40px;
 }
 
 /* Appearance is applied before app/auth mount. Each light token is chosen for
@@ -232,6 +239,53 @@
   --rail-row-min-size: 32px;
   --field-min-size: 36px;
   --project-row-padding: 14px;
+  --control-size: 28px;
+  --control-pad-inline: 12px;
+  --nav-row-size: 36px;
+  --panel-padding: 14px;
+  --layout-gap: 12px;
+  --form-gap: 16px;
+  --workspace-gutter: 28px;
+}
+:root[data-density="spacious"] {
+  --control-pad-block: 12px;
+  --rail-row-pad-block: 10px;
+  --rail-row-min-size: 48px;
+  --field-min-size: 48px;
+  --project-row-padding: 28px;
+  --control-size: 44px;
+  --control-pad-inline: 20px;
+  --nav-row-size: 48px;
+  --panel-padding: 28px;
+  --layout-gap: 24px;
+  --form-gap: 28px;
+  --workspace-gutter: 48px;
+}
+
+/* Contrast changes neutral structure and text, independently of theme/accent.
+ * Semantic statuses and the selected accent retain their own vocabulary. */
+:root[data-contrast="strong"] {
+  --line-soft: oklch(94.8% 0.0097 73 / 0.12);
+  --line: oklch(94.8% 0.0097 73 / 0.22);
+  --line-strong: oklch(94.8% 0.0097 73 / 0.4);
+  --thread: oklch(94.8% 0.0097 73 / 0.4);
+  --ink-2: oklch(82% 0.01 68);
+  --ink-3: oklch(76% 0.01 64);
+}
+:root[data-theme="light"][data-contrast="strong"] {
+  --line-soft: oklch(25.99% 0.00745 67 / 0.16);
+  --line: oklch(25.99% 0.00745 67 / 0.3);
+  --line-strong: oklch(25.99% 0.00745 67 / 0.48);
+  --thread: oklch(25.99% 0.00745 67 / 0.48);
+  --ink-2: oklch(36% 0.01 67);
+  --ink-3: oklch(40% 0.01 67);
+}
+@media (pointer: coarse), (max-width: 760px) {
+  :root[data-density="comfortable"], :root[data-density="compact"] {
+    --field-min-size: 44px;
+    --rail-row-min-size: 44px;
+    --nav-row-size: 44px;
+  }
 }
 
 /* The floor. prefers-reduced-motion variants on everything, per docs/DESIGN-SYSTEM.md. */

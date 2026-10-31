@@ -70,6 +70,20 @@ func portfolioGoalProblem(w http.ResponseWriter, err error, mayHaveChanged bool)
 	httpx.WriteProblem(w, status, code, message, nil)
 }
 
+func portfolioFocusProblem(w http.ResponseWriter, err error) {
+	status, code := 503, "portfolio_focus_unavailable"
+	if errors.Is(err, management.ErrExecutionAuthority) {
+		status, code = 403, "portfolio_focus_forbidden"
+	}
+	if errors.Is(err, product.ErrPortfolioGoalInvalid) {
+		status, code = 400, "portfolio_focus_invalid"
+	}
+	if errors.Is(err, product.ErrPortfolioGoalConflict) {
+		status, code = 409, "portfolio_focus_changed"
+	}
+	httpx.WriteProblem(w, status, code, "The focus policy change could not be confirmed. Current project control is required. A policy may already have been saved; read latest saved goals before a new review. No running agent was stopped and no work was started by this request.", nil)
+}
+
 func (a *API) handlePortfolioGoals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if a.deps.Product == nil {
@@ -113,12 +127,21 @@ func (a *API) handlePortfolioGoalReview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var request struct {
-		ExpectedGoalRevision int `json:"expectedGoalRevision"`
+		ExpectedGoalRevision int                           `json:"expectedGoalRevision"`
+		Mode                 string                        `json:"mode,omitempty"`
+		Focus                product.PortfolioFocusRequest `json:"focus,omitempty"`
 	}
 	if !portfolioGoalsDecode(w, r, &request) {
 		return
 	}
-	plan, err := a.deps.Product.ReviewPortfolioGoal(r.Context(), r.PathValue("goalId"), request.ExpectedGoalRevision, access)
+	var plan any
+	if request.Mode == "focus" {
+		plan, err = a.deps.Product.ReviewPortfolioFocus(r.Context(), r.PathValue("goalId"), request.ExpectedGoalRevision, request.Focus, access)
+	} else if request.Mode == "" && request.Focus.ExpectedRevision == 0 && request.Focus.ExpectedProfileDigest == "" && len(request.Focus.UpstreamRuns) == 0 {
+		plan, err = a.deps.Product.ReviewPortfolioGoal(r.Context(), r.PathValue("goalId"), request.ExpectedGoalRevision, access)
+	} else {
+		err = product.ErrPortfolioGoalInvalid
+	}
 	if err != nil {
 		portfolioGoalProblem(w, err, false)
 		return
@@ -145,6 +168,21 @@ func (a *API) handlePortfolioGoalApply(w http.ResponseWriter, r *http.Request) {
 	}
 	if request.GoalID != r.PathValue("goalId") {
 		portfolioGoalProblem(w, product.ErrPortfolioGoalInvalid, false)
+		return
+	}
+	if request.Mode == "focus-install" || request.Mode == "focus-remove" {
+		focus, err := a.deps.Product.ApplyPortfolioFocus(r.Context(), request, access)
+		if err != nil {
+			portfolioFocusProblem(w, err)
+			return
+		}
+		// Readback rechecks all retained profile projects after the atomic save.
+		latest, err := a.deps.Product.ReadPortfolioFocus(r.Context(), access)
+		if err != nil || latest.Revision != focus.Revision {
+			portfolioFocusProblem(w, product.ErrPortfolioGoalUnavailable)
+			return
+		}
+		httpx.WriteJSON(w, 200, map[string]any{"focus": latest})
 		return
 	}
 	application, err := a.deps.Product.ApplyPortfolioGoal(r.Context(), request, access)

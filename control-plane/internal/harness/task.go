@@ -67,7 +67,11 @@ func BuildTask(r Request) (command string, argv []string, err error) {
 				"-c", "agents.enabled=true", "-c", "agents.max_concurrent_threads_per_session=2", "-c", "features.multi_agent_v2=false"}
 		}
 		if r.ProjectBrief || r.ReviewedContext {
-			argv = append(argv, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
+			instructions := projectContextPrompt(r)
+			if r.DockerBoundary && r.ReviewedContext {
+				instructions += "\nFor this controller-owned Codex task, return the handoff report only as the schema-constrained final response. Do not write /home/dev/.luci-task-output/handoff.json; the terminal adapter publishes it after termination. This overrides the legacy handoff file instruction in LUCI.md. Checks remain reported claims."
+			}
+			argv = append(argv, "-c", "developer_instructions="+strconv.Quote(instructions))
 		}
 		argv = append(argv, "exec")
 		if r.NativeDelegation != "" {

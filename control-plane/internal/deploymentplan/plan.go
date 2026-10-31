@@ -311,7 +311,7 @@ func dependencyOrder(nodes map[string][]string) ([]string, error) {
 
 func capabilities() []Capability {
 	return []Capability{
-		{"kubernetes-manifests", "prototype", "Compile app/inference Deployment and ClusterIP Service JSON for an existing namespace; no Apply implementation."},
+		{"kubernetes-manifests", "prototype", "This pure compiler exports app/inference Deployment and ClusterIP Service JSON. Applying them requires the separate reviewed existing-cluster workflow."},
 		{"telemetry-binding", "prototype", "Bind an existing OTLP/HTTP receiver via environment variables; no instrumentation or analytics platform provisioning."},
 		{"local-pages-coolify", "existing-separate-path", "Existing project release executors retain their own admission, observation and acceptance gates; this compiler does not invoke them."},
 		{"aws-azure-vm", "existing-separate-path", "Existing one-machine provisioning is separate from managed Kubernetes, customer inference and cloud microVM acceptance."},

@@ -28,6 +28,26 @@ func TestPortfolioGoalResponsesRecheckOriginalProjectsIncludingNoActionApplicati
 	}
 }
 
+func TestPortfolioFocusResponseRechecksEveryRetainedAllocationAndRejectsOrphanWaits(t *testing.T) {
+	profile := `{"allocations":[{"projectId":"p-one","waitUntilAccepted":[{"projectId":"p-two"}]},{"projectId":"p-two","waitUntilAccepted":[]}]}`
+	for _, data := range []string{
+		`{"focus":{"revision":1,"profile":` + profile + `}}`,
+		`{"profile":` + profile + `,"expectedFocusRevision":0}`,
+		`{"goals":[],"applications":[],"focus":{"revision":1,"profile":` + profile + `}}`,
+	} {
+		ids, err := portfolioGoalResponseProjects([]byte(data))
+		if err != nil || len(ids) != 2 {
+			t.Fatal("focus hid original project scope", ids, err)
+		}
+	}
+	if _, err := portfolioGoalResponseProjects([]byte(`{"focus":{"revision":2}}`)); err != nil {
+		t.Fatal("removed profile response invalid", err)
+	}
+	if _, err := portfolioGoalResponseProjects([]byte(`{"focus":{"revision":1,"profile":{"allocations":[{"projectId":"p-one","waitUntilAccepted":[{"projectId":"p-hidden"}]}]}}}`)); err == nil {
+		t.Fatal("orphan dependency accepted")
+	}
+}
+
 func TestPortfolioGoalsCollectionDefersEachWriteToProjectControlAndRechecksResponseRead(t *testing.T) {
 	for _, route := range []struct{ method, path string }{
 		{"GET", "/v1/product/portfolio-goals"}, {"POST", "/v1/product/portfolio-goals"},

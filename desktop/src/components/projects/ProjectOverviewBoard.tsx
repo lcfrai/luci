@@ -16,6 +16,7 @@ import { NavigationIcon } from '../common/NavigationIcon';
 import { WorkflowDialog, type WorkflowDialogReadAccess } from '../common/WorkflowDialog';
 import { RecordedRunAttention } from '../common/RecordedRunAttention';
 import { HostCapacity } from './HostCapacity';
+import { ProjectOutcomes } from './ProjectOutcomes';
 import './project-overview.css';
 import { useProjectHome } from './ProjectHomeProvider';
 
@@ -255,6 +256,7 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
       {value.latestRun?.status === 'recorded' && <p className="overview-meta">{summary?.sourceBusy ? 'Last recorded run' : 'Latest run'}: {value.latestRun.state?.replace(/_/g, ' ') || 'recorded'}. {value.latestRun.contextStatus === 'changed' ? 'Project context changed; review the run against the current brief and plan.' : value.latestRun.contextStatus === 'unavailable' ? 'Its context comparison is unavailable.' : 'Open the run for its checks and review evidence.'}</p>}
       {value.latestRun?.status === 'unavailable' && <p className="overview-meta">Latest run history unavailable. Open the project to inspect its saved runs.</p>}
       <details className="overview-details"><summary>Context and observation</summary>{value.context && <p>Brief v{value.context.briefRevision} · Definition {value.context.definitionStatus || 'draft'} · Design {value.context.designStatus || 'draft'} · Plan v{value.context.planRevision}. {value.context.tasks.recordedDone} of {value.context.tasks.total} tasks marked done by a person; this is not verification evidence.</p>}<p>Observed {new Date(value.observedAt).toLocaleTimeString()}. Running is a recorded queue state, not a live process check. Direct sessions are shown inside the project.</p>{value.limitations.map((text, index) => <p key={index}>{text}</p>)}</details>
+      <ProjectOutcomes projectId={project.id} projectPath={project.path} refresh={refresh} disabled={!!summary?.sourceBusy} onInspect={runId => openDestination('develop', runId)} />
     </>}
 
 

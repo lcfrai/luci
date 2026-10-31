@@ -42,6 +42,11 @@ func (e *sessionAllocationError) Unwrap() error { return e.Cause }
 
 func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSessionAllocation) (registry.Session, error) {
 	row, spec := prepared.Record, prepared.Spec
+	if terminalSession(row) {
+		row.TaskTerminalImage = spec.Image
+		row.TaskTerminalResult = nil
+		row.TaskTerminalCreatedAt, row.TaskTerminalStartedAt = time.Time{}, time.Time{}
+	}
 	failure := func(kind string, err error) (registry.Session, error) {
 		return registry.Session{}, &sessionAllocationError{Kind: kind, SessionID: row.ID, Cause: err}
 	}
@@ -113,6 +118,9 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 	if err := a.checkManagedBinding(binding); err != nil {
 		return refuseStart("changed", "managed-model", err)
 	}
+	if err := a.validateTaskTerminalImage(createCtx, row, spec.Image); err != nil {
+		return refuseStart("changed", "task-terminal-image", err)
+	}
 	sb, err := a.deps.Backend.Create(createCtx, spec)
 	if err != nil {
 		a.sessionLog().Error("create the sandbox", "sessionId", row.ID, "err", err)
@@ -139,6 +147,11 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 			return sessionErrMoved
 		}
 		value.SandboxID, value.SandboxRef, value.Endpoint = sb.ID, sb.Ref, sb.Endpoint
+		if terminalSession(*value) {
+			value.TaskTerminalImage = spec.Image
+			value.TaskTerminalCreatedAt, value.TaskTerminalStartedAt = sb.CreatedAt, sb.StartedAt
+			value.TaskTerminalResult = nil
+		}
 		return nil
 	})
 	if err != nil {
@@ -148,7 +161,12 @@ func (a *API) allocatePreparedSession(ctx context.Context, prepared preparedSess
 		}
 		return failure("record-backend", err)
 	}
-	go a.watchSessionReady(row.ID, sb.ID, sb.Endpoint)
+	// A short stopped task is retained for the existing reaper's terminal-fact
+	// observation. Do not recursively acquire this allocation's lifecycle lock,
+	// or start a readiness watcher against a positively stopped listener.
+	if !terminalSession(stored) || sb.State != backend.StateStopped {
+		go a.watchSessionReady(row.ID, sb.ID, sb.Endpoint)
+	}
 	return stored, nil
 }
 

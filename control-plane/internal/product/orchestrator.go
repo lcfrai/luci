@@ -75,7 +75,9 @@ func validateOrchestratorAnswer(snapshot OrchestratorContext, answer Orchestrato
 				}
 			}
 		}
-		return validateSpecification(*next)
+		preserved := *next
+		preserveOrchestratorSpecification(&preserved, snapshot.Specification)
+		return validateSpecification(preserved)
 	case "design-plan":
 		next := proposal.DesignPlan
 		if next == nil || next.ProjectID != snapshot.ProjectID || next.Revision != snapshot.DesignPlan.Revision || next.BriefRevision != snapshot.DesignPlan.BriefRevision || next.SpecificationRevision != snapshot.DesignPlan.SpecificationRevision || next.SketchRevision != snapshot.DesignPlan.SketchRevision || next.Status != "draft" || next.Digest != "" || next.PrototypeReleaseID != snapshot.DesignPlan.PrototypeReleaseID || next.PrototypeCommit != snapshot.DesignPlan.PrototypeCommit {
@@ -461,7 +463,9 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	if expected != saved.Revision || digest != snapshot.Digest {
 		return ErrOrchestratorConflict
 	}
-	answer, err := s.prepareCoordinationApplyLocked(ctx, p, *turn, snapshot)
+	preparedTurn := *turn
+	preparedTurn.Answer = restoredOrchestratorAnswer(*turn)
+	answer, err := s.prepareCoordinationApplyLocked(ctx, p, preparedTurn, snapshot)
 	if err != nil {
 		return err
 	}
@@ -483,6 +487,7 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 	switch proposal.Target {
 	case "specification":
 		spec := *proposal.Specification
+		preserveSpecificationPlanning(&spec, currentSpecification(state))
 		// Omission preserves retained source anchors; an explicit empty array
 		// remains the author's deliberate removal. Validate the exact target
 		// against current private histories before changing canonical context.
@@ -491,7 +496,7 @@ func (s *Server) applyOrchestratorProposalGuarded(ctx context.Context, id, turnI
 		} else if spec.Evidence == nil && state.Specification != nil {
 			spec.Evidence = append([]DiscoveryEvidenceLink(nil), state.Specification.Evidence...)
 		}
-		if err := validateDiscoveryEvidenceTargets(spec); err != nil {
+		if err := validateSpecification(spec); err != nil {
 			return err
 		}
 		if err := s.validateDiscoveryEvidenceLinks(ctx, p, spec.Evidence); err != nil {
@@ -616,6 +621,32 @@ func (s *Server) OrchestratorTurn(id, turnID string) (OrchestratorTurn, error) {
 	return OrchestratorTurn{}, ErrOrchestratorInvalid
 }
 
+// Assisted omission is not a deletion request. Normalize optional context
+// against the captured input before computing a coordination amendment.
+// Explicit human Save and repository-analysis semantics are unchanged.
+func preserveOrchestratorSpecification(next *ProjectSpecification, captured ProjectSpecification) {
+	preserveSpecificationPlanning(next, captured)
+	if next.Evidence == nil {
+		next.Evidence = append([]DiscoveryEvidenceLink(nil), captured.Evidence...)
+	}
+}
+
+// JSON omitempty preserves legacy digests but drops deliberate empty arrays.
+// Rehydrate only the controller's retained intent witnesses before validation
+// or coordination diffing, including recovery after an origin-write failure.
+func restoredOrchestratorAnswer(turn storedOrchestratorTurn) *OrchestratorAnswer {
+	answer := cloneOrchestratorAnswer(turn.Answer)
+	if answer != nil && answer.Proposal != nil && answer.Proposal.Specification != nil {
+		if turn.RoadmapExplicitEmpty {
+			answer.Proposal.Specification.Roadmap = []SpecificationRoadmapPhase{}
+		}
+		if turn.EvidenceExplicitEmpty {
+			answer.Proposal.Specification.Evidence = []DiscoveryEvidenceLink{}
+		}
+	}
+	return answer
+}
+
 // Keep proposal copying independent from shared caller pointers.
 func cloneOrchestratorAnswer(answer *OrchestratorAnswer) *OrchestratorAnswer {
 	if answer == nil {
@@ -624,5 +655,13 @@ func cloneOrchestratorAnswer(answer *OrchestratorAnswer) *OrchestratorAnswer {
 	data, _ := json.Marshal(answer)
 	var copy OrchestratorAnswer
 	_ = json.Unmarshal(data, &copy)
+	if answer.Proposal != nil && answer.Proposal.Specification != nil && copy.Proposal != nil && copy.Proposal.Specification != nil {
+		if answer.Proposal.Specification.Roadmap != nil && len(answer.Proposal.Specification.Roadmap) == 0 {
+			copy.Proposal.Specification.Roadmap = []SpecificationRoadmapPhase{}
+		}
+		if answer.Proposal.Specification.Evidence != nil && len(answer.Proposal.Specification.Evidence) == 0 {
+			copy.Proposal.Specification.Evidence = []DiscoveryEvidenceLink{}
+		}
+	}
 	return &copy
 }

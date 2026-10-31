@@ -116,6 +116,11 @@ func (a *API) collectTaskHandoff(ctx context.Context, req product.TaskHandoffCap
 		failed = false
 		return result, nil
 	}
+	if err = a.verifyTerminalReport(run, row, root, dir, data); err != nil {
+		result.Status, result.ReasonCode = "invalid", "task_terminal_binding_invalid"
+		failed = false
+		return result, nil
+	}
 	report, err := product.DecodeTaskHandoffReport(data)
 	if err != nil {
 		result.Status, result.ReasonCode = "invalid", "task_report_schema_invalid"

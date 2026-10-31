@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
@@ -54,6 +55,34 @@ func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Se
 	if len(children) != 1 || !sameTaskCompletionGeneration(children[0], observed) || !projectRunSessionBindingMatches(run, *op, children[0]) {
 		return false, ErrProjectRunConflict
 	}
+	if observed.HasTaskContainerResult() && !observed.TaskTerminalResult.NormalZero {
+		// This is original allocation failure evidence, not an absent model report
+		// or an invented child signal. No successful handoff is needed to finish
+		// failure observation; existing explicit repair/retry controls remain.
+		if op.Status == "review-required" {
+			var updateErr error
+			run, updateErr = s.projectRuns.mutateSwarm(run.ProjectID, p.Path, run.ID, run.Revision, func(current *ProjectRun) error {
+				candidate := swarmOperation(current, observed.ProjectRunOperationID)
+				if candidate == nil || candidate.ChildID != observed.ID || candidate.Status != "review-required" || taskHandoffIntegration(*current, *candidate) != nil {
+					return ErrProjectRunConflict
+				}
+				candidate.Status, candidate.Message = "failed", "The exact original task container ended unsuccessfully; its retained source needs review before any new attempt."
+				candidate.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+				current.State, current.Reason = "blocked", candidate.Message
+				return nil
+			})
+			if updateErr != nil {
+				return false, updateErr
+			}
+			op = swarmOperation(&run, observed.ProjectRunOperationID)
+		}
+		if op.Status == "failed" {
+			return true, ctx.Err()
+		}
+		if projectRunOperationTerminal(op.Status) {
+			return false, ErrProjectRunConflict
+		}
+	}
 	if !projectRunOperationTerminal(op.Status) {
 		status, message := observedSwarmOperation(run, *op, children)
 		run, err = s.projectRuns.ObserveOperation(run.ProjectID, p.Path, run.ID, run.Revision, op.ID, op.ChildID, status, message, observedSwarmStartFailure(run, *op, children))
@@ -64,6 +93,9 @@ func (s *Server) ObserveTaskCompletion(ctx context.Context, observed registry.Se
 	}
 	if op == nil || !projectRunOperationTerminal(op.Status) {
 		return false, ErrProjectRunPending // disappearance is not an ordinary exit
+	}
+	if observed.HasTaskContainerResult() && !observed.TaskTerminalResult.NormalZero && op.Status == "failed" {
+		return true, ctx.Err()
 	}
 	if op.StartFailure.Valid() && op.StartFailure == observed.StartFailure {
 		// No worker output is expected. This only closes diagnostic observation;
@@ -131,7 +163,7 @@ func observedSwarmOperation(run ProjectRun, op ProjectRunOperation, children []r
 			status, message = "review-required", "The agent process ended. Its exit code and task correctness are not established by this observation. Review retained changes and verification evidence before integration."
 			if child.ExitReason == "project-run-outcome-unknown" || child.ExitReason == "sandbox disappeared" {
 				status, message = "unknown", "The agent runtime disappeared or its launch outcome is unconfirmed. Inspect the retained session; no replacement was launched and no task result was inferred."
-			} else if child.ExitReason != "process exited" && child.ExitReason != "exited" && child.ExitReason != "" {
+			} else if !child.TaskTerminalExitZero && child.ExitReason != "process exited" && child.ExitReason != "exited" && child.ExitReason != "" {
 				status, message = "failed", "The agent stopped without a confirmed successful result. Retain and inspect its checkout before retrying."
 			}
 		}

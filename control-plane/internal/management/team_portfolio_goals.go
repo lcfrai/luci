@@ -30,6 +30,57 @@ func portfolioGoalResponseProjects(data []byte) ([]string, error) {
 			all[id] = true
 			return nil
 		}
+		focusProfile := func(raw json.RawMessage) error {
+			var profile struct {
+				Allocations []struct {
+					ProjectID string `json:"projectId"`
+					Wait      []struct {
+						ProjectID string `json:"projectId"`
+					} `json:"waitUntilAccepted"`
+				} `json:"allocations"`
+			}
+			if json.Unmarshal(raw, &profile) != nil || len(profile.Allocations) < 1 || len(profile.Allocations) > 16 {
+				return errors.New("invalid focus profile")
+			}
+			selected := map[string]bool{}
+			for _, allocation := range profile.Allocations {
+				if selected[allocation.ProjectID] || len(allocation.Wait) > 15 {
+					return errors.New("invalid focus allocation")
+				}
+				selected[allocation.ProjectID] = true
+				if err := add(allocation.ProjectID); err != nil {
+					return err
+				}
+			}
+			for _, allocation := range profile.Allocations {
+				for _, dependency := range allocation.Wait {
+					if !selected[dependency.ProjectID] || dependency.ProjectID == allocation.ProjectID {
+						return errors.New("orphan focus dependency")
+					}
+				}
+			}
+			return nil
+		}
+		if focus, present := envelope["focus"]; present {
+			var view struct {
+				Revision int             `json:"revision"`
+				Profile  json.RawMessage `json:"profile"`
+			}
+			if json.Unmarshal(focus, &view) != nil || view.Revision < 0 {
+				return errors.New("invalid focus view")
+			}
+			if len(view.Profile) != 0 && string(view.Profile) != "null" {
+				if err := focusProfile(view.Profile); err != nil {
+					return err
+				}
+			}
+			if _, collection := envelope["goals"]; !collection {
+				return nil
+			}
+		}
+		if profile, present := envelope["profile"]; present {
+			return focusProfile(profile)
+		}
 		if goals, ok := envelope["goals"]; ok {
 			var rows, applications []json.RawMessage
 			if json.Unmarshal(goals, &rows) != nil || rows == nil || len(rows) > 16 || json.Unmarshal(envelope["applications"], &applications) != nil || applications == nil || len(applications) > 32 {

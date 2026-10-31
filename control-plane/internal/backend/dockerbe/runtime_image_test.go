@@ -548,7 +548,7 @@ func TestRuntimeImagePrepareColdIsReadOnlyAndExcludesSurroundingCheckout(t *test
 func TestRuntimeImageContextAcceptsActualBundledSandboxRecipeAndBindsHelper(t *testing.T) {
 	b, f, spec := newRuntimeImageProbe(t)
 	actual := map[string]string{}
-	for _, name := range []string{"Dockerfile", "entrypoint.sh", "codex-native-task.cjs"} {
+	for _, name := range []string{"Dockerfile", "entrypoint.sh", "codex-native-task.cjs", "codex-task-result.cjs", "task-handoff.schema.json"} {
 		contents, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "images", "sandbox", name))
 		if err != nil {
 			t.Fatal(err)
@@ -565,6 +565,8 @@ func TestRuntimeImageContextAcceptsActualBundledSandboxRecipeAndBindsHelper(t *t
 	for _, instruction := range []string{
 		"COPY sandboxd ./sandboxd",
 		"COPY images/sandbox/codex-native-task.cjs /usr/local/lib/luci/codex-native-task.cjs",
+		"COPY images/sandbox/codex-task-result.cjs /usr/local/lib/luci/codex-task-result.cjs",
+		"COPY images/sandbox/task-handoff.schema.json /usr/local/lib/luci/task-handoff.schema.json",
 		"COPY --from=build /out/sandboxd /usr/local/bin/sandboxd",
 		"COPY --from=build /out/go-toolchain.tar.gz /tmp/go-toolchain.tar.gz",
 		"COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh",

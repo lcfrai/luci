@@ -1,6 +1,10 @@
 /* shadcn/ui adaptations use Luci's shared semantic tokens, without preflight. */
 @import "./tokens.css";
 .luci-ui-button { border: 1px solid transparent; border-radius: var(--r-ctl); font-family: var(--sans); font-size: 13px; font-weight: 550; cursor: pointer; transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+/* Shared controls follow the same density as the workspace. Explicit small/large
+   variants retain their contextual sizes; touch floors below apply to all. */
+:where(.luci-ui-button[data-size="default"]) { height: var(--control-size); min-height: var(--control-size); padding-block: 0; padding-inline: var(--control-pad-inline); }
+:where(.luci-ui-button[data-size="icon"]) { width: var(--control-size); height: var(--control-size); }
 .luci-ui-button-primary { background: var(--accent); color: var(--accent-ink); }
 .luci-ui-button-primary:hover { background: var(--accent-hi); }
 .luci-ui-button-primary:active, .luci-ui-button-primary[data-active] { background: var(--accent-lo); }
@@ -41,7 +45,7 @@
 .luci-dialog-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 .luci-dialog-title { color: var(--ink); font-size: 16px; font-weight: 650; line-height: 1.35; }
 .luci-dialog-description { color: var(--ink-3); font-size: 13px; line-height: 1.55; }
-@media (pointer: coarse) { .luci-ui-button { min-height: 44px; } .luci-ui-button[data-size^="icon"] { min-width: 44px; } }
-@media (max-width: 760px) { .luci-ui-button { min-height: 44px; } .luci-ui-button[data-size^="icon"] { min-width: 44px; } }
+@media (pointer: coarse) { .luci-ui-button[data-size] { min-height: max(44px, var(--control-size)); } .luci-ui-button[data-size^="icon"] { min-width: 44px; } }
+@media (max-width: 760px) { .luci-ui-button[data-size] { min-height: max(44px, var(--control-size)); } .luci-ui-button[data-size^="icon"] { min-width: 44px; } }
 @media (prefers-reduced-motion: reduce) { .luci-ui-button, .luci-ui-button *, .luci-ui-button-spinner, .luci-dialog, .luci-dialog-overlay { transition: none; animation: none !important; } }
 @media (prefers-reduced-motion: reduce) { .luci-ui-button-spinner { animation: none; opacity: 0.7; } }

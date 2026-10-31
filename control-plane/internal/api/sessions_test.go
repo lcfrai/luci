@@ -496,6 +496,7 @@ func (f *sessionsBackend) Create(ctx context.Context, spec backend.Spec) (backen
 	if f.nonLoopback {
 		endpoint = ""
 	}
+	created := time.Now().UTC()
 	return backend.Sandbox{
 		ID:          spec.ID,
 		Kind:        f.kind,
@@ -503,7 +504,8 @@ func (f *sessionsBackend) Create(ctx context.Context, spec backend.Spec) (backen
 		Endpoint:    endpoint,
 		NonLoopback: f.nonLoopback,
 		State:       backend.StateStarting,
-		CreatedAt:   time.Now().UTC(),
+		CreatedAt:   created,
+		StartedAt:   created,
 	}, nil
 }
 
@@ -522,7 +524,22 @@ func (f *sessionsBackend) List(ctx context.Context) ([]backend.Sandbox, error) {
 // attaches — task 12 owns the relay — so reaching this is a defect in this
 // task, and a panic says so louder than a nil return.
 func (f *sessionsBackend) Attach(ctx context.Context, id, token string) (*websocket.Conn, error) {
-	panic("sessions.go must never attach; task 12 owns the relay")
+	// Adapter tasks now own one passive terminal reader. This fixture supplies
+	// no runtime/EOF witness: refuse that known task reader explicitly instead
+	// of inventing a successful stream or panicking in a background goroutine.
+	f.mu.Lock()
+	knownTask := false
+	for _, spec := range f.specs {
+		if spec.ID == id && spec.Command == "/usr/local/bin/node" && len(spec.Args) > 0 && spec.Args[0] == taskTerminalWrapper {
+			knownTask = true
+			break
+		}
+	}
+	f.mu.Unlock()
+	if knownTask {
+		return nil, backend.ErrUnsupported
+	}
+	panic("ordinary sessions must not attach through this controlled fixture")
 }
 
 func (f *sessionsBackend) Destroy(ctx context.Context, id string) error {

@@ -99,10 +99,17 @@ type Session struct {
 	// on the REST surface.
 	CarriedConversationID string `json:"carriedConversationId"`
 
-	Status       Status              `json:"status"`
-	ExitReason   string              `json:"exitReason"`
-	StoppedAt    time.Time           `json:"stoppedAt,omitempty"` // immutable observed terminal transition for Home
-	StartFailure SessionStartFailure `json:"startFailure,omitzero"`
+	Status     Status `json:"status"`
+	ExitReason string `json:"exitReason"`
+	// Private controller observation, never a worker receipt or task acceptance.
+	TaskTerminalExitZero        bool                `json:"taskTerminalExitZero,omitempty"`
+	TaskTerminalObserverStarted bool                `json:"taskTerminalObserverStarted,omitempty"`
+	TaskTerminalImage           string              `json:"taskTerminalImage,omitempty"`
+	TaskTerminalCreatedAt       time.Time           `json:"taskTerminalCreatedAt,omitzero"`
+	TaskTerminalStartedAt       time.Time           `json:"taskTerminalStartedAt,omitzero"`
+	TaskTerminalResult          *TaskTerminalResult `json:"taskTerminalResult,omitempty"`
+	StoppedAt                   time.Time           `json:"stoppedAt,omitempty"` // immutable observed terminal transition for Home
+	StartFailure                SessionStartFailure `json:"startFailure,omitzero"`
 	// Private aggregate host telemetry; never projected by the shared session DTO.
 	StartAdmissionEvidence StartAdmissionEvidence `json:"startAdmissionEvidence,omitzero"`
 
@@ -144,6 +151,10 @@ type Session struct {
 // surface emits null or [] is the projection's decision, not the record's.
 func (s Session) Clone() Session {
 	out := s
+	if s.TaskTerminalResult != nil {
+		result := *s.TaskTerminalResult
+		out.TaskTerminalResult = &result
+	}
 	if s.ManagedLocalModel != nil {
 		binding := *s.ManagedLocalModel
 		out.ManagedLocalModel = &binding

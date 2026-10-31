@@ -30,6 +30,9 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/deployment-blueprint/saved":             "Reads the bounded private saved topology with current project-read checks before and after. No compile, provider request, reconciliation, save or deployment on GET.",
+	"GET /v1/product/projects/{id}/kubernetes/targets":                     "Reads only bounded private target descriptors after current Deploy checks; credentials are omitted. TLS configuration validation is pure; no namespace/provider observation or persistence on GET.",
+	"GET /v1/product/projects/{id}/kubernetes/deployments":                 "Reads only original-actor private review and operation journals after current Deploy checks. No Kubernetes client call, reconciliation, retry, journal update or deployment on GET.",
 	"GET /v1/product/portfolio-goals":                                      "Reads only the current actor's bounded private goals and retained applications, with current project-read checks. No create, repair, scheduling, resource probe or persistence on GET.",
 	"GET /v1/product/portfolio-goals/applications/{applicationId}":         "Reads an actor-owned retained application and original private queue intent markers. No write replay, reconciliation, probe or persistence; matching priority alone is not confirmation.",
 	"GET /v1/product/portfolio":                                            "Reads bounded actor-scoped project, queue and coordinator metadata after project-read grants and rechecks grants before returning. No model, provider, dispatch, reconciliation or persistence occurs.",

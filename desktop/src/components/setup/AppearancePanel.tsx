@@ -12,8 +12,12 @@ export function AppearancePanel() {
     <section className="appearance-panel" aria-labelledby="appearance-title">
       <h2 id="appearance-title">Make room for your way of working.</h2>
       <p className="journey-muted">
-        Changes apply immediately on this device, including your design canvas
-        and terminals.
+        Choose your colours, spacing and contrast. Changes apply immediately.
+      </p>
+      <p className="journey-muted" role="status">
+        {value.persistence === "persisted"
+          ? "Appearance saved on this device."
+          : "Changes apply in this window only. Device storage is unavailable; they may be lost when you close it."}
       </p>
       <div className="setup-field-grid">
         <label className="luci-field">
@@ -48,8 +52,27 @@ export function AppearancePanel() {
           <small>Status labels keep their own colours and text.</small>
         </label>
         <label className="luci-field">
-          Interface density
+          <span id="appearance-contrast-label">Surface contrast</span>
           <select
+            aria-labelledby="appearance-contrast-label"
+            aria-describedby="appearance-contrast-help"
+            value={value.contrast}
+            onChange={(event) =>
+              updateAppearance({
+                contrast: event.target.value as Appearance["contrast"],
+              })
+            }
+          >
+            <option value="standard">Standard</option>
+            <option value="strong">Stronger boundaries</option>
+          </select>
+          <small id="appearance-contrast-help">Make panel edges and secondary text easier to distinguish.</small>
+        </label>
+        <label className="luci-field">
+          <span id="appearance-density-label">Interface density</span>
+          <select
+            aria-labelledby="appearance-density-label"
+            aria-describedby="appearance-density-help"
             value={value.density}
             onChange={(event) =>
               updateAppearance({
@@ -59,7 +82,16 @@ export function AppearancePanel() {
           >
             <option value="comfortable">Comfortable</option>
             <option value="compact">Compact</option>
+            <option value="spacious">Spacious</option>
           </select>
+          <small id="appearance-density-help">
+            {value.density === "compact"
+              ? "Tighter rows and controls, with more work in view."
+              : value.density === "spacious"
+                ? "Larger controls and more space between rows and panels."
+                : "Balanced spacing for everyday work."}
+            {" "}Touch controls keep a 44 px minimum target.
+          </small>
         </label>
         <label className="luci-field">
           Terminal text size
@@ -80,10 +112,14 @@ export function AppearancePanel() {
           <small>Applies to open sessions without restarting them.</small>
         </label>
       </div>
-      <p className="appearance-preview">
-        <span>Preview</span> Readable text, clear focus and a little breathing
-        room.
-      </p>
+      <section className="appearance-preview" aria-labelledby="appearance-preview-title">
+        <h3 id="appearance-preview-title">Appearance preview</h3>
+        <p>Sample project cards use your current colours, contrast and spacing.</p>
+        <div className="appearance-preview-cards">
+          <article><h4>First project</h4><p>A separate surface for each project.</p></article>
+          <article><h4>Second project</h4><p>Readable details and clear boundaries.</p></article>
+        </div>
+      </section>
       <Button
         variant="secondary"
         type="button"

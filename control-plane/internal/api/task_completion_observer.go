@@ -101,6 +101,16 @@ func (a *API) observeTaskCompletionCandidate(ctx context.Context, candidate regi
 	if row.TaskObservationComplete {
 		return nil
 	}
+	// An exact pre-allocation failure has no acknowledged container to inspect.
+	// The canonical product observer independently rejoins its operation and
+	// failure diagnostic below; arbitrary missing identity is never an exception.
+	preAllocationFailure := row.SandboxRef == "" && row.StartFailure.Valid()
+	if terminalSession(row) && row.TaskTerminalImage != "" && row.TaskTerminalResult == nil && !preAllocationFailure {
+		_, err := a.observeTaskContainerExit(ctx, row)
+		// The durable terminal update changes this candidate's generation. The
+		// next bounded page observes it; never publish against the stale snapshot.
+		return err
+	}
 	complete, err := a.deps.Product.ObserveTaskCompletion(ctx, row)
 	if err != nil || !complete {
 		return err

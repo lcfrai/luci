@@ -19,7 +19,22 @@ import (
 
 type completionFairBackend struct {
 	*handoffLifecycleBackend
-	removes atomic.Int64
+	removes  atomic.Int64
+	terminal map[string]*backend.TaskExitObservation
+}
+
+func (b *completionFairBackend) ObserveTaskExit(ctx context.Context, identity backend.TaskExitIdentity) (backend.TaskExitObservation, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return backend.TaskExitObservation{}, err
+	}
+	row, ok := b.rows[identity.SandboxID]
+	result := b.terminal[identity.SessionID]
+	if !ok || row.State != backend.StateStopped || row.Ref != identity.Ref || result == nil {
+		return backend.TaskExitObservation{}, backend.ErrNotRunning
+	}
+	return *result, nil
 }
 
 func (b *completionFairBackend) List(context.Context) ([]backend.Sandbox, error) {
@@ -58,7 +73,7 @@ func TestTaskCompletionObserverSlowProjectDoesNotStarveOtherProjectsAfterRestart
 	a.deps.ReadyTimeout = 5 * time.Second
 	a.deps.ResourceSnapshot = executionFixtureSnapshot
 	a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
-	be := &completionFairBackend{handoffLifecycleBackend: &handoffLifecycleBackend{Backend: a.deps.Backend, rows: map[string]backend.Sandbox{}}}
+	be := &completionFairBackend{handoffLifecycleBackend: &handoffLifecycleBackend{Backend: a.deps.Backend, rows: map[string]backend.Sandbox{}}, terminal: map[string]*backend.TaskExitObservation{}}
 	a.deps.Backend = be
 	policy := executionFixturePolicy()
 	policy.MaxActive = 4
@@ -94,7 +109,9 @@ func TestTaskCompletionObserverSlowProjectDoesNotStarveOtherProjectsAfterRestart
 		if err = os.WriteFile(filepath.Join(dir, "handoff.json"), data, 0600); err != nil {
 			t.Fatal(err)
 		}
+		writeControlledTerminalReceipt(t, row, dir, data)
 		be.mu.Lock()
+		be.terminal[row.ID] = controlledTaskContainerExit(row, 0, false)
 		sandbox := be.rows[row.ID]
 		sandbox.State, sandbox.Instance = backend.StateStopped, instance
 		sandbox.Labels = map[string]string{backend.LabelManaged: "true", backend.LabelInstance: instance, backend.LabelSandboxID: row.SandboxID, backend.LabelSessionID: row.ID}
@@ -102,6 +119,9 @@ func TestTaskCompletionObserverSlowProjectDoesNotStarveOtherProjectsAfterRestart
 		be.mu.Unlock()
 	}
 	r := reaper.New(reaper.Config{Store: f.store, Backend: be, Instance: instance, ConfirmStoppedTaskCleanup: a.ConfirmStoppedTaskCleanup})
+	if err := r.Sweep(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if err := r.Sweep(context.Background()); err != nil || be.removes.Load() != 4 {
 		t.Fatal("real reaper did not retain four exact exits", err)
 	}

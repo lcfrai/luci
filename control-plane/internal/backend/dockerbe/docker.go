@@ -234,6 +234,9 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	for _, e := range spec.EnvEntries() {
 		env = append(env, e.Name+"="+e.Value)
 	}
+	if backend.StructuredTaskSpec(spec) {
+		env = append(env, "LUCI_TASK_EXIT_NORMAL_ZERO=1")
+	}
 	binds := make([]string, 0, len(spec.Mounts))
 	for _, m := range spec.Mounts {
 		bind := m.HostPath + ":" + m.ContainerPath
@@ -308,6 +311,9 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 
 	endpoint, err := b.waitForEndpoint(ctx, name, deadline)
 	if err != nil {
+		if stopped, ok := b.completedStructuredTask(ctx, spec, created.ID); ok {
+			return stopped, nil
+		}
 		b.cleanup(ctx, created.ID)
 		return backend.Sandbox{}, err
 	}
@@ -316,10 +322,16 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		// The port arrived with the budget already spent. Calling WaitReady
 		// with a non-positive timeout would poll zero times and report a last
 		// error of <nil>; say what actually happened instead.
+		if stopped, ok := b.completedStructuredTask(ctx, spec, created.ID); ok {
+			return stopped, nil
+		}
 		b.cleanup(ctx, created.ID)
 		return backend.Sandbox{}, fmt.Errorf("dockerbe: sandbox %s published %s with no time left in the %s ready budget to answer %s: %w", spec.ID, endpoint, b.readyTimeout, backend.HealthPath, backend.ErrNotRunning)
 	}
 	if err := backend.WaitReady(ctx, endpoint, remaining); err != nil {
+		if stopped, ok := b.completedStructuredTask(ctx, spec, created.ID); ok {
+			return stopped, nil
+		}
 		b.cleanup(ctx, created.ID)
 		return backend.Sandbox{}, fmt.Errorf("dockerbe: sandbox %s never answered %s on %s within the %s ready budget: %w", spec.ID, backend.HealthPath, endpoint, b.readyTimeout, err)
 	}
@@ -341,13 +353,19 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 // Docker socket and is echoed into `docker inspect` output that ends up in bug
 // reports.
 func containerLabels(spec backend.Spec, instance string) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		backend.LabelManaged:   "true",
 		backend.LabelInstance:  instance,
 		backend.LabelSandboxID: spec.ID,
 		backend.LabelSessionID: spec.SessionID,
 		backend.LabelCreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
+	if backend.StructuredTaskSpec(spec) {
+		labels[backend.TaskExitProtocolLabel] = backend.TaskExitProtocol
+		labels[backend.TaskExitContractLabel] = spec.Args[1]
+		labels[backend.TaskExitImageLabel] = spec.Image
+	}
+	return labels
 }
 
 // cleanup removes a container on a failed Create. It uses a context detached
@@ -447,6 +465,7 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 		OOMKilled:        resp.State != nil && resp.State.OOMKilled,
 		State:            stateFrom(status),
 		CreatedAt:        parseCreated(resp.Created, labels),
+		StartedAt:        taskContainerStartedAt(resp),
 		Labels:           labels,
 	}, nil
 }

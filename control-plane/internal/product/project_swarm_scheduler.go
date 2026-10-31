@@ -118,6 +118,9 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 	if runtime.Admit == nil || runtime.Dispatch == nil || runtime.Release == nil {
 		return nil
 	}
+	s.swarmScheduler.mu.Lock()
+	focusWindow, focusKeyCount := focusObservationWindow(row, s.swarmScheduler.focusCursor)
+	s.swarmScheduler.mu.Unlock()
 	// Recover before capacity selection. An uncertain child is never replaced.
 	for _, item := range row.Items {
 		if swarmSupersededStopReason(item.ReasonCode) {
@@ -143,6 +146,18 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 		}
 	}
 	visited := map[string]bool{}
+	// A single bounded observation budget serves focused queue selection.
+	// Results are reused only within this turn and exact profile revision;
+	// current capacity is still counted from each freshly loaded queue.
+	var focusContext context.Context
+	var cancelFocus context.CancelFunc
+	defer func() {
+		if cancelFocus != nil {
+			cancelFocus()
+		}
+	}()
+	focusChecks := 0
+	focusResults := map[string]error{}
 	attemptedProjects := map[string]bool{}
 	admissions := 0
 	for turns := 0; turns < swarmQueueLimit && admissions < 4; turns++ {
@@ -379,6 +394,37 @@ func (s *Server) RunSwarmSchedulerOnce(ctx context.Context) error {
 				// The coordinator, rather than this scheduler's unscoped runtime
 				// context, must reauthorize and save the candidate assignment.
 				continue
+			}
+			focus, _ := focusRecord(row.Focus, item.Actor.UserID, item.Actor.TeamID)
+			if allocation := focusAllocation(focus.Profile, item.ProjectID); allocation != nil && !item.Actor.Local {
+				var focusErr error
+				{
+					key := focusObservationKey(item, focus.Profile)
+					var checked bool
+					focusErr, checked = focusResults[key]
+					if !checked {
+						if focusContext == nil {
+							focusContext, cancelFocus = context.WithTimeout(ctx, 3*time.Second)
+						}
+						index, selectedForObservation := focusWindow[key]
+						if !selectedForObservation || focusChecks >= portfolioFocusObservationLimit || focusContext.Err() != nil {
+							focusErr = errors.New("The bounded focus dependency read is pending; no new allocation was attempted.")
+						} else {
+							focusChecks++
+							s.swarmScheduler.mu.Lock()
+							s.swarmScheduler.focusCursor = (index + 1) % focusKeyCount
+							s.swarmScheduler.mu.Unlock()
+							focusErr = s.CheckPortfolioFocusAdmission(focusContext, item.ID)
+						}
+						focusResults[key] = focusErr
+					}
+				}
+				if focusErr != nil {
+					if err = s.schedulerSetReason(item.ID, item.State, "portfolio_focus_waiting", "Waiting for the applied focus ceiling or exact upstream run acceptance. Existing work and other eligible projects can continue."); err != nil {
+						return err
+					}
+					continue
+				}
 			}
 			selected = &item
 			break

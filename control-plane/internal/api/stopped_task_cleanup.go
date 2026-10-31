@@ -46,7 +46,19 @@ func (a *API) ConfirmStoppedTaskCleanup(ctx context.Context, row registry.Sessio
 	if !matched {
 		return errors.New("stopped task does not match its reserved operation")
 	}
-	return a.execution.confirmSettledTaskLease(ctx, row)
+	if err := a.execution.confirmSettledTaskLease(ctx, row); err != nil {
+		return err
+	}
+	if terminalSession(row) && row.TaskTerminalImage != "" {
+		observed, err := a.observeTaskContainerExit(ctx, row)
+		if err != nil {
+			return err
+		}
+		if !observed {
+			return errors.New("original task terminal fact must be retained before cleanup")
+		}
+	}
+	return ctx.Err()
 }
 
 func (g *executionAdmission) confirmSettledTaskLease(ctx context.Context, row registry.Session) error {

@@ -160,11 +160,14 @@ type swarmSchedulerLedger struct {
 	Sequence       uint64               `json:"sequence"`
 	LastServed     map[string]uint64    `json:"lastServed"`
 	Items          []swarmQueueRecord   `json:"items"`
+	Focus          []swarmFocusRecord   `json:"focus,omitempty"`
 }
 type swarmScheduler struct {
 	mu             sync.Mutex
 	tick           sync.Mutex
 	runtime        SwarmSchedulerRuntime
+	focusRead      management.ProjectReadAuthorizer
+	focusCursor    int
 	wake           chan struct{}
 	cancel         context.CancelFunc
 	now            func() time.Time

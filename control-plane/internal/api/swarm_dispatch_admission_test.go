@@ -21,6 +21,7 @@ func TestQueuedDispatchRechecksFreshAuthorityAfterDurableClaim(t *testing.T) {
 	a.deps.ResourceSnapshot = executionFixtureSnapshot
 	a.deps.Resources = backend.Resources{MemoryMiB: 1024, CPUMillis: 1000}
 	actor := management.ExecutionActorRef{Local: true, ProjectID: f.owner.ID}
+	f.persistQueuedAttempt(t, "queue-authority", actor)
 	calls := 0
 	a.deps.AuthorizeExecution = func(ctx context.Context, got management.ExecutionActorRef, harness string, secrets bool) (management.ExecutionAuthority, error) {
 		if got != actor || harness != "codex" || !secrets {
@@ -70,6 +71,7 @@ func TestQueuedAdmissionRefusesRevokedActorBeforeCapacityOrAllocation(t *testing
 		return management.ExecutionAuthority{}, errors.New("controlled-secret/private/authority")
 	}
 	actor := management.ExecutionActorRef{Local: true, ProjectID: f.owner.ID}
+	f.persistQueuedAttempt(t, "queue-revoked", actor)
 	policy, e := a.deps.Product.SwarmSchedulerPolicy()
 	if e != nil {
 		t.Fatal(e)
@@ -125,6 +127,7 @@ func TestQueuedOpenCodePreparesExactSavedRouteBeforeClaimOrAllocation(t *testing
 				t.Fatal(err)
 			}
 			queueID := "queue-named-opencode"
+			f.persistQueuedAttempt(t, queueID, actor)
 			admitted, err := a.admitQueuedSwarm(context.Background(), product.SwarmAdmissionRequest{QueueID: queueID, ProjectID: f.owner.ID, RunID: f.run.ID, Actor: actor, Policy: policy})
 			if err != nil || admitted.State != "admitted" {
 				t.Fatal(admitted, err)

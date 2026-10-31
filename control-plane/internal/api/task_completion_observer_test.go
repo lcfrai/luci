@@ -30,16 +30,25 @@ func completionReport(t *testing.T, f *swarmSessionFixture, row registry.Session
 	if err = os.WriteFile(filepath.Join(dir, "handoff.json"), data, 0600); err != nil {
 		t.Fatal(err)
 	}
+	writeControlledTerminalReceipt(t, row, dir, data)
 }
 
 func completionReaper(t *testing.T, f *swarmSessionFixture, row registry.Session, removalErr error) *taskCleanupLifecycleBackend {
 	t.Helper()
 	const instance = "11111111-1111-4111-8111-111111111111"
-	be := &taskCleanupLifecycleBackend{Backend: f.env.api.deps.Backend, sandbox: backend.Sandbox{ID: row.SandboxID, Ref: row.SandboxRef, Kind: backend.KindDocker, State: backend.StateStopped, Instance: instance, Labels: map[string]string{backend.LabelManaged: "true", backend.LabelInstance: instance, backend.LabelSandboxID: row.SandboxID, backend.LabelSessionID: row.ID}}, removeErr: removalErr}
+	be := &taskCleanupLifecycleBackend{Backend: f.env.api.deps.Backend, sandbox: backend.Sandbox{ID: row.SandboxID, Ref: row.SandboxRef, Kind: backend.KindDocker, State: backend.StateStopped, Instance: instance, Labels: map[string]string{backend.LabelManaged: "true", backend.LabelInstance: instance, backend.LabelSandboxID: row.SandboxID, backend.LabelSessionID: row.ID}}, removeErr: removalErr, terminal: controlledTaskContainerExit(row, 0, false)}
 	f.env.api.deps.Backend = be
 	r := reaper.New(reaper.Config{Store: f.store, Backend: be, Instance: instance, ConfirmStoppedTaskCleanup: f.env.api.ConfirmStoppedTaskCleanup})
 	if err := r.Sweep(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+	// The first pass persists a new terminal generation; the existing reaper
+	// CAS refuses its old snapshot. The next normal pass can remove that exact
+	// already-recorded original without weakening the concurrent-restart fence.
+	if be.removes == 0 {
+		if err := r.Sweep(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return be
 }

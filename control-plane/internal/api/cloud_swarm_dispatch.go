@@ -125,6 +125,9 @@ func (a *API) dispatchCloudSwarm(ctx context.Context, req product.SwarmDispatchR
 	if err := a.deps.Product.ValidateSwarmOperationExecutionContract(req.ProjectID, run, op.ID); err != nil {
 		return blocked("execution_contract_changed", "The exact task's current approved contract or repair budget no longer permits a new cloud allocation or upstream start. Its retained VM remains available for recovery.")
 	}
+	if err := a.deps.Product.CheckPortfolioFocusAdmission(ctx, req.QueueID); err != nil {
+		return blocked("portfolio_focus_waiting", "The applied focus ceiling or exact upstream acceptance no longer permits a new cloud start. The existing attempt remains retained.")
+	}
 	started, err := cloud.Runtime.Start(ctx, input.Request, bytes.NewReader(input.Archive), launch)
 	if err != nil {
 		if errors.Is(err, e2bbe.ErrCapacity) && started.RequestDigest == "" {

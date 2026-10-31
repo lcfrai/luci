@@ -270,6 +270,9 @@ func (s *Server) readSwarmScheduler() (swarmSchedulerLedger, error) {
 	return s.applySharedSwarmPolicy(row)
 }
 func (s *Server) validateSwarmScheduler(row swarmSchedulerLedger) error {
+	if !validSwarmFocusRecords(row.Focus) {
+		return ErrProjectRunInvalid
+	}
 	if row.Version != 1 || row.AccountScope != s.projectRuns.accountScope || row.Revision < 1 || row.PolicyRevision < 1 || !validateSwarmSchedulerPolicy(row.Policy) || len(row.Items) > swarmQueueLimit || row.LastServed == nil || len(row.LastServed) > swarmQueueLimit {
 		return ErrProjectRunInvalid
 	}

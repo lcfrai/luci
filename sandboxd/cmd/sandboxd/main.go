@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -85,6 +86,49 @@ func serveSession(serve func() error, shutdown func(context.Context) error,
 	return nil
 }
 
+// Task-only completion joins the listener and refuses every shutdown/listener
+// failure. The existing single linger deadline is not a worker lifetime limit.
+func serveTaskSession(serve func() error, shutdown func(context.Context) error, processDone <-chan struct{}, linger time.Duration) error {
+	served := make(chan error, 1)
+	go func() { served <- serve() }()
+	select {
+	case err := <-served:
+		if err == nil {
+			return errors.New("task listener ended before its process")
+		}
+		return err
+	case <-processDone:
+	}
+	deadline := time.Now().Add(linger)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	shutdownErr := shutdown(ctx)
+	select {
+	case err := <-served:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return errors.Join(shutdownErr, errors.New("task listener did not close normally"))
+		}
+	case <-ctx.Done():
+		return errors.Join(shutdownErr, ctx.Err())
+	}
+	if shutdownErr != nil {
+		return shutdownErr
+	}
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	<-timer.C
+	return nil
+}
+
+func taskContainerExitCode(normalZero bool, serverError error) int {
+	if normalZero && serverError == nil {
+		return 0
+	}
+	// This is an unsuccessful/unknown container termination, not an invented
+	// exact child exit code or signal. Only zero is a recoverable eligibility fact.
+	return 1
+}
+
 // parseArgs resolves the process arguments. argsJSON wins when present: the
 // CSV form cannot carry an opening prompt containing a comma, which is the
 // common case the moment a user types one.
@@ -121,6 +165,7 @@ func main() {
 		"shared secret required on /attach")
 	allowUnauthenticated := flag.Bool("allow-unauthenticated", false,
 		"run without an attach token; local development only")
+	taskNormalZero := flag.Bool("task-normal-zero", false, "task-only: exit zero only after successful original Wait and clean listener settlement")
 	flag.Parse()
 	if *version {
 		fmt.Printf("sandboxd %s\n", sandboxVersion)
@@ -144,6 +189,11 @@ func main() {
 	slog.Info("sandboxd listening", "addr", *addr, "command", *command, "args_count", len(argv),
 		"authenticated", *token != "", "allow_unauthenticated", *allowUnauthenticated)
 	httpSrv := &http.Server{Addr: *addr, Handler: srv}
+	if *taskNormalZero {
+		err := serveTaskSession(httpSrv.ListenAndServe, httpSrv.Shutdown, srv.Done(), exitLinger)
+		typed, ok := srv.(interface{ NormalZero() bool })
+		os.Exit(taskContainerExitCode(ok && typed.NormalZero(), err))
+	}
 	if err := serveSession(httpSrv.ListenAndServe, httpSrv.Shutdown, srv.Done(), exitLinger); err != nil {
 		slog.Error("server exited", "err", err)
 		os.Exit(1)

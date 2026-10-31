@@ -59,7 +59,13 @@ COMMAND="${LUCI_COMMAND:-/bin/bash}"
 ARGS_JSON="${LUCI_ARGS_JSON:-}"
 ARGS="${LUCI_ARGS:-}"
 
-exec /usr/local/bin/sandboxd \
+task_exit_args=()
+if [[ "${LUCI_TASK_EXIT_NORMAL_ZERO:-}" == "1" ]]; then
+  task_exit_args=(-task-normal-zero)
+fi
+unset LUCI_TASK_EXIT_NORMAL_ZERO
+
+exec /usr/local/bin/sandboxd "${task_exit_args[@]}" \
   -addr :8080 \
   -command "${COMMAND}" \
   -args "${ARGS}" \

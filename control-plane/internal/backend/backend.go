@@ -345,6 +345,7 @@ type Sandbox struct {
 
 	State     State
 	CreatedAt time.Time
+	StartedAt time.Time
 	Labels    map[string]string
 }
 

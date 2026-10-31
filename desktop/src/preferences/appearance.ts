@@ -3,7 +3,8 @@ import { useSyncExternalStore } from "react";
 export type Appearance = {
   theme: "system" | "light" | "dark";
   accent: "teal" | "blue" | "rose";
-  density: "comfortable" | "compact";
+  density: "comfortable" | "compact" | "spacious";
+  contrast: "standard" | "strong";
   terminalFontSize: number;
 };
 export const APPEARANCE_KEY = "luci.appearance.v1";
@@ -11,6 +12,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   theme: "system",
   accent: "teal",
   density: "comfortable",
+  contrast: "standard",
   terminalFontSize: 14,
 };
 export function parseAppearance(value: unknown): Appearance {
@@ -25,7 +27,11 @@ export function parseAppearance(value: unknown): Appearance {
       candidate.accent === "blue" || candidate.accent === "rose"
         ? candidate.accent
         : "teal",
-    density: candidate.density === "compact" ? "compact" : "comfortable",
+    density:
+      candidate.density === "compact" || candidate.density === "spacious"
+        ? candidate.density
+        : "comfortable",
+    contrast: candidate.contrast === "strong" ? "strong" : "standard",
     terminalFontSize:
       typeof candidate.terminalFontSize === "number" &&
       Number.isInteger(candidate.terminalFontSize) &&
@@ -35,21 +41,26 @@ export function parseAppearance(value: unknown): Appearance {
         : 14,
   };
 }
-function stored(): Appearance {
+type Persistence = "persisted" | "window-only";
+function stored(): { value?: Appearance; persistence: Persistence } {
   try {
-    return parseAppearance(
-      JSON.parse(localStorage.getItem(APPEARANCE_KEY) || "null"),
-    );
+    return {
+      value: parseAppearance(JSON.parse(localStorage.getItem(APPEARANCE_KEY) || "null")),
+      persistence: "persisted",
+    };
   } catch {
-    return { ...DEFAULT_APPEARANCE };
+    return { persistence: "window-only" };
   }
 }
-let preference = stored();
+const initial = stored();
+let preference = initial.value ?? { ...DEFAULT_APPEARANCE };
+let persistence = initial.persistence;
 let media: MediaQueryList | undefined;
 let resolvedTheme: "light" | "dark" = "dark";
-let snapshot: Appearance & { resolvedTheme: "light" | "dark" } = {
+let snapshot: Appearance & { resolvedTheme: "light" | "dark"; persistence: Persistence } = {
   ...preference,
   resolvedTheme,
+  persistence,
 };
 const listeners = new Set<() => void>();
 let initialized = false;
@@ -64,7 +75,8 @@ function apply() {
   root.dataset.theme = resolvedTheme;
   root.dataset.accent = preference.accent;
   root.dataset.density = preference.density;
-  snapshot = { ...preference, resolvedTheme };
+  root.dataset.contrast = preference.contrast;
+  snapshot = { ...preference, resolvedTheme, persistence };
   listeners.forEach((listener) => listener());
 }
 export function initializeAppearance() {
@@ -74,7 +86,10 @@ export function initializeAppearance() {
   media.addEventListener("change", apply);
   window.addEventListener("storage", (event) => {
     if (event.key === APPEARANCE_KEY || event.key === null) {
-      preference = stored();
+      const saved = stored();
+      // A blocked or malformed read must not erase the current window's choices.
+      if (saved.value) preference = saved.value;
+      persistence = saved.persistence;
       apply();
     }
   });
@@ -85,8 +100,9 @@ export function updateAppearance(patch: Partial<Appearance>) {
   preference = parseAppearance({ ...preference, ...patch });
   try {
     localStorage.setItem(APPEARANCE_KEY, JSON.stringify(preference));
+    persistence = "persisted";
   } catch {
-    /* The current window still works when storage is unavailable. */
+    persistence = "window-only";
   }
   apply();
 }

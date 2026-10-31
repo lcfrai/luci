@@ -63,6 +63,7 @@ func TestAdmissionEvidenceRetainsFinalSampleAcrossReopen(t *testing.T) {
 				return initial
 			}
 			actor := management.ExecutionActorRef{Local: true, ProjectID: f.owner.ID}
+			f.persistQueuedAttempt(t, "queue-evidence", actor)
 			policy, err := a.deps.Product.SwarmSchedulerPolicy()
 			if err != nil {
 				t.Fatal(err)

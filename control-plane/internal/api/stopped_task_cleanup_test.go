@@ -51,6 +51,7 @@ func settledTaskFixture(t *testing.T, prepare ...func(*swarmSessionFixture)) (*s
 func TestConfirmStoppedTaskCleanupRequiresExactActualLaunchReceipt(t *testing.T) {
 	f, row, baseline := settledTaskFixture(t)
 	a := f.env.api
+	a.deps.Backend = &taskCleanupLifecycleBackend{Backend: a.deps.Backend, sandbox: backend.Sandbox{ID: row.SandboxID, Ref: row.SandboxRef, State: backend.StateStopped}, terminal: controlledTaskContainerExit(row, 0, false)}
 	if err := a.ConfirmStoppedTaskCleanup(context.Background(), row); err != nil {
 		t.Fatal("actual settled task denied", err)
 	}
@@ -222,6 +223,25 @@ type taskCleanupLifecycleBackend struct {
 	removeErr           error
 	absent              bool
 	removes, forceCalls int
+	terminal            *backend.TaskExitObservation
+}
+
+func (b *taskCleanupLifecycleBackend) ObserveCodexTaskResultImage(ctx context.Context, reference string) (string, error) {
+	observer, ok := b.Backend.(backend.CodexTaskResultImageObserver)
+	if !ok {
+		return "", backend.ErrUnsupported
+	}
+	return observer.ObserveCodexTaskResultImage(ctx, reference)
+}
+
+func (b *taskCleanupLifecycleBackend) ObserveTaskExit(ctx context.Context, identity backend.TaskExitIdentity) (backend.TaskExitObservation, error) {
+	if err := ctx.Err(); err != nil {
+		return backend.TaskExitObservation{}, err
+	}
+	if b.absent || b.sandbox.State != backend.StateStopped || identity.SessionID != b.sandbox.ID || identity.SandboxID != b.sandbox.ID || identity.Ref != b.sandbox.Ref || b.terminal == nil {
+		return backend.TaskExitObservation{}, backend.ErrNotRunning
+	}
+	return *b.terminal, nil
 }
 
 func (b *taskCleanupLifecycleBackend) List(context.Context) ([]backend.Sandbox, error) {
@@ -275,13 +295,18 @@ func TestStoppedTaskCleanupRetriesAfterFailedRemoveWithoutLosingSettledLease(t *
 	b := &taskCleanupLifecycleBackend{Backend: a.deps.Backend, sandbox: backend.Sandbox{
 		ID: row.SandboxID, Ref: row.SandboxRef, Kind: backend.KindDocker, State: backend.StateStopped, Instance: instance,
 		Labels: map[string]string{backend.LabelManaged: "true", backend.LabelInstance: instance, backend.LabelSandboxID: row.SandboxID, backend.LabelSessionID: row.ID},
-	}, removeErr: errors.New("controlled transient engine remove failure")}
+	}, removeErr: errors.New("controlled transient engine remove failure"), terminal: controlledTaskContainerExit(row, 0, false)}
 	a.deps.Backend = b
 	newReaper := func() *reaper.Reaper {
 		return reaper.New(reaper.Config{Store: f.store, Backend: b, Instance: instance, ConfirmStoppedTaskCleanup: a.ConfirmStoppedTaskCleanup})
 	}
 	if err := newReaper().Sweep(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+	if b.removes == 0 {
+		if err := newReaper().Sweep(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if b.removes != 1 || b.absent || b.forceCalls != 0 {
 		t.Fatal("first exact removal was not attempted", b)

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { deploymentBlueprintApi, validDeploymentBlueprintPlan, type DeploymentBlueprint, type DeploymentBlueprintPlan } from './deploymentBlueprint';
+import { deploymentBlueprintApi, validDeploymentBlueprintPlan, validSavedBlueprintView, type DeploymentBlueprint, type DeploymentBlueprintPlan } from './deploymentBlueprint';
 import { productApi } from './product';
 
 const { webcrypto } = await vi.importActual<{ webcrypto: Crypto }>('node:crypto');
@@ -20,6 +20,20 @@ function result(input = request()): DeploymentBlueprintPlan {
   };
 }
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it('validates saved project topology and refuses an unconfirmed save response', async () => {
+  const input = request(), body = { projectId: 'p-one', saved: { projectId: 'p-one', revision: 1, digest: 'e'.repeat(64), planDigest: 'd'.repeat(64), blueprint: input, actor: { id: 'one', displayName: 'Owner' }, at: '2026-10-31T00:00:00Z' }, sourceVerified: false, effectsApplied: false };
+  expect(validSavedBlueprintView(body, 'p-one')).toBe(true);
+  expect(validSavedBlueprintView(body, 'p-other')).toBe(false);
+  const malformed = JSON.parse(JSON.stringify(body)); malformed.saved.blueprint.services[0].kind = ['app'];
+  expect(validSavedBlueprintView(malformed, 'p-one')).toBe(false);
+  const send = vi.spyOn(productApi, 'request').mockResolvedValue(body);
+  const save = { expectedRevision: 0, expectedDigest: '', idempotencyKey: 'one-save-request', blueprint: input };
+  expect(await deploymentBlueprintApi.save('p-one', save)).toEqual(body);
+  expect(send).toHaveBeenCalledWith('/v1/product/projects/p-one/deployment-blueprint/saved', save, 'PUT', 30_000, undefined);
+  body.saved.blueprint.infrastructure.reference = 'different-cluster';
+  await expect(deploymentBlueprintApi.save('p-one', { ...save, blueprint: request() })).rejects.toThrow('exact blueprint');
+});
 
 it('binds the plan response to the exact project, context and explicit service inputs', () => {
   expect(validDeploymentBlueprintPlan(result(), request())).toBe(true);

@@ -244,6 +244,7 @@ func TestWorkerStorageRefreshQueuedCancellationPrecedesReservation(t *testing.T)
 		t.Fatal(err)
 	}
 	actor := management.ExecutionActorRef{Local: true, ProjectID: f.owner.ID}
+	f.persistQueuedAttempt(t, "cancelled-storage-wait", actor)
 	_, err = a.admitQueuedSwarm(ctx, product.SwarmAdmissionRequest{QueueID: "cancelled-storage-wait", ProjectID: f.owner.ID, RunID: f.run.ID, Actor: actor, Policy: policy})
 	current, readErr := a.deps.Product.GetProjectSwarmRun(f.owner.ID, f.run.ID)
 	if !errors.Is(err, context.Canceled) || readErr != nil || current.Revision != f.run.Revision || a.execution.snapshot.Load() != nil || controlledAllocationCount(f.env.be) != 0 || workerStorageRefreshActive.Load() {

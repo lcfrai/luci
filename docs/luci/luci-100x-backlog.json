@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30",
+  "updatedAt": "2026-10-31T01:49:20.809Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -28,11 +28,21 @@
       "id": "L100-02",
       "stage": "Discover",
       "title": "Evidence-led product strategy",
-      "status": "planned",
+      "status": "prototype",
       "owner": "Product",
       "work": "Document extraction and source links exist. Add competitive research, target customer, problem hypotheses, opportunity sizing and assumption tracking.",
       "dependsOn": "L100-01",
-      "evidence": ""
+      "evidence": "",
+      "sourceFiles": [
+        "control-plane/internal/product/specification_strategy.go",
+        "desktop/src/components/definition/SpecificationStrategy.tsx"
+      ],
+      "remainingWork": [
+        "External research/source collection connector",
+        "Strategy findings into reviewed roadmap amendments"
+      ],
+      "currentBatch": "Typed customer/problem/alternatives/assumptions/evidence/success model in existing spec/CAS/history/context. UI reviewed; backend review and compile pending.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-03",
@@ -48,11 +58,19 @@
       "id": "L100-04",
       "stage": "Design",
       "title": "Visual wireframes as the shared design contract",
-      "status": "partial",
+      "status": "prototype",
       "owner": "Design",
       "work": "Editable scenes and approval binding exist. Add explicit text-only vs visual design state, responsive flows, interaction coverage and generated design iterations.",
       "dependsOn": "L100-01",
-      "evidence": ""
+      "evidence": "",
+      "currentBatch": "Copy-and-adapt visual frame variants and screen/state/width coverage navigation under implementation; existing scene/undo/task context retained.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "progress": "Source adds copy/adapt frame variants, width/state coverage navigation and lazy read-only saved Design history through existing revisions; originals, dirty drafts and approval boundaries preserved.",
+      "remainingWork": [
+        "Assisted visual iteration using approved product/context",
+        "Reusable semantic component and responsive implementation contract",
+        "Representative visual and usability testing after remaining implementation"
+      ]
     },
     {
       "id": "L100-05",
@@ -127,7 +145,15 @@
       "owner": "Connectors",
       "work": "Codex, Claude Code and OpenCode connections exist. Normalize sessions, streaming output, tool approvals, checkpoints, interruption and resumed work behind existing adapters.",
       "dependsOn": "Existing harness adapters",
-      "evidence": ""
+      "evidence": "",
+      "currentBatch": "30-file structured Codex terminal-result adapter integrated from frozen candidate; source review accepted; image upgrade, >30-minute observation and controller-restart continuity still required.",
+      "remainingWork": [
+        "Build/package and commission matching sandbox runtime image; compiled daemon alone is insufficient",
+        "Equivalent normalized result contracts for other supported harnesses",
+        "Representative multi-task/restart/integration journey after implementation"
+      ],
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "progress": "Ordinary Codex result contract plus task-only normal-zero PID1 capability, exact immutable Docker terminal identity, durable private registry result and restart/long-running completion observation. Unknown identity holds; nonzero/OOM and original pre-allocation failure use diagnostic paths. Source only."
     },
     {
       "id": "L100-10",
@@ -178,14 +204,13 @@
       "work": "Build on existing global/per-project slots and priority aging. Add goals, deadlines, resource budgets, dependencies across projects and project-level allocation explanations.",
       "dependsOn": "L100-12,L100-07",
       "evidence": "",
-      "progress": {
-        "date": "2026-10-30",
-        "state": "Private goals, queue review and explicit priority Apply joined in source; no execution/capacity policy changes; new checks pending"
-      },
+      "progress": "Reviewed actor/team focus ceilings and exact accepted-upstream dependencies are enforced in the existing queue and final start paths. Includes readable run selection, canonical reserved-task ordering, real persisted queue ownership, current grants and no preemption or second scheduler.",
       "remainingWork": [
-        "Personal orchestrator recommendations",
-        "Enforced capacity and dependency policy"
-      ]
+        "Personal orchestrator recommendations and cross-project intent routing",
+        "Representative fairness/dependency/capacity usability and integration testing"
+      ],
+      "currentBatch": "Explicit reviewed actor/team focus ceilings and exact accepted-upstream-run dependencies under implementation in the existing scheduler; existing priority-only path retained.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-14",
@@ -221,14 +246,13 @@
         "control-plane/internal/api/deployment_blueprint.go"
       ],
       "validation": "Independent source review accepted. Focused Go batch51 named cases passed at fe023ba0; frontend39 and TypeScript passed at d6643def. No native package or end-to-end product acceptance implied.",
-      "progress": {
-        "state": "Deploy editor/API integration implemented in source; checks in progress",
-        "date": "2026-10-30"
-      },
+      "progress": "Durable versioned private blueprint Save/Load with CAS and dirty-conflict preservation, bounded retained history, plus compiler context linked to existing-cluster setup/review/apply/observe.",
       "remainingWork": [
-        "Live Azure/Kubernetes lifecycle connector",
-        "Inference health/scaling and analytics"
-      ]
+        "Remaining service graph lifecycle connectors tracked in L100-16–18",
+        "Representative saved-topology/deployment integration testing"
+      ],
+      "currentBatch": "Durable project-private blueprint persistence with CAS and recoverable conflicts authored and source reviewed; monotonic bounded-history correction in progress.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-16",
@@ -239,16 +263,14 @@
       "work": "Connect blueprint to existing Azure provisioning, then cluster lifecycle, registry, DNS/TLS, secret references, storage and quotas. AWS follows Azure.",
       "dependsOn": "L100-15",
       "evidence": "",
-      "progress": {
-        "date": "2026-10-30",
-        "state": "Blueprint-bound existing Azure VM foundation create/observe/remove handoff joined; focused mocked/component checks pending, no cloud operations"
-      },
+      "progress": "Source implements closed explicit Kubernetes target credentials and namespace identity, actor-bound expiring review, Apply and Observe with durable unknown-outcome journal and exact owned UID/resourceVersion. Blueprint and current source/check/authority rechecked. Private ClusterIP workloads do not require public publishing authority. Image provenance remains user-supplied.",
       "remainingWork": [
-        "Kubernetes workload application and cluster lifecycle",
-        "Registry/storage/secret/DNS/TLS connectors",
-        "Production inference and telemetry deployment/health",
-        "Actual authorized cloud journey"
-      ]
+        "Cluster and storage/secret lifecycle; registry/image-build provenance and DNS/TLS integration",
+        "Production inference lifecycle and telemetry/product analytics connectors",
+        "Actual authorized cloud/cluster journey; application HTTP health distinct from workload readiness"
+      ],
+      "currentBatch": "Owned-resource Kubernetes Apply/Observe adapter under implementation; target registration, UI/API apply integration and commissioning not complete.",
+      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-17",
@@ -351,11 +373,18 @@
       "id": "L100-25",
       "stage": "Platform",
       "title": "Outcome and coordination feedback",
-      "status": "planned",
+      "status": "prototype",
       "owner": "Product",
       "work": "Record useful work completed, waiting time, rework, review load, cost and human decisions. Do not equate tokens, agents or lines of code with customer value.",
       "dependsOn": "L100-08,L100-18,L100-22",
-      "evidence": ""
+      "evidence": "",
+      "progress": "Lazy Home outcome summary joins retained accepted run/check/release records, existing queue waiting and deduplicated review/repair work. Current unconfirmed observations are separate from historical acceptance. Bounded history and unavailable evidence are explicit.",
+      "remainingWork": [
+        "Actual elapsed work, cost and human-intervention instrumentation",
+        "Customer/product/revenue outcome feedback via L100-18 and L100-22",
+        "Representative usability and correctness testing"
+      ],
+      "currentBatchValidation": "Root and independent source review accepted; 4 Go, 3 UI and 2 API regression cases authored but unrun. No build/runtime evidence yet."
     },
     {
       "id": "L100-26",
@@ -370,6 +399,25 @@
         "date": "2026-10-30",
         "state": "Connected source prototypes and focused regression batches active"
       }
+    },
+    {
+      "id": "L100-27",
+      "stage": "Experience",
+      "title": "Persistent appearance, density, contrast and project-card clarity",
+      "status": "prototype",
+      "owner": "Local",
+      "work": "Three densities, three accents, system/light/dark, independent contrast, terminal size, actual control/spacing propagation, explicit persistence failure feedback and narrow five-D navigation.",
+      "sourceFiles": [
+        "desktop/src/preferences/appearance.ts",
+        "desktop/src/components/setup/AppearancePanel.tsx",
+        "desktop/src/styles/tokens.css",
+        "desktop/src/components/projects/projects.css"
+      ],
+      "validation": "Root and independent source review accepted; new regression cases authored but unrun. No rendered review of this revision.",
+      "remainingWork": [
+        "Rendered contrast/reflow across themes, accents, density choices, 320px and zoom",
+        "Representative usability and persistence testing"
+      ]
     }
   ],
   "statusDefinitions": {
@@ -527,5 +575,21 @@
       "typescript": "not_reached",
       "qualification": "Six failures in four new test fixture files. Production guards unchanged. Normal no-force retirement and failed aggregates retained."
     }
-  ]
+  ],
+  "completionReview": {
+    "date": "2026-10-31",
+    "baseline": "3bd01c06f5b7fe8b69f9bce6a95d10a256768a66",
+    "implementationComplete": false,
+    "fullAcceptance": false,
+    "productTestingStarted": false,
+    "packagedCandidateUnchanged": true,
+    "research": [
+      "https://openai.com/index/harness-engineering/",
+      "https://www.anthropic.com/research/harness-design-long-running-apps",
+      "https://cursor.com/blog/scaling-agents",
+      "https://code.claude.com/docs/en/best-practices"
+    ],
+    "priority": "Implement missing integrated behavior; do not relabel prototypes as complete.",
+    "sourceCut": "2026-10-31 reviewed implementation across strategy, Design, appearance, focus, task completion/recovery, Kubernetes and outcomes. Compilation pending; no product testing."
+  }
 }

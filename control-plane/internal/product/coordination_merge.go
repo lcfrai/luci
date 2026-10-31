@@ -32,7 +32,12 @@ func coordinationDocument(snapshot OrchestratorContext, proposal *OrchestratorPr
 		return nil
 	case "specification":
 		if proposal != nil {
-			return proposal.Specification
+			if proposal.Specification == nil {
+				return nil
+			}
+			value := *proposal.Specification
+			preserveOrchestratorSpecification(&value, snapshot.Specification)
+			return value
 		}
 		return snapshot.Specification
 	case "design-plan":
@@ -170,6 +175,14 @@ func coordinationOverlaps(a, b coordinationCells) []string {
 
 func coordinationRebase(turn storedOrchestratorTurn, current OrchestratorContext) (OrchestratorAnswer, []string) {
 	answer := *cloneOrchestratorAnswer(turn.Answer)
+	explicitRoadmapClear := answer.Proposal.Specification != nil && (turn.RoadmapExplicitEmpty || (answer.Proposal.Specification.Roadmap != nil && len(answer.Proposal.Specification.Roadmap) == 0))
+	if explicitRoadmapClear {
+		answer.Proposal.Specification.Roadmap = []SpecificationRoadmapPhase{}
+	}
+	explicitEvidenceClear := answer.Proposal.Specification != nil && (turn.EvidenceExplicitEmpty || (answer.Proposal.Specification.Evidence != nil && len(answer.Proposal.Specification.Evidence) == 0))
+	if explicitEvidenceClear {
+		answer.Proposal.Specification.Evidence = []DiscoveryEvidenceLink{}
+	}
 	target := answer.Proposal.Target
 	base := coordinationObject(coordinationDocument(turn.Context, nil, target))
 	next := coordinationObject(coordinationDocument(turn.Context, answer.Proposal, target))
@@ -234,6 +247,12 @@ func coordinationRebase(turn storedOrchestratorTurn, current OrchestratorContext
 	case "specification":
 		var value ProjectSpecification
 		_ = json.Unmarshal(raw, &value)
+		if explicitRoadmapClear {
+			value.Roadmap = []SpecificationRoadmapPhase{}
+		}
+		if explicitEvidenceClear {
+			value.Evidence = []DiscoveryEvidenceLink{}
+		}
 		answer.Proposal.Specification = &value
 	case "design-plan":
 		var value ProjectDesignPlan

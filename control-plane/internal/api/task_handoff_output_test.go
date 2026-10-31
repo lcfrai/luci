@@ -128,10 +128,15 @@ func TestTaskHandoffActualAPIDependencyContextKeepsClaimsAndEvidenceSeparate(t *
 		if err := os.WriteFile(filepath.Join(reportRoot, "handoff.json"), raw, 0600); err != nil {
 			t.Fatal(err)
 		}
+		if row, err := f.store.Get(created.ID); err == nil && terminalSession(row) {
+			terminalReportFixtureReceipt(t, row, reportRoot, raw)
+		}
 		be.stop(created.ID)
 		if _, err := f.store.Update(created.ID, func(row *registry.Session) error {
 			row.Status = registry.StatusExited
 			row.ExitReason = "process exited"
+			row.TaskTerminalObserverStarted = terminalSession(*row)
+			row.TaskTerminalExitZero = terminalSession(*row) // controlled typed-exit mechanics; no model/check claim
 			return nil
 		}); err != nil {
 			t.Fatal(err)
@@ -272,7 +277,12 @@ func TestTaskHandoffOutputCollectorRequiresBoundSafeFile(t *testing.T) {
 	a := f.env.api
 	be := &taskCleanupLifecycleBackend{Backend: a.deps.Backend, sandbox: backend.Sandbox{ID: row.SandboxID, Ref: row.SandboxRef, State: backend.StateStopped}}
 	a.deps.Backend = be
-	if _, err := f.store.Update(row.ID, func(value *registry.Session) error { value.Status = registry.StatusExited; return nil }); err != nil {
+	if _, err := f.store.Update(row.ID, func(value *registry.Session) error {
+		value.Status = registry.StatusExited
+		value.TaskTerminalObserverStarted = terminalSession(*value)
+		value.TaskTerminalExitZero = terminalSession(*value)
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
 	op := f.ops[0]
@@ -284,6 +294,13 @@ func TestTaskHandoffOutputCollectorRequiresBoundSafeFile(t *testing.T) {
 	path := filepath.Join(dir, "handoff.json")
 	collect := func(status, reason string) {
 		t.Helper()
+		if current, err := f.store.Get(row.ID); err == nil && terminalSession(current) {
+			if info, e := os.Lstat(path); e == nil && info.Mode().IsRegular() {
+				if raw, e := os.ReadFile(path); e == nil {
+					terminalReportFixtureReceipt(t, current, dir, raw)
+				}
+			}
+		}
 		captured, err := a.collectTaskHandoff(context.Background(), req)
 		if err != nil {
 			t.Fatal(err)
@@ -341,5 +358,18 @@ func TestTaskHandoffOutputCollectorRequiresBoundSafeFile(t *testing.T) {
 			}
 			collect("invalid", "task_report_unsafe_or_oversized")
 		})
+	}
+}
+
+// Synthetic correlation for the existing controlled backend fixture only.
+// Production eligibility additionally requires the original typed Exit writer.
+func terminalReportFixtureReceipt(t *testing.T, row registry.Session, dir string, raw []byte) {
+	t.Helper()
+	if len(row.Args) < 2 {
+		t.Fatal("missing terminal contract")
+	}
+	receipt, _ := json.Marshal(map[string]any{"version": 1, "contractDigest": row.Args[1], "reportDigest": reviewedHash(raw)})
+	if err := os.WriteFile(filepath.Join(dir, "terminal-receipt.json"), receipt, 0600); err != nil {
+		t.Fatal(err)
 	}
 }

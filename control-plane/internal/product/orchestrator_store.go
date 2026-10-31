@@ -62,6 +62,8 @@ type storedOrchestratorTurn struct {
 	OrchestratorTurn
 	// ProjectSpecification's legacy omitempty encoding cannot distinguish an
 	// explicit [] removal from an omitted evidence field after durable JSON.
+	PlanningNormalized    bool          `json:"planningNormalized,omitempty"`
+	RoadmapExplicitEmpty  bool          `json:"roadmapExplicitEmpty,omitempty"`
 	EvidenceExplicitEmpty bool          `json:"evidenceExplicitEmpty,omitempty"`
 	AdmissionRevision     *int          `json:"admissionRevision,omitempty"`
 	KeyDigest             string        `json:"keyDigest"`
@@ -504,11 +506,23 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		if turn.JobID != jobID {
 			return ErrOrchestratorInvalid
 		}
+		// Normalize omitted optional planning against the captured input before
+		// coordination computes intent. Never borrow a later mutable revision.
+		originalAnswerDigest := reviewDigest(answer)
+		roadmapExplicitEmpty, evidenceExplicitEmpty := false, false
+		if status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Specification != nil {
+			proposal := answer.Proposal.Specification
+			roadmapExplicitEmpty = proposal.Roadmap != nil && len(proposal.Roadmap) == 0
+			evidenceExplicitEmpty = proposal.Evidence != nil && len(proposal.Evidence) == 0
+			answer = cloneOrchestratorAnswer(answer)
+			preserveOrchestratorSpecification(answer.Proposal.Specification, turn.Context.Specification)
+		}
 		if terminalOrchestrator(turn.Status) {
 			// An exact completion replay confirms the already persisted outcome.
 			// Revalidating it with newer model-quality rules would strand a
 			// historical turn and its entire conversation after restart.
-			if turn.Status == status && turn.FailureCode == failureCode && reviewDigest(turn.Answer) == reviewDigest(answer) {
+			planningReplay := !turn.PlanningNormalized && reviewDigest(turn.Answer) == originalAnswerDigest || turn.PlanningNormalized && turn.RoadmapExplicitEmpty == roadmapExplicitEmpty && (reviewDigest(turn.Answer) == originalAnswerDigest || reviewDigest(turn.Answer) == reviewDigest(answer))
+			if turn.Status == status && turn.FailureCode == failureCode && turn.EvidenceExplicitEmpty == evidenceExplicitEmpty && planningReplay {
 				return s.recordCoordinationProposalLocked(p, *turn)
 			}
 			return ErrOrchestratorConflict
@@ -520,7 +534,9 @@ func (s *Server) CompleteOrchestratorTurnWithFailure(id, turnID, jobID, status s
 		} else if answer != nil {
 			return ErrOrchestratorInvalid
 		}
-		turn.EvidenceExplicitEmpty = status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Specification != nil && answer.Proposal.Specification.Evidence != nil && len(answer.Proposal.Specification.Evidence) == 0
+		turn.PlanningNormalized = status == "succeeded" && answer != nil && answer.Proposal != nil && answer.Proposal.Specification != nil
+		turn.RoadmapExplicitEmpty = roadmapExplicitEmpty
+		turn.EvidenceExplicitEmpty = evidenceExplicitEmpty
 		turn.Status, turn.Answer, turn.FailureCode, turn.UpdatedAt = status, cloneOrchestratorAnswer(answer), failureCode, time.Now().UTC().Format(time.RFC3339Nano)
 		if status == "succeeded" && turn.ReplyToTurnID != "" {
 			for j := range saved.Turns {

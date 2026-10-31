@@ -9,6 +9,7 @@ import type { Project } from '../../store/types';
 import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
 import { PortfolioOutcomeRoutes } from './PortfolioOutcomeRoutes';
+import { PortfolioFocus } from './PortfolioFocus';
 
 const freshGoal = (): PortfolioGoal => ({ id: '', revision: 0, title: '', outcome: '', projects: [], updatedAt: '' });
 const cloneGoal = (goal: PortfolioGoal) => ({ ...goal, projects: goal.projects.map(row => ({ ...row, dependsOn: [...row.dependsOn] })) });
@@ -106,7 +107,7 @@ function GoalEditor({ projects }: { projects: Project[] }) {
   const selectedProjects = new Set(draft.projects.map(row => row.projectId));
   return <div className="project-work-body">
     <p>Tell Luci what matters across projects. Review exactly how waiting work would change before applying priorities.</p>
-    <p className="journey-muted">Your goals are private to your account. Focus slots and cross-project dependencies express intentions; they do not change machine limits or task dependencies.</p>
+    <p className="journey-muted">Your goals are private to your account. Slot and dependency intentions affect queued work only after you explicitly review and install a focus policy below; they never change machine limits or task-level dependencies.</p>
     {error && <p role="alert">{error}</p>}
     {view?.partial && <p role="status">Some saved goals reference projects you cannot currently read. This is a partial view.</p>}
     {!view && <p role="status">{busy ? 'Reading saved portfolio goals…' : 'Saved goals are unavailable.'}</p>}
@@ -130,6 +131,7 @@ function GoalEditor({ projects }: { projects: Project[] }) {
       </fieldset>
       {dirty && <p role="status">Unsaved portfolio goal. Keep this editor open until you save or discard it.</p>}
       {dirty && <Button variant="secondary" disabled={busy} onClick={() => { const saved = view.goals.find(goal => goal.id === draft.id) ?? freshGoal(); setDraft(cloneGoal(saved)); setOriginal(cloneGoal(saved)); setPlan(null); setApplication(null); }}>Discard edits and load saved goal</Button>}
+      {draft.id && <PortfolioFocus key={`${draft.id}:${draft.revision}`} goal={draft} focus={view.focus} projects={projects} disabled={busy || dirty || mustReload || !draft.projects.every(p => permissions[p.projectId])} />}
       <Button disabled={busy || dirty || mustReload || !draft.id} onClick={() => void review()}>Review waiting-work priorities</Button>
       {plan && <section aria-label="Reviewed priority changes"><h3>Review before applying</h3>
         {plan.allocations.map(row => <p key={row.projectId}><strong>{projects.find(project => project.id === row.projectId)?.name ?? row.projectId}</strong>: {row.priority} priority · {row.requestedSlots || 'No specified'} focus slots · {row.recordedActive} recorded active · {row.waiting} waiting. {row.dependsOn.length > 0 && `Planning dependencies: ${row.dependsOn.map(id => projects.find(p => p.id === id)?.name ?? id).join(', ')}.`}</p>)}

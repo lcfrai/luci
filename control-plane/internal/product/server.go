@@ -71,6 +71,8 @@ type Server struct {
 	distributePDFWorkAdmission      func(context.Context) (func(), error)
 	teamControlsMu                  sync.Mutex
 	portfolioGoalsMu                sync.Mutex
+	kubernetesTargetMu              sync.Mutex
+	kubernetesReviewMu              sync.Mutex
 	coordinatorAuthorize            func(context.Context, string) error
 	coordinatorExecuteAuthorize     func(context.Context, string, string, bool) error
 	coordinatorDeploymentAuthorize  management.DeploymentAuthorizer

@@ -6,6 +6,7 @@ import { DesignWorkIndicator } from './DesignWorkIndicator';
 import { editScene, redoScene, sceneHistory, undoScene } from './designSceneHistory';
 import './design-scene.css';
 import { DesignRasterLayer } from './DesignRasterLayer';
+import { createFrameVariant, plannedFrameCoverage } from './frameVariants';
 
 const emptyScene = (): EditableDesignScene => ({version: 1, frames: []});
 interface Props {
@@ -18,6 +19,8 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
   const scene = plan.scene ?? emptyScene(), fingerprint = JSON.stringify(scene);
   const history = useRef(sceneHistory(scene)), [historyVersion, setHistoryVersion] = useState(0);
   const [frameId, setFrameId] = useState(''), [nodeId, setNodeId] = useState(''), [screenId, setScreenId] = useState('');
+  const [variantWidth, setVariantWidth] = useState<number | null>(null), [variantState, setVariantState] = useState<string | null>(null), [coverageLimit, setCoverageLimit] = useState(12);
+  const framePicker = useRef<HTMLSelectElement>(null), pendingFrameFocus = useRef(false);
   const [scale, setScale] = useState(0.75), [pane, setPane] = useState<'canvas' | 'layers' | 'properties'>('canvas'), [preview, setPreview] = useState(false);
   const [gestureScene, setGestureScene] = useState<EditableDesignScene | null>(null), [notice, setNotice] = useState('');
   const gesture = useRef<Gesture | null>(null), stage = useRef<HTMLDivElement>(null), textInput = useRef<HTMLTextAreaElement>(null);
@@ -29,11 +32,20 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
   const node = frame?.nodes.find(item => item.id === nodeId), screen = plan.screens.find(item => item.id === frame?.screenId);
   const readOnly = !canEdit || busy || preview || !active, canModify = canRead && canEdit && !busy && active && !preview;
   const structuralErrors = designSceneErrors(scene), errors = structuralErrors.length ? structuralErrors : designSceneErrors(scene, plan);
+  const plannedWidths = [...new Set(screen?.widths.filter(width => Number.isSafeInteger(width) && width >= 320 && width <= 3840) ?? [])];
+  const plannedStates = screen?.states.length ? [...new Set(screen.states.filter(state => state === '' || state.trim()))] : [''];
+  const targetWidth = variantWidth !== null && plannedWidths.includes(variantWidth) ? variantWidth : plannedWidths.find(width => width !== frame?.width) ?? plannedWidths[0];
+  const targetState = variantState !== null && plannedStates.includes(variantState) ? variantState : plannedStates.includes(frame?.state ?? '') ? frame?.state ?? '' : plannedStates[0] ?? '';
+  const targetFrame = scene.frames.find(item => item.screenId === screen?.id && item.width === targetWidth && item.state === targetState);
+  const coverage = screen ? plannedFrameCoverage(scene, screen) : [];
+  const variantBoundsExceeded = !!screen && (screen.widths.length > 12 || screen.states.length > 30);
   const editing = useRef(false); editing.current = canModify;
   useEffect(() => {
     if (fingerprint !== JSON.stringify(history.current.current)) { history.current = sceneHistory(scene); setHistoryVersion(value => value + 1); gesture.current = null; setGestureScene(null); }
   }, [fingerprint]);
   useEffect(() => { history.current = sceneHistory(scene); setHistoryVersion(value => value + 1); }, [plan.revision]);
+  useEffect(() => { setVariantWidth(null); setVariantState(null); setCoverageLimit(12); }, [frame?.id]);
+  useEffect(() => { if (pendingFrameFocus.current) { framePicker.current?.focus(); pendingFrameFocus.current = false; } }, [fingerprint]);
   useEffect(() => { if (!canModify) { gesture.current = null; setGestureScene(null); } }, [canModify]);
   useEffect(() => {
     const id = pendingFocus.current;
@@ -107,6 +119,18 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
     const values = [...frame.nodes], at = values.findIndex(item => item.id === node.id), target = Math.max(0, Math.min(values.length - 1, at + delta));
     values.splice(at, 1); values.splice(target, 0, node); patchFrame({nodes: values});
   }
+  function openFrame(id: string) {
+    gesture.current = null; gesturePreview.current = null; setGestureScene(null);
+    setFrameId(id); setNodeId(''); setPreview(false); setPane('canvas'); framePicker.current?.focus();
+  }
+  function copyVariant(width: number, state: string) {
+    if (!canModify || !frame || gesture.current || variantBoundsExceeded) return;
+    try {
+      const next = createFrameVariant(plan, frame.id, width, state);
+      commit(next); setFrameId(next.frames[next.frames.length - 1].id); setNodeId(''); setPreview(false); setPane('canvas'); pendingFrameFocus.current = true;
+      setNotice('Frame copied into this draft. Review and adapt its layout before saving; the original frame is unchanged.');
+    } catch (cause) { setNotice(cause instanceof Error ? cause.message : 'This frame could not be copied. Your scene is unchanged.'); }
+  }
   if (!canRead) return <p>Current project read access is required to view this scene.</p>;
   if (structuralErrors.length) return <div role="alert">The saved scene cannot be rendered safely: {structuralErrors[0]} Preserve its history and inspect the design plan before editing.</div>;
   return <section className="design-scene-editor" aria-label="Editable design canvas" onKeyDown={event => {
@@ -115,7 +139,7 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
   }}>
     <DesignWorkIndicator scope={workScope} active={active} />
     <div className="design-scene-toolbar">
-      <label>Frame<select value={frame?.id ?? ''} onChange={event => { setFrameId(event.target.value); setNodeId(''); setGestureScene(null); gesture.current = null; }} disabled={!scene.frames.length}>
+      <label>Frame<select ref={framePicker} value={frame?.id ?? ''} onChange={event => { setFrameId(event.target.value); setNodeId(''); setGestureScene(null); gesture.current = null; }} disabled={!scene.frames.length}>
         {!scene.frames.length && <option value="">No scene frames yet</option>}{scene.frames.map(item => <option key={item.id} value={item.id}>{item.name} · {item.width} px{item.state ? ` · ${item.state}` : ''}</option>)}
       </select></label>
       <Button variant="secondary" disabled={!canModify || !plan.screens.length} onClick={() => {
@@ -128,6 +152,32 @@ export function DesignSceneCanvas({plan, canRead, canEdit, busy, workScope, acti
       <Button variant="tertiary" disabled={!frame || busy} aria-pressed={preview} onClick={() => { gesture.current = null; setGestureScene(null); setPreview(!preview); }}>Try frame interactions</Button>
       <Button variant="tertiary" disabled={busy} onClick={onPlan}>Edit screen plan</Button>
     </div>
+    {frame && screen && <details className="design-frame-variants" aria-label="Frame variants">
+      <summary>Copy and adapt a frame{coverage.length > 0 && ` · ${coverage.filter(row => row.frameIds.length).length} of ${coverage.length} planned combinations drawn`}</summary>
+      <h3>Copy and adapt this frame</h3>
+      <p>Start from <strong>{frame.name}</strong>. Keep the original while adapting a separate width or state.</p>
+      <div className="design-frame-variant-actions">
+        <label>Variant width<select value={targetWidth ?? ''} disabled={!canModify || !plannedWidths.length || variantBoundsExceeded} onChange={event => setVariantWidth(Number(event.target.value))}>
+          {!plannedWidths.length && <option value="">Add a width in the screen plan</option>}{plannedWidths.map(width => <option key={width} value={width}>{width} px</option>)}
+        </select></label>
+        <label>Variant state<select value={targetState} disabled={!canModify || !plannedStates.length || variantBoundsExceeded} onChange={event => setVariantState(event.target.value)}>
+          {plannedStates.map(state => <option key={state} value={state}>{state || 'Default state'}</option>)}
+        </select></label>
+        <Button type="button" variant="secondary" disabled={!canModify || !targetWidth || !plannedStates.length || !!targetFrame || variantBoundsExceeded} onClick={() => { if (targetWidth) copyVariant(targetWidth, targetState); }}>Create frame variant</Button>
+        {targetFrame && <Button type="button" variant="tertiary" disabled={busy || !active} onClick={() => openFrame(targetFrame.id)}>Open existing variant</Button>}
+      </div>
+      <p className="journey-muted">Horizontal positions and widths scale; text size and vertical layout stay unchanged. This is a draft to adapt, not automatic responsive design.</p>
+      {variantBoundsExceeded ? <p role="status">Use at most 12 widths and 30 states in this screen plan before creating variants.</p> : !coverage.length ? <p>Add planned widths and states in the screen plan to see their frame coverage.</p> : <details className="design-frame-coverage">
+        <summary>Planned frame coverage · {coverage.filter(row => row.frameIds.length).length} of {coverage.length} combinations drawn</summary>
+        <p className="journey-muted">Frame presence in this draft. It does not verify layout quality or a running application.</p>
+        <ul>{coverage.slice(0, coverageLimit).map(row => <li key={JSON.stringify([row.state, row.width])}>
+          <span>{row.state || 'Default state'} · {row.width} px{!row.frameIds.length && ' · not drawn'}</span>
+          {row.frameIds.length ? <Button type="button" variant="tertiary" disabled={busy || !active} onClick={() => openFrame(row.frameIds[0])}>Open {row.state || 'default'} at {row.width} px{row.frameIds.length > 1 && ` (${row.frameIds.length} frames)`}</Button>
+            : <Button type="button" variant="tertiary" disabled={!canModify} onClick={() => copyVariant(row.width, row.state)}>Copy current frame to {row.state || 'default'} at {row.width} px</Button>}
+        </li>)}</ul>
+        {coverage.length > coverageLimit && <Button type="button" variant="tertiary" onClick={() => setCoverageLimit(value => value + 12)}>Show more combinations ({coverage.length - coverageLimit} remaining)</Button>}
+      </details>}
+    </details>}
     {notice && <p role="status">{notice}</p>}{errors.length > 0 && <p role="alert">{errors[0]} Save remains blocked until these references are repaired.</p>}
     {!plan.scene && <p className="journey-muted">This saved design has no editable scene yet. Add a frame for a planned screen or ask Luci to propose one. Your sketch and existing screen plan stay available.</p>}
     {!plan.screens.length && <Button variant="secondary" disabled={!canModify} onClick={onPlan}>Plan the first screen</Button>}

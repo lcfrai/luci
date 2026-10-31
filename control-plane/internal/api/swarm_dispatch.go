@@ -56,6 +56,9 @@ func (a *API) admitQueuedSwarm(ctx context.Context, req product.SwarmAdmissionRe
 	if req.QueueID == "" || req.Actor.ProjectID != req.ProjectID {
 		return blocked("invalid_scope", "This queued task has no matching project owner.")
 	}
+	if err := a.deps.Product.CheckPortfolioFocusAdmission(ctx, req.QueueID); err != nil {
+		return product.SwarmAdmissionResult{State: "waiting", ReasonCode: "portfolio_focus_waiting", Message: "Waiting for the applied portfolio focus ceiling or exact accepted upstream run."}, nil
+	}
 	run, err := a.deps.Product.GetProjectSwarmRun(req.ProjectID, req.RunID)
 	if err != nil {
 		return blocked("run_unavailable", "This reviewed run is no longer available.")
@@ -327,6 +330,17 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return refuse("captured_context", err)
 	}
 	mounts = append(mounts, mount)
+	terminalImage := image
+	if route.Harness == "codex" && a.deps.Backend.Kind() == backend.KindDocker {
+		terminalOwner := candidate
+		terminalOwner.ID = admission.SessionID
+		var terminalMount backend.Mount
+		command, argv, terminalMount, terminalImage, err = a.prepareTaskTerminal(ctx, terminalOwner, reviewed, command, argv, image)
+		if err != nil {
+			return refuse("task_terminal_unavailable", err)
+		}
+		mounts = append(mounts, terminalMount)
+	}
 	candidate.ID, candidate.Title, candidate.MachineID = admission.SessionID, descriptor.Name+" · "+filepath.Base(filepath.Clean(path)), LocalMachineID
 	candidate.Command, candidate.Args, candidate.ConversationID = command, argv, conversation
 	candidate.Status, candidate.Backend, candidate.SandboxID = registry.StatusStarting, string(a.deps.Backend.Kind()), candidate.ID
@@ -335,6 +349,9 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		return refuse("capacity_changed", err)
 	}
 	finalAuth := func(ctx context.Context) error {
+		if err := a.deps.Product.CheckPortfolioFocusAdmission(ctx, req.QueueID); err != nil {
+			return admissionFailure("portfolio_focus_waiting", err)
+		}
 		currentProfile, err := a.nativeDelegationDispatchProfile(run, op.ID, a.sessionImage())
 		if err != nil || currentProfile != nativeProfile || a.sessionImage() != image {
 			return admissionFailure("native_helper_profile_changed", product.ErrNativeDelegation)
@@ -383,7 +400,10 @@ func (a *API) dispatchQueuedSwarm(ctx context.Context, req product.SwarmDispatch
 		}
 		return nil
 	}
-	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: image, Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {
+	stored, err := a.allocatePreparedSession(ctx, preparedSessionAllocation{Record: candidate, Spec: backend.Spec{ID: candidate.ID, SessionID: candidate.ID, Image: terminalImage, Command: command, Args: argv, Env: sandboxEnv, AttachToken: candidate.AttachToken, Resources: capacity.Resources, WorkDir: sessionWorkDir, Mounts: mounts}, Account: account, Revalidate: admission.Revalidate, BeforeAllocate: finalAuth, BeforeBackendStart: func(ctx context.Context) error {
+		if err := a.deps.Product.CheckPortfolioFocusAdmission(ctx, req.QueueID); err != nil {
+			return admissionFailure("portfolio_focus_waiting", err)
+		}
 		return a.execution.markBackendStarting(ctx, req.QueueID, candidate.ID, candidate.ID)
 	}, AfterBackendCreate: func(ctx context.Context, sandboxID string) error {
 		return a.execution.markBackendSettled(ctx, req.QueueID, candidate.ID, sandboxID)

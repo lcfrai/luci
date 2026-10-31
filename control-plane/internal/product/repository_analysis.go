@@ -296,6 +296,10 @@ func (s *Server) ApplyRepositoryAnalysisDraft(ctx context.Context, id string, ex
 	if current.Revision != expectedRevision || state.Brief.Revision != expectedBriefRevision {
 		return ProjectSpecification{}, ErrAnalysisChanged
 	}
+	preserveSpecificationPlanning(&spec, current)
+	if err := validateSpecification(spec); err != nil {
+		return ProjectSpecification{}, err
+	}
 	source, _, err := s.repositoryAnalysisSource(ctx, p, mode)
 	if err != nil || source.Digest != digest {
 		return ProjectSpecification{}, ErrAnalysisChanged

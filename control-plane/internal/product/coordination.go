@@ -63,8 +63,9 @@ func coordinationChanges(turn *storedOrchestratorTurn) coordinationCells {
 	if turn == nil || turn.Answer == nil || turn.Answer.Proposal == nil {
 		return nil
 	}
-	target := turn.Answer.Proposal.Target
-	return coordinationDiff(coordinationObject(coordinationDocument(turn.Context, nil, target)), coordinationObject(coordinationDocument(turn.Context, turn.Answer.Proposal, target)))
+	answer := restoredOrchestratorAnswer(*turn)
+	target := answer.Proposal.Target
+	return coordinationDiff(coordinationObject(coordinationDocument(turn.Context, nil, target)), coordinationObject(coordinationDocument(turn.Context, answer.Proposal, target)))
 }
 
 // Completion captures an origin automatically, without a second user handoff.
@@ -75,6 +76,7 @@ func (s *Server) recordCoordinationProposalLocked(p project.Project, turn stored
 	if s.coordinatorAuthorize == nil || turn.Status != "succeeded" || turn.Answer == nil || turn.Answer.Proposal == nil {
 		return nil
 	}
+	turn.Answer = restoredOrchestratorAnswer(turn)
 	if ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 		// A completed pre-quality-gate proposal stays in the person's
 		// conversation, but cannot become a new coordination intent.
@@ -137,6 +139,7 @@ func (s *Server) ensureCoordinationOriginsLocked(p project.Project) error {
 		if archived != nil {
 			continue
 		}
+		turn.Answer = restoredOrchestratorAnswer(turn)
 		if ValidateOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 			// Do not retroactively backfill an unusable old proposal.
 			continue

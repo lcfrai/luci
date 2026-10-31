@@ -13,6 +13,38 @@ function Harness({initial = designScenePlanFixture(), edit = true, changed = vi.
   const [plan, setPlan] = useState(initial);
   return <DesignSceneCanvas plan={plan} canRead canEdit={edit} busy={false} workScope={null} onChange={scene => { const next = {...plan, scene}; setPlan(next); changed(next); }} onAsk={ask} onPlan={vi.fn()} />;
 }
+it('creates a separately editable planned frame variant through the same undo and redo history', () => {
+  const initial = designScenePlanFixture(), changed = vi.fn(); initial.screens[0].widths.push(1440);
+  const original = JSON.stringify(initial);
+  render(<Harness initial={initial} changed={changed} />);
+  fireEvent.click(screen.getByText(/^Copy and adapt a frame/));
+  fireEvent.change(screen.getByLabelText('Variant width'), { target: { value: '1440' } });
+  fireEvent.change(screen.getByLabelText('Variant state'), { target: { value: 'Saved' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create frame variant' }));
+  expect(changed).toHaveBeenCalledOnce();
+  const copied = changed.mock.calls[0][0].scene.frames[1];
+  expect(copied).toMatchObject({ screenId: initial.screens[0].id, width: 1440, state: 'Saved' });
+  expect(copied.id).not.toBe(initial.scene!.frames[0].id);
+  expect(screen.getByLabelText('Frame')).toHaveProperty('value', copied.id);
+  expect(JSON.stringify(initial)).toBe(original);
+  fireEvent.click(screen.getByRole('button', { name: 'Undo scene edit' }));
+  expect(changed.mock.calls[1][0].scene.frames).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Redo scene edit' }));
+  expect(changed.mock.calls[2][0].scene.frames[1]).toEqual(copied);
+});
+it('opens planned existing frames without mutation and refuses variant creation in a read-only canvas', () => {
+  const initial = designScenePlanFixture(), changed = vi.fn(); initial.screens[0].widths.push(1440);
+  const second = { ...initial.scene!.frames[0], id: 'frame-desktop', width: 1440, state: 'Saved', nodes: [] };
+  initial.scene!.frames.push(second);
+  render(<Harness initial={initial} edit={false} changed={changed} />);
+  fireEvent.click(screen.getByText(/^Copy and adapt a frame/));
+  expect(screen.getByRole('button', { name: 'Create frame variant' })).toHaveProperty('disabled', true);
+  fireEvent.click(screen.getByText(/^Planned frame coverage/));
+  expect(screen.getByRole('button', { name: 'Copy current frame to Empty at 1440 px' })).toHaveProperty('disabled', true);
+  fireEvent.click(screen.getByRole('button', { name: 'Open Saved at 1440 px' }));
+  expect(screen.getByLabelText('Frame')).toHaveProperty('value', second.id);
+  expect(changed).not.toHaveBeenCalled();
+});
 it('keeps the draft history counter out of the visible canvas layout', () => {
   const style = document.createElement('style'); style.textContent = sceneStyles; document.head.append(style);
   try {

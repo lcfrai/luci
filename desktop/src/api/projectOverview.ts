@@ -2,6 +2,13 @@ import { productApi } from './product';
 import { validRunAttention, type ProjectRunAttention } from './runAttention';
 import type { OrchestratorActivity } from './orchestrator';
 
+export interface ProjectOutcomes {
+  status: 'recorded' | 'unavailable'; scope: 'retained-run-history'; observedAt: string;
+  retainedRuns: number | null; recordedAcceptances: number | null; unconfirmedAcceptedObservations: number | null;
+  reviewRequiredRuns: number | null; unresolvedCheckRepairTasks: number | null; omittedRuns: number | null;
+  latestAccepted: { runId: string; checkId: string; releaseId: string; acceptedAt: string; commit: string; target: string } | null;
+}
+
 export interface ProjectOverview {
   projectId: string; observedAt: string; status: 'ready' | 'partial' | 'unavailable';
   goal: { text: string; revision: number; updatedAt: string; truncated: boolean } | null;
@@ -15,8 +22,23 @@ export interface ProjectOverview {
   sharedChange?: { status: 'recorded' | 'none' | 'unavailable'; event?: OrchestratorActivity['accepted'][number] };
   privateFinding?: { status: 'recorded' | 'none' | 'unavailable'; id?: string; sourceStatus?: string; state?: string; updatedAt?: string };
   limitations: string[];
+  outcomes?: ProjectOutcomes;
 }
 const count = (value: unknown) => value === null || (Number.isSafeInteger(value) && (value as number) >= 0);
+export function validProjectOutcomes(value: ProjectOutcomes | undefined): boolean {
+  if (value === undefined) return true; // Older services do not supply this optional projection.
+  if (!value || value.scope !== 'retained-run-history' || typeof value.observedAt !== 'string' || !Number.isFinite(Date.parse(value.observedAt))) return false;
+  const counts = [value.retainedRuns, value.recordedAcceptances, value.unconfirmedAcceptedObservations, value.reviewRequiredRuns, value.unresolvedCheckRepairTasks, value.omittedRuns];
+  if (value.status === 'unavailable') return counts.every(item => item === null) && value.latestAccepted === null;
+  if (value.status !== 'recorded' || counts.some(item => !count(item) || item === null) ||
+      value.retainedRuns! > 200 || value.recordedAcceptances! > value.retainedRuns! || value.reviewRequiredRuns! > value.retainedRuns! ||
+      value.unconfirmedAcceptedObservations! > value.recordedAcceptances! || value.omittedRuns !== 0) return false;
+  const latest = value.latestAccepted;
+  return value.recordedAcceptances === 0 ? latest === null : !!latest &&
+    typeof latest.runId === 'string' && latest.runId.length <= 200 && /^run-[a-zA-Z0-9-]+$/.test(latest.runId) && typeof latest.checkId === 'string' && !!latest.checkId && latest.checkId.length <= 200 &&
+    typeof latest.releaseId === 'string' && !!latest.releaseId && latest.releaseId.length <= 200 &&
+    typeof latest.commit === 'string' && /^[a-f0-9]{40}([a-f0-9]{24})?$/.test(latest.commit) && typeof latest.target === 'string' && !!latest.target && latest.target.length <= 200 && typeof latest.acceptedAt === 'string' && Number.isFinite(Date.parse(latest.acceptedAt));
+}
 function validAttention(value: ProjectOverview['attention']): boolean {
   if (value === undefined) return true; // Older services have no observation, not zero obligations.
   if (!value || !validRunAttention(value.items, 3)) return false;
@@ -46,8 +68,9 @@ function validPrivateFinding(value: ProjectOverview['privateFinding']): boolean 
     Number.isFinite(Date.parse(value.updatedAt ?? ''));
 }
 export const projectOverviewApi = {
-  async get(projectId: string, signal?: AbortSignal): Promise<ProjectOverview> {
-    const value = await productApi.request<ProjectOverview>(`/v1/product/projects/${encodeURIComponent(projectId)}/overview`, undefined, 'GET', 30_000, signal);
+  async get(projectId: string, signal?: AbortSignal, options?: { includeOutcomes?: boolean }): Promise<ProjectOverview> {
+    const query = options?.includeOutcomes ? '?includeOutcomes=true' : '';
+    const value = await productApi.request<ProjectOverview>(`/v1/product/projects/${encodeURIComponent(projectId)}/overview${query}`, undefined, 'GET', 30_000, signal);
     if (!value || value.projectId !== projectId || !['ready', 'partial', 'unavailable'].includes(value.status) ||
       typeof value.observedAt !== 'string' || typeof value.phase?.label !== 'string' || typeof value.nextAction?.label !== 'string' ||
       (value.goal !== null && (typeof value.goal?.text !== 'string' || typeof value.goal.truncated !== 'boolean')) ||
@@ -61,6 +84,7 @@ export const projectOverviewApi = {
       !validAttention(value.attention) ||
       !validSharedChange(value.sharedChange) ||
       !validPrivateFinding(value.privateFinding) ||
+      !validProjectOutcomes(value.outcomes) ||
       !Array.isArray(value.limitations) || value.limitations.some(item => typeof item !== 'string')) {
       throw new Error('This project summary could not be read. Refresh it before continuing.');
     }

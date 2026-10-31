@@ -50,6 +50,7 @@ var (
 // Comparing the full implementation value also catches changes to its slices.
 func sameTaskObservationGeneration(before, after Session) bool {
 	return before.ProjectID == after.ProjectID && before.WorktreeID == after.WorktreeID &&
+		before.TaskTerminalImage == after.TaskTerminalImage && before.TaskTerminalCreatedAt.Equal(after.TaskTerminalCreatedAt) && before.TaskTerminalStartedAt.Equal(after.TaskTerminalStartedAt) && reflect.DeepEqual(before.TaskTerminalResult, after.TaskTerminalResult) &&
 		before.ProjectRunID == after.ProjectRunID && before.ProjectRunOperationID == after.ProjectRunOperationID &&
 		before.SandboxID == after.SandboxID && before.SandboxRef == after.SandboxRef &&
 		before.Status == after.Status && before.ExitReason == after.ExitReason && before.StartFailure == after.StartFailure &&

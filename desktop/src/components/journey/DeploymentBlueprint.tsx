@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { deploymentBlueprintApi, type BlueprintProjectContext, type BlueprintService, type DeploymentBlueprint, type DeploymentBlueprintPlan } from '../../api/deploymentBlueprint';
+import { deploymentBlueprintApi, type BlueprintProjectContext, type BlueprintService, type DeploymentBlueprint, type DeploymentBlueprintPlan, type SavedDeploymentBlueprint, type SaveBlueprintRequest } from '../../api/deploymentBlueprint';
 import { errorText } from '../../api/product';
 import { teamScopeGeneration } from '../../api/teamScope';
 import { PROJECT_CONTEXT_CHANGED } from '../../api/projectContextEvents';
@@ -10,6 +10,7 @@ import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
 import './deployment-blueprint.css';
 import { AzureFoundationHandoff } from './AzureFoundationHandoff';
+import { KubernetesDeployment } from './KubernetesDeployment';
 
 type ServiceDraft = BlueprintService & { useTelemetry: boolean; commandText: string; argsText: string };
 type Editor = { reference: string; namespace: string; services: ServiceDraft[]; telemetry: boolean; telemetryReference: string; endpoint: string };
@@ -20,6 +21,8 @@ const service = (kind: 'app' | 'inference', id: string): ServiceDraft => ({ id, 
 });
 const initial = (): Editor => ({ reference: '', namespace: '', services: [service('app', 'app-1')], telemetry: false, telemetryReference: '', endpoint: '' });
 const contextKey = (value: BlueprintProjectContext) => JSON.stringify(value);
+const sourceKey = (value: DeploymentBlueprint['source']) => JSON.stringify([value.commit, value.configurationRevision, value.context?.briefRevision ?? 0,
+  value.context?.specificationRevision ?? 0, value.context?.specificationDigest ?? '', value.context?.designRevision ?? 0, value.context?.designDigest ?? '']);
 const lines = (value: string) => value.split('\n').filter(line => line.trim() !== '');
 function requestFor(projectId: string, draft: Editor, context: BlueprintProjectContext): DeploymentBlueprint {
   const telemetry = draft.telemetry && draft.services.some(row => row.useTelemetry);
@@ -27,6 +30,22 @@ function requestFor(projectId: string, draft: Editor, context: BlueprintProjectC
     services: draft.services.map(({ useTelemetry, commandText, argsText, ...row }) => ({ ...row, command: lines(commandText), args: lines(argsText), ...(telemetry && useTelemetry ? { telemetry: { resourceId: 'analytics', endpoint: draft.endpoint } } : {}) })),
     ...(telemetry ? { externalResources: [{ id: 'analytics', kind: 'analytics' as const, reference: draft.telemetryReference }] } : {}),
   };
+}
+
+function editorFor(blueprint: DeploymentBlueprint): Editor {
+  const analytics = blueprint.externalResources?.find(row => row.id === 'analytics' && row.kind === 'analytics');
+  const known = new Set([blueprint.infrastructure.id, ...blueprint.services.map(row => row.id), ...(analytics ? ['analytics'] : [])]);
+  if (blueprint.infrastructure.kind !== 'kubernetes' || blueprint.infrastructure.id !== 'cluster' || blueprint.services.length > 8 ||
+      (blueprint.externalResources ?? []).some(row => row !== analytics) || blueprint.services.some(row => (row.dependsOn ?? []).some(id => !known.has(id)) || row.telemetry && row.telemetry.resourceId !== 'analytics') ||
+      new Set(blueprint.services.map(row => row.telemetry?.endpoint).filter(Boolean)).size > 1 || analytics && !blueprint.services.some(row => row.telemetry) ||
+      !!analytics && blueprint.services.some(row => row.dependsOn?.includes('analytics') && !row.telemetry) ||
+      blueprint.services.some(row => [...(row.command ?? []), ...(row.args ?? [])].some(value => value.includes('\n') || value.trim() === ''))) {
+    throw new Error('This saved topology uses options outside this editor. Its saved revision is preserved; export it for inspection instead of replacing it.');
+  }
+  return { reference: blueprint.infrastructure.reference, namespace: blueprint.infrastructure.namespace ?? '',
+    services: blueprint.services.map(({ telemetry, ...row }) => ({ ...row, dependsOn: row.dependsOn?.filter(id => id !== blueprint.infrastructure.id && (!analytics || id !== 'analytics')),
+      useTelemetry: !!telemetry, commandText: row.command?.join('\n') ?? '', argsText: row.args?.join('\n') ?? '' })),
+    telemetry: !!analytics, telemetryReference: analytics?.reference ?? '', endpoint: blueprint.services.find(row => row.telemetry)?.telemetry?.endpoint ?? '' };
 }
 
 export function DeploymentBlueprint({ projectId, active, disabled = false, onPublishing }: { projectId: string; active: boolean; disabled?: boolean; onPublishing(): void }) {
@@ -44,10 +63,15 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
   const [draft, setDraft] = useState<Editor>(initial), [dirty, setDirty] = useState(false);
   const [context, setContext] = useState<BlueprintProjectContext | null>(null), [plan, setPlan] = useState<DeploymentBlueprintPlan | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [saved, setSaved] = useState<SavedDeploymentBlueprint | null>(null), [savedLoaded, setSavedLoaded] = useState(false);
+  const [reviewNeeded, setReviewNeeded] = useState(false), [reviewed, setReviewed] = useState(false), [unsupported, setUnsupported] = useState(false);
+  const initialRead = useRef(false), dirtyNow = useRef(dirty);
+  dirtyNow.current = dirty;
+  const saveAttempt = useRef<{ key: string; request: SaveBlueprintRequest } | null>(null);
   const downloads = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const nextService = useRef({ app: 1, inference: 0 });
   function retire() { sequence.current++; pending.current?.abort(); pending.current = null; }
-  function discard() { retire(); nextService.current = { app: 1, inference: 0 }; setDraft(initial()); setDirty(false); setPlan(null); setError(''); setNotice('Planning draft cleared.'); setBusy(false); }
+  function discard() { retire(); saveAttempt.current = null; nextService.current = { app: 1, inference: 0 }; setDraft(initial()); setDirty(false); setPlan(null); setError(''); setReviewNeeded(!!saved); setReviewed(false); setNotice('Local planning draft cleared. The saved revision is retained.'); setBusy(false); }
   useUnsavedProjectDraft(projectId, dirty, 'Deployment blueprint', 'deploy', { retained: false, discard });
   useEffect(() => {
     mounted.current = true;
@@ -55,15 +79,76 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
   }, []);
   useEffect(() => { if (!active || !canPlan || disabled) { retire(); setBusy(false); setPlan(null); } }, [active, canPlan, disabled]);
   useEffect(() => {
+    if (!active || !canPlan || disabled) { if (!savedLoaded) initialRead.current = false; return; }
+    if (initialRead.current) return;
+    initialRead.current = true;
+    void loadSaved(false);
+  }, [active, canPlan, disabled]);
+  useEffect(() => {
     const changed = (event: Event) => {
       const detail = (event as CustomEvent<{ scope: string; projectId: string }>).detail;
       if (detail?.scope !== scope || detail.projectId !== projectId) return;
-      retire(); setPlan(null); setContext(null); setBusy(false); setNotice('Project context changed. Generate a fresh plan before using any output.');
+      retire(); saveAttempt.current = null; setPlan(null); setContext(null); setBusy(false); setNotice('Project context changed. Generate a fresh plan before using any output.');
     };
     window.addEventListener(PROJECT_CONTEXT_CHANGED, changed);
     return () => window.removeEventListener(PROJECT_CONTEXT_CHANGED, changed);
   }, [scope, projectId]);
-  function edit(next: Editor) { retire(); setDraft(next); setDirty(true); setPlan(null); setError(''); setNotice(''); setBusy(false); }
+  function edit(next: Editor) { retire(); saveAttempt.current = null; setDraft(next); setDirty(true); setPlan(null); setError(''); setNotice(''); setBusy(false); }
+  function syncNextIds(next: Editor) {
+    for (const kind of ['app', 'inference'] as const) nextService.current[kind] = Math.max(0, ...next.services.map(row => {
+      const number = Number(new RegExp(`^${kind}-(\\d+)$`).exec(row.id)?.[1] ?? 0);
+      return Number.isSafeInteger(number) && number <= 1_000_000 ? number : 0;
+    }));
+  }
+  async function loadSaved(keepDraft: boolean) {
+    if (!canPlan || !active || disabled || pending.current) return;
+    const controller = new AbortController(), token = ++sequence.current, epoch = owner.current.epoch;
+    pending.current = controller; setBusy(true); setError(''); setPlan(null);
+    const current = () => mounted.current && !controller.signal.aborted && token === sequence.current && epoch === owner.current.epoch;
+    try {
+      const result = await deploymentBlueprintApi.saved(projectId, controller.signal);
+      if (!current()) return;
+      const preserve = keepDraft || dirtyNow.current;
+      setSaved(result.saved); setSavedLoaded(true); saveAttempt.current = null;
+      setReviewNeeded(preserve); setReviewed(false);
+      // Capability is a property of the saved topology, independent of whether
+      // the caller keeps a local draft. Baseline review cannot bypass it.
+      if (result.saved) {
+        try { const next = editorFor(result.saved.blueprint); setUnsupported(false); if (!preserve) { setDraft(next); syncNextIds(next); setDirty(false); } }
+        catch (cause) { setUnsupported(true); throw cause; }
+      } else setUnsupported(false);
+      setNotice(preserve ? 'Saved revision refreshed. Your local edits are unchanged; review the baseline before saving.' : result.saved ? `Loaded saved revision ${result.saved.revision}. Generate a fresh plan against current project context.` : 'No saved blueprint yet. Plan your services, then save them here.');
+      if (result.saved) {
+        try {
+          const now = await deploymentBlueprintApi.context(projectId);
+          if (!current()) return;
+          setContext(now);
+          if (sourceKey(now.source) !== sourceKey(result.saved.blueprint.source)) setNotice('The saved blueprint refers to older source or context. Its topology is retained; generate or save against the current project context before using output.');
+        } catch { if (current()) setNotice('Saved topology loaded. Current project context could not be confirmed; refresh before generating or saving output.'); }
+      }
+    } catch (cause) { if (current()) setError(errorText(cause)); }
+    finally { if (current()) { pending.current = null; setBusy(false); } }
+  }
+  async function saveDraft() {
+    if (!canPlan || !access.canEdit || !active || disabled || pending.current || !savedLoaded || unsupported || reviewNeeded && !reviewed) return;
+    const controller = new AbortController(), token = ++sequence.current, epoch = owner.current.epoch;
+    pending.current = controller; setBusy(true); setError(''); setPlan(null); setNotice('');
+    const current = () => mounted.current && !controller.signal.aborted && token === sequence.current && epoch === owner.current.epoch;
+    try {
+      if (!saveAttempt.current) {
+        const before = await deploymentBlueprintApi.context(projectId);
+        if (!current()) return;
+        setContext(before);
+        saveAttempt.current = { key: crypto.randomUUID(), request: { expectedRevision: saved?.revision ?? 0, expectedDigest: saved?.digest ?? '', idempotencyKey: '', blueprint: requestFor(projectId, draft, before) } };
+        saveAttempt.current.request.idempotencyKey = saveAttempt.current.key;
+      }
+      const result = await deploymentBlueprintApi.save(projectId, saveAttempt.current.request, controller.signal);
+      if (!current()) return;
+      setSaved(result.saved); setDirty(false); setReviewNeeded(false); setReviewed(false); saveAttempt.current = null;
+      setNotice(`Saved service blueprint revision ${result.saved!.revision}. Generate a fresh plan before exporting or preparing infrastructure.`);
+    } catch (cause) { if (current()) { setError(errorText(cause)); setReviewNeeded(true); setReviewed(false); } }
+    finally { if (current()) { pending.current = null; setBusy(false); } }
+  }
   function change(id: string, patch: Partial<ServiceDraft>) { edit({ ...draft, services: draft.services.map(row => row.id === id ? { ...row, ...patch } : row) }); }
   function add(kind: 'app' | 'inference') {
     const index = ++nextService.current[kind];
@@ -102,7 +187,14 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
   if (!canPlan) return <section className="journey-page"><p role="status">{access.message || 'Current project read access is required to prepare a deployment plan.'}</p></section>;
   const locked = disabled || busy;
   return <section className="journey-page blueprint-editor" aria-labelledby={heading}>
-    <header><h2 id={heading}>Plan your application services</h2><p>Plan app and inference services, then review and export manifests for your existing cluster.</p><p className="journey-muted">Your draft stays here while you switch tabs. Export a copy before closing the workspace. Use resource references, not credentials.</p></header>
+    <header><h2 id={heading}>Plan your application services</h2><p>Plan app and inference services, then review and export manifests for your existing cluster.</p><p className="journey-muted">Save a project blueprint to return to it later. Use resource references, not credentials. Saving does not deploy services.</p></header>
+    <section aria-label="Saved service blueprint"><p>{saved ? `Saved revision ${saved.revision} by ${saved.actor.displayName}.` : savedLoaded ? 'No saved revision.' : 'Saved blueprint not loaded yet.'} The latest 50 revisions are retained in private project state.</p>
+      <div className="journey-actions"><Button type="button" variant="secondary" disabled={locked || !access.canEdit || !savedLoaded || unsupported || reviewNeeded && !reviewed} onClick={() => void saveDraft()}>Save blueprint</Button>
+        <Button type="button" variant="secondary" disabled={locked} onClick={() => void loadSaved(true)}>Review saved revision without replacing edits</Button>
+        <Button type="button" variant="tertiary" disabled={locked || dirty} onClick={() => void loadSaved(false)}>Reload saved blueprint</Button></div>
+      {reviewNeeded && <label><input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} disabled={locked}/>Use {saved ? `saved revision ${saved.revision}` : 'the empty saved state'} as the baseline for my local draft</label>}
+      {saved && <details><summary>Saved source and topology</summary><p>Source {saved.blueprint.source.commit || 'unresolved'}; configuration {saved.blueprint.source.configurationRevision}. Saved context can become outdated. Planning always re-reads the current project context.</p><pre tabIndex={0}>{JSON.stringify(saved.blueprint, null, 2)}</pre></details>}
+    </section>
     <form onSubmit={event => { event.preventDefault(); void generate(); }}>
       <fieldset disabled={locked} className="definition-fields"><legend>Existing Kubernetes infrastructure</legend><div className="blueprint-grid">
         <label className="luci-field">Cluster reference<input value={draft.reference} maxLength={512} placeholder="Your existing cluster identity" onChange={e => edit({ ...draft, reference: e.target.value })}/></label>
@@ -143,8 +235,9 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
       {plan.artifacts.map(artifact => <details key={artifact.name}><summary>{artifact.name}</summary><p className="journey-muted">SHA-256: {artifact.sha256}</p><pre tabIndex={0}>{artifact.content}</pre><Button type="button" variant="secondary" onClick={() => download(artifact.name, artifact.content)}>Download {artifact.name}</Button></details>)}
       <div className="journey-actions"><Button type="button" variant="secondary" onClick={() => download('luci-deployment-plan.json', JSON.stringify(plan, null, 2)+'\n')}>Export plan JSON</Button><Button type="button" variant="secondary" disabled={disabled} onClick={onPublishing}>Open existing release paths</Button></div>
       <AzureFoundationHandoff key={plan.digest} plan={plan} active={active && canPlan && !disabled} />
-      <details><summary>Capabilities and review notes</summary><p>Plan <code>{plan.digest}</code>. Exporting does not deploy the manifests. Local, your cloud and GitHub Pages keep their existing release forms and permissions; they do not apply Kubernetes manifests. Cluster application and observation are not connected yet.</p><ul>{plan.capabilities.map(row => <li key={row.id}><strong>{row.id} · {row.state}</strong>: {row.description}</li>)}{plan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>
+      <details><summary>Capabilities and review notes</summary><p>Plan <code>{plan.digest}</code>. Exporting does not deploy manifests. The separate cluster flow below reviews and applies workloads to an existing configured namespace; existing release forms keep their own permissions.</p><ul>{plan.capabilities.map(row => <li key={row.id}><strong>{row.id} · {row.state}</strong>: {row.description}</li>)}{plan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></details>
     </section>}
+    <KubernetesDeployment projectId={projectId} active={active && canPlan && !disabled} saved={saved} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded} onTarget={target=>edit({...draft,reference:target.id,namespace:target.namespace})}/>
   </section>;
 }
 

@@ -1,4 +1,5 @@
 import { productApi } from "./product";
+import type { SpecificationStrategy } from "./specificationStrategy";
 import type { DiscoverySourceLink } from "./discoveryDocuments";
 
 export interface Requirement { id: string; title: string; priority: "must" | "should" | "could"; acceptance: string }
@@ -11,6 +12,7 @@ export interface ProductDecision { id: string; title: string; decision: string; 
 export interface OpenQuestion { id: string; question: string; answer: string }
 export interface RoadmapPhase { id: string; title: string; outcome: string; requirementIds: string[]; dependsOn: string[]; completionCriteria: string[] }
 export interface ProjectSpecification {
+  strategy?: SpecificationStrategy;
  evidence?: DiscoverySourceLink[];
   roadmap?: RoadmapPhase[];
   projectId: string; version: 1; revision: number; briefRevision: number;

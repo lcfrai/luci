@@ -15,6 +15,8 @@ import { SpecificationEvidenceLinks } from "../discover/SpecificationEvidenceLin
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./definition.css";
+import { SpecificationStrategy } from "./SpecificationStrategy";
+import { strategyProblems } from "../../api/specificationStrategy";
 
 const recordId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
 type Tab = "interview" | "specification" | "roadmap" | "history" | "repository";
@@ -92,6 +94,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
     return () => window.removeEventListener(PROJECT_CONTEXT_EDIT, edit);
   }, [scope, projectId, !!spec, canRead, onContextEdit]);
   const [dirty, setDirty] = useState(false);
+  const strategyErrors = strategyProblems(spec?.strategy, spec?.requirements.map(row => row.id) ?? []);
   const draftBase = base ? JSON.stringify(base) : null;
   const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, baseValue: savedSpec.current, value: spec, dirty, valid: specificationRoadmapDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Definition", "discover", scope ? { retained: draft.retained, discard: () => { draft.clear(); setSpec(savedSpec.current); setDirty(false); } } : undefined);
@@ -176,7 +179,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
     setDirty(true); setNotice("");
   };
   async function save() {
-    if (!canEdit || !spec || !base || !reading.current.ready || submitting.current || draft.pending || missingJourneyLinks || roadmapErrors.length) return;
+    if (!canEdit || !spec || !base || !reading.current.ready || submitting.current || draft.pending || missingJourneyLinks || roadmapErrors.length || strategyErrors.length) return;
     submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
@@ -215,7 +218,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
   };
   const openQuestionCount = spec?.questions.filter((question) => !question.answer.trim()).length ?? 0;
   const definitionAction = spec && canRead && (dirty || spec.status === "outdated" || !spec.revision
-    ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || !!roadmapErrors.length || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+    ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || !!roadmapErrors.length || !!strategyErrors.length || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
     : spec.status === "approved"
       ? <Button type="button" disabled={locked} onClick={() => setLens("design")}>Continue to Design</Button>
       : <Button type="button" loading={pending === "approve"} disabled={!canEdit || locked || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>);
@@ -236,6 +239,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
     <DraftRecovery merge draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={locked} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
     {missingJourneyLinks && <p role="alert" className="journey-warning">A user journey still refers to an outcome that was removed. Review its related requirements below: choose any replacement outcome and explicitly remove the unavailable link before saving.</p>}
     {roadmapErrors.length > 0 && tab !== "roadmap" && <p role="alert" className="journey-warning">Review the Roadmap tab before saving: {roadmapErrors[0]}</p>}
+    {strategyErrors.length > 0 && <p role="alert" className="journey-warning">Review Product strategy in the Specification tab before saving: {strategyErrors[0]}</p>}
     {!spec && !error && <p role="status">Loading your project definition…</p>}
     {spec && canRead && <>
       <TabsSubtle className="definition-tabs" aria-label="Definition views" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => selectTab(views[index][0])}>
@@ -276,6 +280,7 @@ function ProjectDefinition({ projectId, scope, onContextEdit, onInitialDefinitio
               <label className="luci-field">Who it is for<textarea rows={2} value={spec.audience} onChange={(e) => patch({ audience: e.target.value })} /></label>
               <label className="luci-field">Boundaries and constraints<textarea rows={3} value={spec.constraints} onChange={(e) => patch({ constraints: e.target.value })} /></label>
               <label className="luci-field">Out of scope<textarea rows={2} value={spec.outOfScope.join("\n")} onChange={(e) => patch({ outOfScope: e.target.value.split("\n") })} /><small>One exclusion per line.</small></label>
+              <SpecificationStrategy strategy={spec.strategy} requirements={spec.requirements} onChange={strategy => patch({strategy})}/>
               <section className="definition-requirements"><h2>Requirements and acceptance</h2><p className="journey-muted">Keep each ID through design, implementation and verification. Completing a task does not prove a requirement.</p>
                 {!spec.requirements.length && <p>Add the observable outcomes that define a complete solution.</p>}
                 {spec.requirements.map((r, index) => <fieldset key={r.id} className="definition-record"><legend>{r.id}</legend>

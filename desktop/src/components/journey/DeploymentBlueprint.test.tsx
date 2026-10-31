@@ -2,10 +2,10 @@ import { act, cleanup, render, screen, waitFor, within } from '@testing-library/
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DeploymentBlueprint } from './DeploymentBlueprint';
-import { deploymentBlueprintApi, type BlueprintProjectContext, type DeploymentBlueprintPlan } from '../../api/deploymentBlueprint';
+import { deploymentBlueprintApi, type BlueprintProjectContext, type DeploymentBlueprint, type DeploymentBlueprintPlan, type SavedDeploymentBlueprint } from '../../api/deploymentBlueprint';
 import { resetCockpit } from '../../store/store';
 
-const access = vi.hoisted(() => ({ canRead: true, loading: false, error: '', message: '' }));
+const access = vi.hoisted(() => ({ canRead: true, canEdit: true, loading: false, error: '', message: '' }));
 const owner = vi.hoisted(() => ({ actor: 'one' }));
 vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: (id: string) => `${owner.actor}:${id}` }));
 vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => access }));
@@ -13,13 +13,71 @@ vi.mock('../teams/TeamWorkspaceProvider', () => ({ useTeamWorkspace: () => null 
 const context = (): BlueprintProjectContext => ({ projectId: 'p-one', head: 'a'.repeat(40), clean: true, reviewDigest: 'b'.repeat(64), definitionStatus: 'draft', designStatus: 'approved',
   source: { commit: 'a'.repeat(40), configurationRevision: 2, context: { briefRevision: 1, specificationRevision: 3, designRevision: 4 } } });
 beforeEach(() => {
-  resetCockpit(); owner.actor = 'one'; access.canRead = true; access.error = ''; localStorage.clear();
+  resetCockpit(); owner.actor = 'one'; access.canRead = true; access.canEdit = true; access.error = ''; localStorage.clear();
+  vi.spyOn(deploymentBlueprintApi, 'saved').mockResolvedValue({ projectId: 'p-one', saved: null, sourceVerified: false, effectsApplied: false });
+  vi.spyOn(deploymentBlueprintApi, 'save').mockImplementation(async (_id, request) => ({ projectId: 'p-one', saved: savedBlueprint(request.blueprint, request.expectedRevision + 1), sourceVerified: false, effectsApplied: false }));
   vi.spyOn(deploymentBlueprintApi, 'context').mockImplementation(async () => context());
   vi.spyOn(deploymentBlueprintApi, 'compile').mockImplementation(async input => ({ version: 1, digest: 'd'.repeat(64), state: 'decisions-required', blueprint: input,
     sourceVerified: false, effectsApplied: false, steps: [], decisions: [{ path: 'services[0].image', code: 'image-required', message: 'Choose an existing immutable image.' }], artifacts: [], capabilities: [], warnings: [],
     resourceSummary: { replicas: 0, requestMilliCpu: 0, limitMilliCpu: 0, requestMemoryMiB: 0, limitMemoryMiB: 0, gpuCount: 0 } }));
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+function savedBlueprint(blueprint: DeploymentBlueprint, revision = 1): SavedDeploymentBlueprint {
+  return { projectId: 'p-one', revision, digest: String(revision).repeat(64), planDigest: 'd'.repeat(64), blueprint,
+    actor: { id: 'one', displayName: 'Project owner' }, at: '2026-10-31T00:00:00Z' };
+}
+const savedTopology = (): DeploymentBlueprint => ({ version: 1, projectId: 'p-one', source: context().source,
+  infrastructure: { id: 'cluster', kind: 'kubernetes', reference: 'saved-east', namespace: 'saved-app' },
+  services: [{ id: 'app-4', kind: 'app', image: '', port: 0, replicas: 0, resources: { requestMilliCpu: 0, limitMilliCpu: 0, requestMemoryMiB: 0, limitMemoryMiB: 0 }, dependsOn: ['cluster'] }] });
+
+it('keeps unsupported saved topology protected through baseline review and clearing the local draft', async () => {
+  const blueprint = savedTopology(); blueprint.infrastructure.kind = 'existing-vm';
+  vi.mocked(deploymentBlueprintApi.saved).mockResolvedValue({ projectId: 'p-one', saved: savedBlueprint(blueprint), sourceVerified: false, effectsApplied: false });
+  const user = userEvent.setup(); render(<DeploymentBlueprint projectId="p-one" active onPublishing={vi.fn()}/>);
+  await screen.findByRole('alert');
+  await user.type(screen.getByRole('textbox', { name: 'Namespace' }), 'local-change');
+  await user.click(screen.getByRole('button', { name: 'Review saved revision without replacing edits' }));
+  await screen.findByRole('alert');
+  await user.click(screen.getByRole('checkbox', { name: /Use saved revision 1/ }));
+  expect(screen.getByRole('button', { name: 'Save blueprint' }).hasAttribute('disabled')).toBe(true);
+  await user.click(screen.getByRole('button', { name: 'Clear planning draft' }));
+  expect(screen.getByRole('button', { name: 'Save blueprint' }).hasAttribute('disabled')).toBe(true);
+  expect(deploymentBlueprintApi.save).not.toHaveBeenCalled();
+});
+
+it('reloads saved topology without trusting old output and saves a new current-context revision', async () => {
+  vi.mocked(deploymentBlueprintApi.saved).mockResolvedValue({ projectId: 'p-one', saved: savedBlueprint(savedTopology()), sourceVerified: false, effectsApplied: false });
+  const user = userEvent.setup(); render(<DeploymentBlueprint projectId="p-one" active onPublishing={vi.fn()}/>);
+  await waitFor(() => expect((screen.getByRole('textbox', { name: 'Namespace' }) as HTMLInputElement).value).toBe('saved-app'));
+  expect(deploymentBlueprintApi.compile).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Add application' }));
+  expect(screen.getByRole('group', { name: 'Application · app-5' })).not.toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Save blueprint' }));
+  await screen.findByText(/Saved service blueprint revision 2/);
+  const request = vi.mocked(deploymentBlueprintApi.save).mock.calls[0][1];
+  expect(request.expectedRevision).toBe(1); expect(request.expectedDigest).toBe('1'.repeat(64)); expect(request.blueprint.source).toEqual(context().source);
+  expect(request.blueprint.services).toHaveLength(2); expect(screen.queryByRole('region', { name: 'Generated deployment plan' })).toBeNull();
+});
+
+it('preserves edited topology through a saved-revision conflict and requires explicit baseline review', async () => {
+  const user = userEvent.setup(); render(<DeploymentBlueprint projectId="p-one" active onPublishing={vi.fn()}/>);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save blueprint' }).hasAttribute('disabled')).toBe(false));
+  await user.type(screen.getByRole('textbox', { name: 'Namespace' }), 'my-unsaved-topology');
+  vi.mocked(deploymentBlueprintApi.save).mockRejectedValueOnce(new Error('The saved service blueprint changed. Keep your draft.'));
+  await user.click(screen.getByRole('button', { name: 'Save blueprint' }));
+  await screen.findByRole('alert');
+  vi.mocked(deploymentBlueprintApi.saved).mockResolvedValueOnce({ projectId: 'p-one', saved: savedBlueprint(savedTopology(), 2), sourceVerified: false, effectsApplied: false });
+  await user.click(screen.getByRole('button', { name: 'Review saved revision without replacing edits' }));
+  await screen.findByRole('checkbox', { name: /Use saved revision 2/ });
+  expect((screen.getByRole('textbox', { name: 'Namespace' }) as HTMLInputElement).value).toBe('my-unsaved-topology');
+  expect(screen.getByRole('button', { name: 'Save blueprint' }).hasAttribute('disabled')).toBe(true);
+  await user.click(screen.getByRole('checkbox', { name: /Use saved revision 2/ }));
+  await user.click(screen.getByRole('button', { name: 'Save blueprint' }));
+  await screen.findByText(/Saved service blueprint revision 3/);
+  const request = vi.mocked(deploymentBlueprintApi.save).mock.calls[1][1];
+  expect(request.expectedRevision).toBe(2); expect(request.blueprint.infrastructure.namespace).toBe('my-unsaved-topology');
+});
 
 it('submits project-bound app/inference planning inputs and displays unresolved decisions without execution controls', async () => {
   const user = userEvent.setup(); render(<DeploymentBlueprint projectId="p-one" active onPublishing={vi.fn()}/>);
