@@ -150,7 +150,7 @@ function CapacityBody({projectId,scope,actorId,canRead,canEnable,blocked=false,o
           <Button type="button" variant="primary" disabled={!editable||!costAccepted} onClick={()=>void run('Enabling automatic capacity…',(signal,current)=>enable(signal,current))}>Enable automatic capacity</Button>
         </div>}
       </>}
-      {!!active.length&&<section aria-label="Retained cloud hosts"><h4>Current hosts</h4><ul className="cloud-capacity-hosts">{active.map(host=><li key={host.id}><strong>{host.state.replaceAll('-',' ')}</strong><span>Retained estimate: {money(host.estimateMicros)}</span><span>Lifetime ends {new Date(host.expiresAt).toLocaleString()}</span><details><summary>Host reference</summary><code>{host.id}</code></details></li>)}</ul><p>Unconfirmed resources remain listed until their original ownership and retirement are resolved.</p></section>}
+      {!!active.length&&<section aria-label="Retained cloud hosts"><h4>Current hosts</h4><ul className="cloud-capacity-hosts">{active.map(host=><li key={host.id}><strong>{host.state.split('-').join(' ')}</strong><span>Retained estimate: {money(host.estimateMicros)}</span><span>Lifetime ends {new Date(host.expiresAt).toLocaleString()}</span><details><summary>Host reference</summary><code>{host.id}</code></details></li>)}</ul><p>Unconfirmed resources remain listed until their original ownership and retirement are resolved.</p></section>}
       {!!retired.length&&<details><summary>{retired.length} retired host{retired.length===1?'':'s'}</summary><ul>{retired.map(h=><li key={h.id}>{h.id} · retained estimate {money(h.estimateMicros)}</li>)}</ul></details>}
     </>}
   </div>;

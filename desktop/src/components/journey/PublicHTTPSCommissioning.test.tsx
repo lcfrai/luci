@@ -34,7 +34,7 @@ it('retains a lost review identity before HTTP without retaining the DNS secret 
  await user.click(screen.getByRole('checkbox',{name:/I authorize continuing Azure/}));await user.click(screen.getByRole('button',{name:'Review HTTPS setup'}));await screen.findByRole('alert');expect(review).toHaveBeenCalledTimes(1);
  const retained=localStorage.getItem(recoveryKey)!;expect(retained).not.toContain('private-dns-password');
  row.reviewKey=JSON.parse(retained).pending[0].reviewKey;vi.mocked(publicHTTPSApi.list).mockResolvedValueOnce([row]);await user.click(screen.getByRole('button',{name:'Read original review'}));
- await waitFor(()=>expect(screen.getByLabelText('Saved endpoint')).toHaveValue(row.id));expect(screen.getByLabelText('Domain')).toHaveValue('');expect(screen.getByLabelText('DNS application client secret')).toHaveValue('');expect(vi.mocked(useUnsavedProjectDraft).mock.calls.slice(-1)[0][1]).toBe(false);
+ await waitFor(()=>expect(screen.getByLabelText('Saved endpoint')).toHaveProperty('value',row.id));expect(screen.getByLabelText('Domain')).toHaveProperty('value','');expect(screen.getByLabelText('DNS application client secret')).toHaveProperty('value','');expect(vi.mocked(useUnsavedProjectDraft).mock.calls.slice(-1)[0][1]).toBe(false);
  view.unmount();localStorage.setItem(recoveryKey,retained);
  render(<PublicHTTPSCommissioning projectId="p-one" active/>);await screen.findByText('Review response not yet confirmed');expect(review).toHaveBeenCalledTimes(1);expect(localStorage.getItem(recoveryKey)).toBe(retained);
 });
@@ -44,9 +44,9 @@ it('preserves a private form through routine membership refresh but withdraws it
  state.team.revision++;state.access.loading=true;state.access.permissions={deploy:false,secrets:false};view.rerender(<PublicHTTPSCommissioning projectId="p-one" active/>);
  expect(screen.queryByLabelText('Domain')).toBeNull();
  state.access.loading=false;state.access.permissions={deploy:true,secrets:true};view.rerender(<PublicHTTPSCommissioning projectId="p-one" active/>);
- expect(screen.getByLabelText('Domain')).toHaveValue('draft.example.com');expect(screen.getByLabelText('DNS application client secret')).toHaveValue('private-window-only');
+ expect(screen.getByLabelText('Domain')).toHaveProperty('value','draft.example.com');expect(screen.getByLabelText('DNS application client secret')).toHaveProperty('value','private-window-only');
  state.access.permissions.secrets=false;view.rerender(<PublicHTTPSCommissioning projectId="p-one" active/>);expect(screen.queryByLabelText('DNS application client secret')).toBeNull();
- state.access.permissions.secrets=true;view.rerender(<PublicHTTPSCommissioning projectId="p-one" active/>);await openSetup();expect(screen.getByLabelText('DNS application client secret')).toHaveValue('');
+ state.access.permissions.secrets=true;view.rerender(<PublicHTTPSCommissioning projectId="p-one" active/>);await openSetup();expect(screen.getByLabelText('DNS application client secret')).toHaveProperty('value','');
 });
 it('keeps an uncertain effect while observing separately and retries only its unchanged original identity',async()=>{
  const row=httpsFixture(),key='original_'+'a'.repeat(32);row.state='pending-address';row.revision=2;
@@ -79,6 +79,6 @@ it('keeps all128 indexed originals while inspecting an older review without disp
  // Restore a separately retained metadata request through a real remount.
  cleanup();writeHTTPSRecovery(recoveryKey,null,{version:1,projectId:'p-one',teamId:'team-one',pending:[{kind:'review',reviewKey:older.reviewKey}]});
  render(<PublicHTTPSCommissioning projectId="p-one" active/>);await user.click(screen.getByRole('button',{name:'Load endpoints and services'}));await user.click(screen.getByRole('button',{name:'Read original review'}));
- await waitFor(()=>expect(screen.getByLabelText('Saved endpoint')).toHaveValue(older.id));expect(screen.getByLabelText('Saved endpoint').querySelectorAll('option')).toHaveLength(130);
- await user.selectOptions(screen.getByLabelText('Saved endpoint'),values[0].id);expect(screen.getByLabelText('Saved endpoint')).toHaveValue(values[0].id);expect(screen.getByLabelText('Saved endpoint').querySelectorAll('option')).toHaveLength(129);
+ await waitFor(()=>expect(screen.getByLabelText('Saved endpoint')).toHaveProperty('value',older.id));expect(screen.getByLabelText('Saved endpoint').querySelectorAll('option')).toHaveLength(130);
+ await user.selectOptions(screen.getByLabelText('Saved endpoint'),values[0].id);expect(screen.getByLabelText('Saved endpoint')).toHaveProperty('value',values[0].id);expect(screen.getByLabelText('Saved endpoint').querySelectorAll('option')).toHaveLength(129);
 });

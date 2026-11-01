@@ -6,7 +6,7 @@ import { DraftRecovery } from "./DraftRecovery";
 
 function recovery<T>(value: T, original?: T): ProjectDraftState<T> {
   const pending: ProjectDraft<T> = { version: 1, base: "old", value, original, updatedAt: 1700000000000 };
-  return { pending, retained: true, restored: false, error: "", take: vi.fn(() => pending), clear: vi.fn(), offerRecovery: vi.fn() };
+  return { pending, retained: true, retain: vi.fn(() => true), restored: false, error: "", take: vi.fn(() => pending), clear: vi.fn(), offerRecovery: vi.fn() };
 }
 function details(title: string): HTMLDetailsElement {
   return screen.getByText(title, { selector: "summary" }).closest("details")!;
