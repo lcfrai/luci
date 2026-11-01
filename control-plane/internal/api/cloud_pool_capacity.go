@@ -13,6 +13,7 @@ import (
 func (a *API) cloudPoolCapacity(ctx context.Context, ref management.ExecutionActorRef, budget int64) (product.CoordinatorCloudCapacity, error) {
 	pool := a.deps.CloudTasks.Pool
 	pool.mu.Lock()
+	hosts := pool.allHosts()
 	journal, err := pool.store.read()
 	if err != nil {
 		pool.mu.Unlock()
@@ -20,7 +21,7 @@ func (a *API) cloudPoolCapacity(ctx context.Context, ref management.ExecutionAct
 	}
 	snapshots := pool.snapshots()
 	err = pool.refreshLocked(&journal, snapshots)
-	usage := cloudAggregateUsage(journal.Rows, snapshots, ref, time.Now().UTC())
+	usage := pool.aggregateUsage(journal, snapshots, ref, time.Now().UTC())
 	pool.mu.Unlock()
 	l := pool.config.Limits
 	view := product.CoordinatorCloudCapacity{PlacementDigest: pool.catalogueDigest(), Provider: "cloud-pool", Region: "approved host pool", ConfiguredGlobalSlots: l.MaxConcurrent, ConfiguredProjectSlots: l.MaxPerProject, EstimatedMonthMicros: usage.ActorMonthMicros, MonthlyBudgetMicros: budget, MaxTaskSeconds: l.MaxTaskSeconds, RetainedAttempts: []product.CoordinatorCloudAttempt{}, Hosts: []product.CoordinatorCloudHost{}, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Limitation: "Configured capacity only. Placement uses only the reviewed host allow-list and fresh host checks; a recorded original is never moved or recreated after host loss. Shared reservations and uncertain original VMs count once; charges remain estimates, not provider bills."}
@@ -37,6 +38,14 @@ func (a *API) cloudPoolCapacity(ctx context.Context, ref management.ExecutionAct
 			view.EstimatedTaskCostMicros = host.Runtime.EstimatedCostMicros
 		}
 	}
+	if pool.elastic != nil {
+		for _, host := range pool.elasticCandidates(ref, nil) {
+			if _, base := pool.hosts[host.ID]; !base {
+				limits, template, u := host.Runtime.Runtime.Controller.ConfiguredUsage()
+				totalSlots += minimumCloudSlots(limits.MaxConcurrent-u.Active, int((limits.MemoryMiB-u.MemoryMiB)/template.MemoryMiB), int((limits.CPUMillis-u.CPUMillis)/template.CPUMillis))
+			}
+		}
+	}
 	sort.Slice(view.Hosts, func(i, j int) bool { return view.Hosts[i].ID < view.Hosts[j].ID })
 	view.ConfiguredAvailableSlots = minimumCloudSlots(totalSlots, l.MaxConcurrent-usage.Active, l.MaxPerProject-usage.ProjectActive)
 	seen := map[string]bool{}
@@ -47,7 +56,7 @@ func (a *API) cloudPoolCapacity(ctx context.Context, ref management.ExecutionAct
 			if identity.ProjectID != ref.ProjectID || !row.ResourcesHeld {
 				continue
 			}
-			view.RetainedAttempts = append(view.RetainedAttempts, product.CoordinatorCloudAttempt{HostID: snapshot.HostID, RunID: identity.RunID, TaskID: identity.TaskID, AttemptID: identity.AttemptID, OperationID: identity.OperationID, State: string(row.State), ResourcesHeld: true, RecoveryPending: pool.hosts[snapshot.HostID].Runtime.Runtime.Controller.RestoredPending(identity.OperationID), EstimatedCostMicros: row.Request.EstimatedCostMicros, UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano)})
+			view.RetainedAttempts = append(view.RetainedAttempts, product.CoordinatorCloudAttempt{HostID: snapshot.HostID, RunID: identity.RunID, TaskID: identity.TaskID, AttemptID: identity.AttemptID, OperationID: identity.OperationID, State: string(row.State), ResourcesHeld: true, RecoveryPending: cloudSnapshotRecoveryPending(hosts, snapshot.HostID, identity.OperationID), EstimatedCostMicros: row.Request.EstimatedCostMicros, UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano)})
 		}
 	}
 	for _, row := range journal.Rows {
@@ -87,4 +96,12 @@ func cloudPolicyBudget(value float64) int64 {
 		return 0
 	}
 	return int64(math.Floor(value * 1_000_000))
+}
+
+func cloudSnapshotRecoveryPending(hosts map[string]CloudTaskHost, hostID, operationID string) bool {
+	host, ok := hosts[hostID]
+	if !ok || host.Runtime == nil || host.Runtime.Runtime == nil || host.Runtime.Runtime.Controller == nil {
+		return true
+	}
+	return host.Runtime.Runtime.Controller.RestoredPending(operationID)
 }

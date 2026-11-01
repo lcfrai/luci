@@ -32,10 +32,14 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
-	"GET /v1/product/projects/{id}/runtime-registries":                   "Reads current private registry descriptors only, never credentials or provider state.",
-	"GET /v1/product/projects/{id}/runtime-preparations":                 "Reads current actor bounded preparation summaries; no build, push or retry.",
-	"GET /v1/product/projects/{id}/runtime-preparations/{preparationId}": "Reads one exact original private preparation; no runtime observation or mutation.",
-	"GET /v1/product/projects/{id}/runs/outcome-costs":                   "Reads only actor-scoped retained operator-reconciled receipt rows after current project Edit and Secrets checks. No bill upload, provider query, quote, reconciliation write or billing effect on GET.",
+	"GET /v1/product/projects/{id}/deploy/public-https":                           "Reads all retained current-actor HTTPS metadata or an exact review key; no credential, provider query, reconciliation, renewal, DNS or resource mutation.",
+	"GET /v1/product/projects/{id}/deploy/public-https/{commissionId}":            "Reads one exact retained original HTTPS metadata record; no external observation, credential output or effect.",
+	"GET /v1/product/projects/{id}/distribute/commercial-signals":                 "Reads saved source-labelled aggregate snapshots and connection metadata only; no Stripe key, provider request, collection advance or model work.",
+	"GET /v1/product/projects/{id}/distribute/commercial-signals/release-choices": "Reads bounded current actor retained original publication descriptors only; no gh invocation or external observation.",
+	"GET /v1/product/projects/{id}/runtime-registries":                            "Reads current private registry descriptors only, never credentials or provider state.",
+	"GET /v1/product/projects/{id}/runtime-preparations":                          "Reads current actor bounded preparation summaries; no build, push or retry.",
+	"GET /v1/product/projects/{id}/runtime-preparations/{preparationId}":          "Reads one exact original private preparation; no runtime observation or mutation.",
+	"GET /v1/product/projects/{id}/runs/outcome-costs":                            "Reads only actor-scoped retained operator-reconciled receipt rows after current project Edit and Secrets checks. No bill upload, provider query, quote, reconciliation write or billing effect on GET.",
 
 	"GET /v1/product/projects/{id}/research/connection":                                        "Reads only private connector presence/revision after fresh Edit+Secrets; never emits key values, contacts search or changes state.",
 	"GET /v1/product/projects/{id}/observations":                                               "Reads saved attributed sources and private route metadata with current project/selected-source grants; bounded local Git and journal reads only, no external fetch, cluster observation, model or ledger writes.",

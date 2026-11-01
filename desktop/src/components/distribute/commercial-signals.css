@@ -1,0 +1,14 @@
+.commercial-signals{display:grid;gap:var(--layout-gap);padding:var(--panel-padding);border:1px solid var(--line-soft);border-radius:var(--r-card);background:var(--surface);min-width:0}
+.commercial-signals header,.commercial-signals section,.commercial-signals fieldset,.commercial-signals details[open]{display:grid;gap:var(--space-3,.75rem);min-width:0}
+.commercial-signals h2,.commercial-signals h3,.commercial-signals h4,.commercial-signals p{margin:0}
+.commercial-signals p{color:var(--ink-2);line-height:1.6;overflow-wrap:anywhere}
+.commercial-signals label{display:grid;gap:.4rem;min-width:0;line-height:1.5}
+.commercial-signals label.check{display:flex;gap:.65rem;align-items:flex-start;overflow-wrap:anywhere}
+.commercial-signals .check input{flex:0 0 auto;margin-top:.25rem}
+.commercial-signals input:not([type=checkbox]){min-width:0;width:100%;max-width:32rem;box-sizing:border-box}
+.commercial-signals fieldset{border:0;padding:0;margin:0}.commercial-signals legend{font-weight:600;margin-block:var(--space-3,.75rem)}
+.commercial-signals ul{display:grid;gap:var(--layout-gap);padding:0;list-style:none;margin:0}.commercial-signals li,.commercial-snapshot{min-width:0;padding:var(--panel-padding);border:1px solid var(--line-soft);border-radius:var(--r-control)}
+.commercial-snapshot{display:grid;gap:var(--space-3,.75rem)}.commercial-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--layout-gap)}
+.commercial-signals summary{cursor:pointer;padding-block:.65rem}.commercial-signals code{overflow-wrap:anywhere}.commercial-signals [role=alert]{color:var(--need)}
+.commercial-table{overflow-x:auto;max-width:100%}.commercial-table table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}.commercial-table caption{text-align:left;margin-bottom:.65rem}.commercial-table th,.commercial-table td{text-align:right;vertical-align:top;padding:.6rem;border-bottom:1px solid var(--line-soft)}.commercial-table th:first-child{text-align:left}
+@media(max-width:760px),(pointer:coarse){.commercial-fields{grid-template-columns:minmax(0,1fr)}.commercial-signals label,.commercial-signals summary{min-height:44px}.commercial-signals .journey-actions{display:flex;flex-wrap:wrap}}

@@ -86,11 +86,12 @@ type OrchestratorGTMContext struct {
 }
 
 type OrchestratorContext struct {
-	DeploymentBlueprint *OrchestratorBlueprintContext `json:"deploymentBlueprint,omitempty"`
-	SelectedFeedback    *OrchestratorFeedbackContext  `json:"selectedFeedback,omitempty"`
-	Skills              *OrchestratorSkillsContext    `json:"skills,omitempty"`
-	GTM                 *OrchestratorGTMContext       `json:"gtm,omitempty"`
-	TeamStandards       *OrchestrationStandards       `json:"teamStandards,omitempty"`
+	CommercialSignals   *OrchestratorCommercialContext `json:"commercialSignals,omitempty"`
+	DeploymentBlueprint *OrchestratorBlueprintContext  `json:"deploymentBlueprint,omitempty"`
+	SelectedFeedback    *OrchestratorFeedbackContext   `json:"selectedFeedback,omitempty"`
+	Skills              *OrchestratorSkillsContext     `json:"skills,omitempty"`
+	GTM                 *OrchestratorGTMContext        `json:"gtm,omitempty"`
+	TeamStandards       *OrchestrationStandards        `json:"teamStandards,omitempty"`
 	// Optional to preserve earlier immutable snapshot digests.
 	TaskHandoffs *OrchestratorTaskHandoffs `json:"taskHandoffs,omitempty"`
 	TeamIntents  *OrchestratorTeamIntents  `json:"teamIntents,omitempty"`

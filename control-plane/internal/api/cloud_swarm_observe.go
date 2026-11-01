@@ -62,8 +62,8 @@ func (a *API) reconcileRestoredCloud(ctx context.Context) error {
 		_, err := cloud.Runtime.Controller.ReconcileRestored(child, 4)
 		return err
 	}
-	hosts := make([]CloudTaskHost, 0, len(cloud.Pool.hosts))
-	for _, host := range cloud.Pool.hosts {
+	hosts := make([]CloudTaskHost, 0, len(cloud.Pool.allHosts()))
+	for _, host := range cloud.Pool.allHosts() {
 		hosts = append(hosts, host)
 	}
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i].ID < hosts[j].ID })
@@ -84,7 +84,7 @@ func (a *API) observeCloudTaskCompletions(ctx context.Context) error {
 	rows, _ := cloud.Runtime.Controller.Snapshot()
 	if cloud.Pool != nil {
 		rows = nil
-		for _, host := range cloud.Pool.hosts {
+		for _, host := range cloud.Pool.allHosts() {
 			current, _ := host.Runtime.Runtime.Controller.Snapshot()
 			rows = append(rows, current...)
 		}

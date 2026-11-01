@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"runtime"
 
@@ -21,11 +22,12 @@ import (
 // grants no provisioning/acquisition capability and includes no credential
 // values. Independent host state/checkpoints and ownership remain mandatory.
 type e2bOperatorPool struct {
-	Version       int          `json:"version"`
-	Scope         string       `json:"scope"`
-	StateDir      string       `json:"stateDir"`
-	DefaultHostID string       `json:"defaultHostId"`
-	Limits        e2bbe.Limits `json:"limits"`
+	Version       int                    `json:"version"`
+	Elasticity    *azureElasticSelection `json:"elasticity,omitempty"`
+	Scope         string                 `json:"scope"`
+	StateDir      string                 `json:"stateDir"`
+	DefaultHostID string                 `json:"defaultHostId"`
+	Limits        e2bbe.Limits           `json:"limits"`
 	Hosts         []struct {
 		ID         string `json:"id"`
 		Name       string `json:"name"`
@@ -41,7 +43,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	if !cfg.Worker || runtime.GOOS != "linux" || projects == nil || authorize == nil {
 		return nil, nil, errors.New("cloud microVM execution requires an authenticated managed Linux worker")
 	}
-	raw, err := readPrivateE2BFile(cfg.E2BConfigPath, 16<<10)
+	raw, err := readPrivateE2BFile(cfg.E2BConfigPath, 96<<10)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,6 +52,19 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		return nil, nil, errors.New("cloud configuration must be one bounded JSON object")
 	}
 	if _, poolMode := header["hosts"]; !poolMode {
+		var single e2bOperatorConfig
+		if json.Unmarshal(raw, &single) == nil {
+			if single.Elasticity == nil {
+				retained, e := readRememberedAzureElastic(single)
+				if e != nil {
+					return nil, nil, e
+				}
+				single.Elasticity = retained
+			}
+			if single.Elasticity != nil {
+				return openAzureElasticSingle(ctx, cfg, projects, authorize, single)
+			}
+		}
 		return openE2BTaskRuntimeSingle(ctx, cfg, projects, authorize, nil)
 	}
 	if !cfg.Worker || runtime.GOOS != "linux" || projects == nil || authorize == nil {
@@ -79,7 +94,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 			return nil, nil, errors.New("cloud pool host files must be distinct absolute existing single-host configurations")
 		}
 		seen[filepath.Clean(entry.ConfigPath)] = true
-		hostRaw, readErr := readPrivateE2BFile(entry.ConfigPath, 16<<10)
+		hostRaw, readErr := readPrivateE2BFile(entry.ConfigPath, 96<<10)
 		if readErr != nil {
 			cleanup()
 			return nil, nil, readErr
@@ -105,7 +120,7 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 		}
 		cleanups = append(cleanups, closeHost)
 		// Re-read only the declared operator config, never any credential values.
-		latest, readErr := readPrivateE2BFile(entry.ConfigPath, 16<<10)
+		latest, readErr := readPrivateE2BFile(entry.ConfigPath, 96<<10)
 		if readErr != nil || !bytes.Equal(hostRaw, latest) {
 			cleanup()
 			return nil, nil, errors.New("cloud host configuration changed during pool admission")
@@ -125,6 +140,75 @@ func openE2BTaskRuntime(ctx context.Context, cfg Config, projects *product.Serve
 	if err != nil {
 		cleanup()
 		return nil, nil, err
+	}
+	if selected.Elasticity == nil {
+		path := filepath.Join(selected.StateDir, "elastic-operator.json")
+		if _, e := os.Lstat(path); e == nil {
+			raw, e := readPrivateE2BFile(path, 96<<10)
+			var retained rememberedAzureElastic
+			if e != nil || json.Unmarshal(raw, &retained) != nil {
+				cleanup()
+				return nil, nil, errors.New("retained Azure capacity identity is unreadable")
+			}
+			var parentPath string
+			for _, entry := range selected.Hosts {
+				if entry.ID == retained.Selection.ParentHostID {
+					parentPath = entry.ConfigPath
+				}
+			}
+			parentRaw, e := readPrivateE2BFile(parentPath, 96<<10)
+			var parent e2bOperatorConfig
+			if e != nil || json.Unmarshal(parentRaw, &parent) != nil {
+				cleanup()
+				return nil, nil, errors.New("restore original Azure host configuration for retained capacity recovery")
+			}
+			selected.Elasticity, e = readRememberedAzureElasticAt(parent, selected.StateDir)
+			if e != nil {
+				cleanup()
+				return nil, nil, e
+			}
+		} else if !errors.Is(e, os.ErrNotExist) {
+			cleanup()
+			return nil, nil, e
+		}
+	}
+	if selected.Elasticity != nil {
+		var parentPath string
+		for _, entry := range selected.Hosts {
+			if entry.ID == selected.Elasticity.ParentHostID {
+				parentPath = entry.ConfigPath
+			}
+		}
+		parentRaw, e := readPrivateE2BFile(parentPath, 96<<10)
+		var parent e2bOperatorConfig
+		if e != nil || json.Unmarshal(parentRaw, &parent) != nil || parent.AzureSecrets == nil || parent.AzureMount == nil || parent.Deployment.Provider != "azure" {
+			cleanup()
+			return nil, nil, errors.New("elastic Azure parent identity unavailable")
+		}
+		arm, e := newAzureARMReader(parent.AzureSecrets.ClientID)
+		if e != nil {
+			cleanup()
+			return nil, nil, e
+		}
+		driver := &azureElasticDriver{selection: *selected.Elasticity, base: parent, worker: cfg, projects: projects, authorize: authorize, arm: arm}
+		profile := *selected.Elasticity
+		profile.ProfileDigest = ""
+		// The operator profile binds the exact complete parent file; no key values enter it.
+		parentSum := sha256.Sum256(parentRaw)
+		if !selected.Elasticity.Disabled && selected.Elasticity.ProfileDigest != elasticHash([]any{profile, hex.EncodeToString(parentSum[:])}) || len(selected.Elasticity.VMSSModelDigest) != 64 {
+			cleanup()
+			return nil, nil, errors.New("elastic operator profile digest changed")
+		}
+		if !selected.Elasticity.Disabled {
+			if e = rememberAzureElasticSelectionAt(parent, *selected.Elasticity, selected.StateDir); e != nil {
+				cleanup()
+				return nil, nil, e
+			}
+		}
+		if e = pool.ConfigureAzureElasticity(selected.Elasticity.AzureElasticOperator, driver, selected.Elasticity.PendingTaskSlots); e != nil {
+			cleanup()
+			return nil, nil, e
+		}
 	}
 	var defaultRuntime *api.CloudTaskRuntime
 	for _, host := range hosts {

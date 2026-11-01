@@ -87,6 +87,13 @@ func (a *API) cloudRecord(projectID, runID, operationID, childID string) (e2bbe.
 	if a.deps.CloudTasks == nil {
 		return e2bbe.Record{}, false
 	}
+	if a.deps.CloudTasks.Pool != nil {
+		if terminal, ok, err := a.deps.CloudTasks.Pool.terminalRecord(projectID, runID, operationID, childID); err != nil {
+			return e2bbe.Record{}, false
+		} else if ok {
+			return terminal, true
+		}
+	}
 	cloud, err := a.cloudAttemptRuntime(projectID, runID, operationID, childID)
 	if err != nil {
 		return e2bbe.Record{}, false

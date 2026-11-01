@@ -42,7 +42,7 @@ func newClient(c Config) (*providerClient, error) {
 	if !validToken(c.APIKey) {
 		return nil, ErrUnsupported
 	}
-	u, h, e := privateHTTP(c.Endpoint, c.RootCAs, c.ClientCertificate)
+	u, h, e := privateHTTP(c.Endpoint, c.RootCAs, c.ClientCertificate, c.Deployment.AzurePrivateIP)
 	if e != nil {
 		return nil, e
 	}
@@ -62,7 +62,7 @@ func validToken(s string) bool {
 	}
 	return true
 }
-func privateHTTP(endpoint string, roots *x509.CertPool, clientCertificate *tls.Certificate) (*url.URL, *http.Client, error) {
+func privateHTTP(endpoint string, roots *x509.CertPool, clientCertificate *tls.Certificate, pinnedAddress ...string) (*url.URL, *http.Client, error) {
 	u, e := url.Parse(endpoint)
 	if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") || u.Port() == "5008" {
 		return nil, nil, ErrUnsupported
@@ -80,6 +80,24 @@ func privateHTTP(endpoint string, roots *x509.CertPool, clientCertificate *tls.C
 		transport.TLSClientConfig.Certificates = []tls.Certificate{*clientCertificate}
 	}
 	transport.DialContext = privateDial
+	if len(pinnedAddress) > 1 {
+		return nil, nil, ErrUnsupported
+	}
+	if len(pinnedAddress) == 1 && pinnedAddress[0] != "" {
+		ip := net.ParseIP(pinnedAddress[0])
+		if ip == nil || ip.To4() == nil || !ip.IsPrivate() || clientCertificate == nil || roots == nil {
+			return nil, nil, ErrUnsupported
+		}
+		// URL/SNI still verifies the pinned private gateway certificate. Only the
+		// socket destination is the ARM-verified original NIC, never the shared LB.
+		transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(address)
+			if err != nil || host != u.Hostname() || port != "443" {
+				return nil, ErrUnsupported
+			}
+			return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		}
+	}
 	transport.MaxConnsPerHost = 8
 	transport.MaxIdleConnsPerHost = 4
 	transport.ResponseHeaderTimeout = 10 * time.Second

@@ -6,6 +6,7 @@ export interface AzureSetupRequest {
   region: string;
   monthlyBudgetUsd: number;
   maxConcurrentVMs: number;
+  elasticity?: {maxHosts:number;hostCostMicrosPerHour:number;maxHostSeconds:number;bootstrapSeconds:number};
 }
 export interface AzureSetupPlan {
   version: 1;

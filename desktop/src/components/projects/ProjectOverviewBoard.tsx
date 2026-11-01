@@ -28,16 +28,18 @@ const itemKey = (item: SwarmQueueItem) => JSON.stringify([item.projectId, item.i
 const eligible = (item: SwarmQueueItem, action: QueueAction) => action === 'resume' ? item.state === 'paused'
   : action === 'pause' ? ['queued', 'blocked'].includes(item.state) : ['queued', 'paused', 'blocked'].includes(item.state);
 
-export function ProjectOverviewBoard({ projects }: { projects: Project[] }) {
+export function ProjectOverviewBoard({ projects, compact = false }: { projects: Project[]; compact?: boolean }) {
   const scope = useProjectDraftScope('project-overview');
   const team = useTeamWorkspace();
   // A changed account, workspace or permission refresh removes every private
   // projection and pending selection before the new scope renders.
   const key = JSON.stringify([scope, team?.teamId ?? '', team?.selected?.permissions ?? null]);
-  return scope ? <ScopedOverview key={key} projects={projects} /> : <p className="projects-setup-note">Connect your account and workspace to load project progress.</p>;
+  return scope ? <ScopedOverview key={key} projects={projects} compact={compact} /> : <p className="projects-setup-note">Connect your account and workspace to load project progress.</p>;
 }
 
-function ScopedOverview({ projects }: { projects: Project[] }) {
+function ScopedOverview({ projects, compact }: { projects: Project[]; compact: boolean }) {
+  const home = useProjectHome();
+  const [showCapacity, setShowCapacity] = useState(false);
   const [limit, setLimit] = useState(20);
   const visible = projects.slice(0, limit);
   const ids = JSON.stringify(visible.map(project => project.id));
@@ -135,8 +137,9 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
     {/* Keep the primary project destinations ahead of all asynchronous content.
         Capacity and individual summaries arrive independently and may contain
         long warnings. None of those reads should move a project under a click. */}
-    <nav className="overview-projects" aria-label="Open a project"><ul>{visible.map(project => <li key={project.id}><ProjectDestinationButton variant="outline" className="overview-project-destination" onClick={() => useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}><span>{project.name}</span><NavigationIcon name="chevron-right" /></ProjectDestinationButton></li>)}</ul></nav>
-    <HostCapacity />
+    <nav className="overview-projects" aria-label="Open a project"><ul>{visible.map(project => <li key={project.id}><ProjectDestinationButton variant="outline" className="overview-project-destination" onClick={() => home ? home.open(project.id) : useCockpit.getState().selectProject(project.id)} aria-label={`Open project ${project.name}`}><span>{project.name}</span><NavigationIcon name="chevron-right" /></ProjectDestinationButton></li>)}</ul></nav>
+    {compact && <Button variant="ghost" aria-expanded={showCapacity} onClick={() => setShowCapacity(value => !value)}>{showCapacity ? 'Hide workspace capacity' : 'Workspace capacity'}</Button>}
+    {(!compact || showCapacity) && <HostCapacity />}
     {selection.length > 0 && <section className="overview-bulk" aria-label="Selected queued tasks">
       <strong>{selection.length} waiting {selection.length === 1 ? 'task' : 'tasks'} selected</strong>
       <div className="overview-actions"><Button variant="secondary" disabled={pending || !selection.some(row => eligible(row.item, 'pause'))} onClick={() => void apply('pause')}>Pause waiting</Button><Button variant="secondary" disabled={pending || !selection.some(row => row.canExecute && eligible(row.item, 'resume'))} onClick={() => void apply('resume')}>Resume paused</Button><Button variant="tertiary" disabled={pending} onClick={() => setCancelReview(true)}>Cancel waiting…</Button>
@@ -146,7 +149,7 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
     </section>}
     {pending && <p role="status">Applying the selected queue changes…</p>}
     {outcomes.length > 0 && <section className="overview-outcomes" aria-label="Queue change results" aria-live="polite"><h3>Queue changes</h3><p>{outcomes.filter(row => row.state === 'changed').length} changed · {outcomes.filter(row => row.state === 'failed').length} failed · {outcomes.filter(row => row.state === 'unconfirmed').length} unconfirmed · {outcomes.filter(row => row.state === 'skipped').length} skipped</p><ul>{outcomes.map((row, index) => <li key={index}><strong>{row.name}</strong><span data-outcome={row.state}>{row.state === 'failed' ? 'Failed: ' : row.state === 'unconfirmed' ? 'Unconfirmed: ' : row.state === 'skipped' ? 'Skipped: ' : ''}{row.message}</span></li>)}</ul></section>}
-    <ul className="overview-grid">{visible.map(project => <ProjectCard key={project.id} project={project} summary={summaries[project.id]} refresh={refresh} picked={picked} pending={pending} onSelect={select} onForget={forgetProject} />)}</ul>
+    <ul className="overview-grid" aria-label="Your project cards">{visible.map(project => <ProjectCard key={project.id} compact={compact} project={project} summary={summaries[project.id]} refresh={refresh} picked={picked} pending={pending} onSelect={select} onForget={forgetProject} />)}</ul>
     {projects.length > visible.length && <Button variant="secondary" onClick={() => setLimit(value => value + 20)}>Show more projects ({projects.length - visible.length} remaining)</Button>}
     {cancelReview && <SelectedQueueCancelReview selection={selection} pending={pending} onClose={() => setCancelReview(false)} onCancel={() => void apply('cancel')} />}
   </div>;
@@ -195,12 +198,16 @@ function SelectedQueueCancelReview({selection, pending, onClose, onCancel}: {
   </WorkflowDialog>;
 }
 
-const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onForget }: {
-  project: Project; summary?: Summary; refresh: number; picked: Record<string, Picked>; pending: boolean;
+const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picked, pending, onSelect, onForget, compact }: {
+  project: Project; summary?: Summary; refresh: number; picked: Record<string, Picked>; pending: boolean; compact: boolean;
   onSelect(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean): void; onForget(projectId: string): void;
 }) {
   const [showQueue, setShowQueue] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const expanded = !compact || showDetails;
   const home = useProjectHome();
+  const activity = home?.activityAvailable ? home.home?.projects.find(row => row.id === project.id) : undefined;
+  const pinned = !!home?.home?.pinnedProjectIds.includes(project.id);
   const scope = useProjectDraftScope(project.id);
   const value = summary?.value;
   const counts = value?.execution;
@@ -218,7 +225,7 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
   }
   function openNext() {
     if (!value) return;
-    const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
+    const lens = (['discover', 'design', 'develop', 'files', 'merge', 'deploy', 'distribute'].includes(value.nextAction.lens) ? value.nextAction.lens : undefined) as Lens | undefined;
     openDestination(lens, value.nextAction.runId);
   }
   function openConversation() {
@@ -230,14 +237,22 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
     if (!state.pendingNavigation && state.selection.projectId === project.id &&
         state.projects.some(item => item.id === project.id && item.path === project.path)) state.showLuci();
   }
-  return <li className="overview-card"><header><h3>{project.name}</h3>{value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
+  return <li className="overview-card" data-compact={compact || undefined}><header><h3>{project.name}</h3>{compact ? <Button variant="secondary" onClick={() => { if (home) home.open(project.id); else useCockpit.getState().selectProject(project.id); }}>Open project</Button> : value && <Badge variant="outline">{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</Badge>}</header>
+    {compact && <div className="home-activity-status" aria-label={`Activity for ${project.name}`}>
+      {value && <span>{summary?.sourceBusy && 'Last recorded: '}{value.phase.label}</span>}
+      {activity?.working && <span data-state="working">Working</span>}{activity?.needsInput && <span data-state="needs-input">Needs input</span>}
+      {activity?.queued && <span>Queued</span>}{activity?.stops.length ? <span>Stopped · {activity.stops[activity.stops.length - 1].kind}</span> : null}
+      {activity?.unknown && <span>Some activity unconfirmed</span>}{home && !activity && <span>Activity unavailable</span>}
+    </div>}
     {!summary ? <p role="status">Loading project context…</p> : summary.error ? <p className="overview-warning" role="status">Summary unavailable. {summary.error}</p> : value && <>
       {summary.sourceBusy && <p className="overview-warning" role="status">Source is being prepared; showing last recorded context. Queue controls remain available. Activity counts are recorded, not live.</p>}
       <p className="overview-goal">{value.goal?.text || (value.goal ? 'Add the outcome you want to build.' : 'Saved context could not be read.')}{value.goal?.truncated && '…'}</p>
+      {expanded && <>
       {value.sharedChange?.status === 'recorded' && value.sharedChange.event && <p className="overview-meta">Latest accepted project change: {value.sharedChange.event.actor.displayName} updated {value.sharedChange.event.target}. Event <code>{value.sharedChange.event.eventId}</code>; target <code>{value.sharedChange.event.appliedTargetDigest}</code>. Open the project to review its context and affected work.</p>}
       {value.privateFinding?.status === 'recorded' && <p className="overview-meta">Your Luci conversation has a {value.privateFinding.state} follow-up for {value.privateFinding.sourceStatus}. Finding <code>{value.privateFinding.id}</code>. Open the conversation to inspect its exact context before acting.</p>}
       {value.privateFinding?.status === 'unavailable' && <p className="overview-meta">Your conversation follow-up summary is unavailable; opening the project will read its retained history.</p>}
       {value.sharedChange?.status === 'unavailable' && <p className="overview-warning">Accepted team-change history is unavailable; open the project to inspect its saved conversation.</p>}
+      </>}
       <dl className="overview-counts" aria-label="Recorded swarm queue activity">{(['running', 'queued', 'blocked'] as const).map(state => <div key={state}><dt>{state === 'running' ? 'Running' : state === 'queued' ? 'Queued' : 'Blocked'}</dt><dd>{counts?.[state] ?? '—'}</dd></div>)}</dl>
       {counts?.status === 'unavailable' && <p className="overview-warning">Queue activity unavailable; no zero counts inferred.</p>}
       {!!counts?.paused && <p className="overview-meta">{counts.paused} paused</p>}{!!counts?.reserved && <p className="overview-meta">{counts.reserved} reserved for dispatch</p>}{!!counts?.unknown && <p className="overview-warning">{counts.unknown} {counts.unknown === 1 ? 'outcome needs' : 'outcomes need'} reconciliation in the project.</p>}
@@ -248,8 +263,11 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
         ? <RecordedRunAttention {...value.attention} compact initialLimit={1} count={value.attention.count ?? 0} omitted={value.attention.omitted ?? 0} stale={summary.sourceBusy} onInspect={runId => openDestination('develop', runId)} onOpenHistory={() => openDestination('develop')} />
         : <p className="overview-meta">Review history is unavailable. Open the project to inspect its saved builds.</p>}
     </>}
-    <footer>{value && !summary?.sourceBusy && !(value.nextAction.id === 'inspect-run' && value.nextAction.lens === 'develop' && value.attention?.status === 'recorded' && value.attention?.items[0]?.id === value.nextAction.runId) && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}{value && (value.sharedChange?.status === 'recorded' || value.privateFinding?.status === 'recorded' || (value.questions?.count ?? 0) > 0 || (value.attention?.count ?? 0) > 0) && <Button variant="secondary" disabled={!!summary?.sourceBusy} onClick={openConversation}>Discuss {project.name} with Luci</Button>}<Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button><Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button></footer>
-    {value && <>
+    <footer>{value && !summary?.sourceBusy && !(value.nextAction.id === 'inspect-run' && value.nextAction.lens === 'develop' && value.attention?.status === 'recorded' && value.attention?.items[0]?.id === value.nextAction.runId) && <Button variant="secondary" onClick={openNext}>{value.nextAction.label}</Button>}{value && (value.sharedChange?.status === 'recorded' || value.privateFinding?.status === 'recorded' || (value.questions?.count ?? 0) > 0 || (value.attention?.count ?? 0) > 0) && <Button variant="secondary" disabled={!!summary?.sourceBusy} onClick={openConversation}>Discuss {project.name} with Luci</Button>}{!compact && <Button variant="ghost" onClick={() => useCockpit.getState().selectProject(project.id)}>Open project</Button>}{expanded && <Button variant="ghost" disabled={pending} aria-expanded={showQueue} onClick={() => { if (showQueue) onForget(project.id); setShowQueue(value => !value); }}>{showQueue ? 'Hide queue' : 'Manage queue'}</Button>}
+      {compact && home && <Button variant="ghost" disabled={!!home.busy || !home.activityAvailable} aria-pressed={pinned} onClick={() => void home.pin(project.id, !pinned)}>{pinned ? 'Unpin' : 'Pin'}</Button>}
+      {compact && <Button variant="ghost" disabled={pending} aria-expanded={showDetails} onClick={() => { if (showDetails) { onForget(project.id); setShowQueue(false); } setShowDetails(value => !value); }}>{showDetails ? 'Hide project details' : 'Project details'}</Button>}
+    </footer>
+    {value && expanded && <>
 
       {value.questions.items.length > 0 && <details className="overview-questions"><summary>{value.questions.count === null ? 'Known questions to resolve' : `${value.questions.count} ${value.questions.count === 1 ? 'question' : 'questions'} to resolve`}</summary><ul>{value.questions.items.map(question => <li key={`${question.source}:${question.id}`}>{question.text}{question.truncated && '…'}</li>)}</ul>{!!value.questions.omitted && <p>{value.questions.omitted} more in the project.</p>}</details>}
       {value.questions.status !== 'recorded' && <p className="overview-meta">Question history is incomplete. Open the project for its available context.</p>}
@@ -260,7 +278,7 @@ const ProjectCard = memo(function ProjectCard({ project, summary, refresh, picke
     </>}
 
 
-    {showQueue && <ProjectQueue project={project} refresh={refresh} picked={picked} pending={pending} onSelect={onSelect} onInspect={value && !summary?.sourceBusy && scope ? runId => openDestination('develop', runId) : undefined} />}
+    {expanded && showQueue && <ProjectQueue project={project} refresh={refresh} picked={picked} pending={pending} onSelect={onSelect} onInspect={value && !summary?.sourceBusy && scope ? runId => openDestination('develop', runId) : undefined} />}
   </li>;
 });
 

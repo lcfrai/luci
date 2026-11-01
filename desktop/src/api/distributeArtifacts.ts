@@ -1,6 +1,6 @@
 import { productApi } from './product';
 
-export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation' | 'landing-copy' | 'launch-brief' | 'channel-copy' | 'support-guide';
+export type ArtifactKind = 'risk' | 'go-to-market' | 'proposal' | 'pricing' | 'presentation' | 'landing-copy' | 'launch-brief' | 'channel-copy' | 'support-guide' | 'launch-creative';
 export type ArtifactExportFormat = 'docx' | 'pptx' | 'xlsx' | 'pdf';
 export interface ArtifactSource {
   gtmRevision?:number;gtmDigest?:string;
@@ -12,6 +12,7 @@ export interface ArtifactSource {
 export interface ArtifactSection {id:string;heading:string;body:string;bullets:string[];sourceRefs:string[]}
 export interface ArtifactReview {actor:{id:string;displayName:string};at:string;digest:string}
 export interface DistributeArtifact {
+  creative?: import('./launchCreative').LaunchCreative;
   id:string;projectId:string;revision:number;kind:ArtifactKind;source:ArtifactSource;sourceDigest:string;
   title:string;sections:ArtifactSection[];gaps:string[];assumptions:string[];state:'draft'|'reviewed';digest:string;
   review?:ArtifactReview;at:string;

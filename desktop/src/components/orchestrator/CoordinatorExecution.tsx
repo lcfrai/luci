@@ -23,6 +23,7 @@ import { SessionPicker } from '../topbar/SessionPicker';
 import { orchestrationContractsApi, type OrchestrationContractReference, type OrchestrationContractView, type PrepareOrchestrationContract } from '../../api/orchestrationContracts';
 import { ExecutionContractReview, readContractReview, retainContractReview, archiveContractReview, type ExecutionContractReviewRequest } from '../develop/ExecutionContractReview';
 import { CloudHostSelection,cloudHostRoute } from './CloudHostSelection';
+import { CloudCapacityAutomation } from './CloudCapacityAutomation';
 import { useUnsavedProjectDraft } from '../../hooks/useUnsavedProjectDraft';
 
 type Pending = { actorId: string; projectId: string; rejected?: true } & (
@@ -352,6 +353,7 @@ export function CoordinatorExecution({ projectId, scope, actorId, view, canRead,
       <Button variant="primary" disabled={!cloudReady || !!issue || !!deliverySetupIssue || !!pending || !!contractReview || !!busy || !!storageError || !!checkSelection.problem || !!previewSelection.problem || !!deploymentSelection.problem || !!kubernetesSelection.problem} onClick={() => start('cloud-microvm')}>Review cloud swarm activation</Button>
       <p>Choose the existing Codex or Claude Code connection, exact task concurrency and checks in the review. Starting requires current project execution and spending authority. An uncertain request remains saved for exact readback.</p>
     </section>}
+    {!readDenied&&<CloudCapacityAutomation projectId={projectId} scope={scope} actorId={actorId} canRead={canRead&&canEdit&&projectAccess.permissions.secrets&&!projectAccess.loading&&!projectAccess.error} canEnable={canExecute} blocked={!!busy||!!pending||!!contractReview} onChanged={()=>void load(true)}/>}
     {readDenied ? <p role="alert">Current access was refused. Retained private work is hidden.</p> : <>
       {rows.length > 0 && <label className="luci-field">Retained continuation<select value={selected} onChange={event => setSelected(event.target.value)}>{rows.map(value => <option value={value.id} key={value.id}>{value.status==='deployed'&&value.delivery?.kubernetes?'Kubernetes workload observed ready':states[value.status]} · {value.originTurnId}</option>)}</select></label>}
       {contextCommits.some(value => value.status === 'pending') && <p role="status">An accepted context Git commit has an uncertain outcome. Luci will inspect its exact parent, paths and bytes without replaying the write. Review this project’s source if it remains pending.</p>}

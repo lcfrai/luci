@@ -225,7 +225,11 @@ func Compile(input Blueprint) (Plan, error) {
 		return Plan{}, err
 	}
 	if b.PublicRoute != nil {
-		p.Warnings = append(p.Warnings, "Public HTTPS routing requires an existing Traefik websecure ingress controller with status publication, a suitable existing TLS Secret and operator-managed DNS pointing at that controller. This compiler does not provision or verify those prerequisites.")
+		if b.PublicRoute.Profile == ManagedPublicRouteProfile {
+			p.Warnings = append(p.Warnings, "Managed HTTPS reuses the exact retained project endpoint. Deployment review checks its target, original Service UID/port and controller identities; HTTPS verification and ongoing infrastructure/DNS costs remain in that endpoint's status. No duplicate Ingress or TLS Secret is generated.")
+		} else {
+			p.Warnings = append(p.Warnings, "Public HTTPS routing requires an existing Traefik websecure ingress controller with status publication, a suitable existing TLS Secret and operator-managed DNS pointing at that controller. This compiler does not provision or verify those prerequisites.")
+		}
 	}
 	if RuntimeReferenceCount(b) > 64 {
 		return Plan{}, fmt.Errorf("at most sixty-four distinct imported runtime references")

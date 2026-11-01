@@ -66,6 +66,7 @@ type DistributeArtifactReview struct {
 	Digest string       `json:"digest"`
 }
 type DistributeArtifact struct {
+	Creative         *LaunchCreative             `json:"creative,omitempty"`
 	ID               string                      `json:"id"`
 	ProjectID        string                      `json:"projectId"`
 	Revision         int                         `json:"revision"`
@@ -96,7 +97,7 @@ type distributeArtifactLedger struct {
 
 func validArtifactKind(kind string) bool {
 	switch kind {
-	case "risk", "go-to-market", "proposal", "pricing", "presentation", "landing-copy", "launch-brief", "channel-copy", "support-guide":
+	case "risk", "go-to-market", "proposal", "pricing", "presentation", "landing-copy", "launch-brief", "channel-copy", "support-guide", "launch-creative":
 		return true
 	}
 	return false
@@ -165,6 +166,9 @@ func validArtifactSource(value DistributeArtifactSource) bool {
 	return true
 }
 func validArtifactContent(value DistributeArtifact) bool {
+	if !validLaunchCreative(value) {
+		return false
+	}
 	if !validArtifactGTMSource(value.Kind, value.Source) {
 		return false
 	}
@@ -416,8 +420,8 @@ func (s *Server) registerDistributeArtifacts(mux Registrar) {
 	mux.HandleFunc("GET "+base+"/{artifactId}", s.getDistributeArtifact)
 	mux.HandleFunc("GET "+base+"/{artifactId}/exports/{format}", s.boundedDistributeWork(s.exportDistributeArtifact))
 	mux.HandleFunc("GET "+base+"/{artifactId}/exports/pdf", s.boundedDistributePDFWork(s.exportDistributePDFArtifact))
-	mux.HandleFunc("POST "+base+"/{artifactId}/revise", s.reviseDistributeArtifact)
-	mux.HandleFunc("POST "+base+"/{artifactId}/review", s.reviewDistributeArtifact)
+	mux.HandleFunc("POST "+base+"/{artifactId}/revise", s.boundedDistributeWork(s.reviseDistributeArtifact))
+	mux.HandleFunc("POST "+base+"/{artifactId}/review", s.boundedDistributeWork(s.reviewDistributeArtifact))
 }
 
 func artifactAccess(w http.ResponseWriter, r *http.Request, edit bool) bool {
@@ -442,8 +446,9 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req struct {
-		Kind  string `json:"kind"`
-		RunID string `json:"runId"`
+		Kind     string               `json:"kind"`
+		RunID    string               `json:"runId"`
+		Creative *LaunchCreativeBrief `json:"creative,omitempty"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -454,7 +459,7 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 	}
 	s.mu.RLock()
 	s.teamControlsMu.Lock()
-	draft, err := s.artifactDraftForKindLocked(r.Context(), p, req.Kind, req.RunID)
+	draft, err := s.artifactDraftForRequestLocked(r.Context(), p, req.Kind, req.RunID, req.Creative)
 	s.teamControlsMu.Unlock()
 	s.mu.RUnlock()
 	if err != nil {
@@ -467,6 +472,15 @@ func (s *Server) prepareDistributeArtifact(w http.ResponseWriter, r *http.Reques
 	}
 	if !validArtifactNewText(draft) {
 		journeyError(w, 422, "artifact_content_invalid", "The saved source contains text Office XML cannot preserve. Correct the source before preparing this artifact.")
+		return
+	}
+	if draft.Creative != nil {
+		body, err := s.creativeSVG(r.Context(), p, draft)
+		if err != nil || s.creativeAuthority(r.Context(), p.ID, true) != nil {
+			creativeFailure(w)
+			return
+		}
+		journeyJSON(w, 200, map[string]any{"draft": draft, "prepareDigest": artifactDigest(draft), "svg": string(body), "svgDigest": creativeSVGDigest(body)})
 		return
 	}
 	journeyJSON(w, 200, map[string]any{"draft": draft, "prepareDigest": artifactDigest(draft)})
@@ -512,7 +526,10 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	actor, _ := authenticatedContextActor(r.Context())
-	var req struct{ Kind, RunID, PrepareDigest, IdempotencyKey string }
+	var req struct {
+		Kind, RunID, PrepareDigest, IdempotencyKey string
+		Creative                                   *LaunchCreativeBrief `json:"creative,omitempty"`
+	}
 	if !journeyDecode(w, r, &req) {
 		return
 	}
@@ -534,6 +551,10 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		if e != nil {
 			artifactProblem(w, e)
 		} else {
+			if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, true) != nil {
+				creativeFailure(w)
+				return
+			}
 			journeyJSON(w, 200, map[string]any{"artifact": row, "freshness": "readback"})
 		}
 		return
@@ -542,7 +563,7 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 		journeyError(w, 409, "artifact_history_full", "This project reached its bounded artifact history. Existing records remain readable.")
 		return
 	}
-	row, err := s.artifactDraftForKindLocked(r.Context(), p, req.Kind, req.RunID)
+	row, err := s.artifactDraftForRequestLocked(r.Context(), p, req.Kind, req.RunID, req.Creative)
 	if err != nil {
 		artifactProblem(w, err)
 		return
@@ -554,6 +575,12 @@ func (s *Server) saveDistributeArtifact(w http.ResponseWriter, r *http.Request) 
 	if !validArtifactNewText(row) {
 		journeyError(w, 422, "artifact_content_invalid", "The saved source contains text Office XML cannot preserve. Correct the source before saving this artifact.")
 		return
+	}
+	if row.Creative != nil {
+		if _, err = s.creativeSVG(context.WithValue(r.Context(), journeyGitRootContextKey{}, s.config.ProjectsDir), p, row); err != nil || s.creativeAuthority(r.Context(), p.ID, true) != nil {
+			creativeFailure(w)
+			return
+		}
 	}
 	row.ID, row.Revision, row.Actor, row.At = newID("artifact-"), 1, actor, time.Now().UTC().Format(time.RFC3339Nano)
 	row.RequestKeyDigest, row.RequestDigest = key, digest
@@ -603,6 +630,12 @@ func (s *Server) listDistributeArtifacts(w http.ResponseWriter, r *http.Request)
 		}
 		rows = append(rows, map[string]any{"id": row.ID, "kind": row.Kind, "title": row.Title, "revision": row.Revision, "state": row.State, "freshness": freshness, "digest": row.Digest})
 	}
+	for _, record := range ledger.Records {
+		if record.Revisions[len(record.Revisions)-1].Creative != nil && s.creativeAuthority(r.Context(), p.ID, false) != nil {
+			creativeFailure(w)
+			return
+		}
+	}
 	journeyJSON(w, 200, map[string]any{"projectId": p.ID, "artifacts": rows, "exportFormats": artifactExportFormats()})
 }
 func (s *Server) getDistributeArtifact(w http.ResponseWriter, r *http.Request) {
@@ -633,13 +666,25 @@ func (s *Server) getDistributeArtifact(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 403, "artifact_scope_changed", "Current team access does not cover this artifact.")
 		return
 	}
+	if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, false) != nil {
+		creativeFailure(w)
+		return
+	}
 	source, _, _, _, err := s.artifactSourceForRetainedLocked(r.Context(), p, row)
 	if err != nil {
+		if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, false) != nil {
+			creativeFailure(w)
+			return
+		}
 		journeyJSON(w, 200, map[string]any{"artifact": row, "history": record.Revisions, "freshness": "unavailable"})
 		return
 	}
 	if row.Source.TeamID != "" && row.Source.TeamID != source.TeamID {
 		journeyError(w, 403, "artifact_scope_changed", "Current team access does not cover this artifact.")
+		return
+	}
+	if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, false) != nil {
+		creativeFailure(w)
 		return
 	}
 	journeyJSON(w, 200, map[string]any{"artifact": row, "history": record.Revisions, "freshness": artifactCurrentView(row, source)["freshness"]})
@@ -659,6 +704,7 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 		ExpectedDigest, ExpectedSourceDigest, IdempotencyKey, Title string
 		Sections                                                    []DistributeArtifactSection
 		Gaps, Assumptions                                           []string
+		Creative                                                    *LaunchCreativeBrief `json:"creative,omitempty"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -681,6 +727,10 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 		if e != nil {
 			artifactProblem(w, e)
 		} else {
+			if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, true) != nil {
+				creativeFailure(w)
+				return
+			}
 			journeyJSON(w, 200, map[string]any{"artifact": row, "freshness": "readback"})
 		}
 		return
@@ -717,6 +767,22 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 	}
 	next.Revision++
 	next.Title, next.Sections, next.Gaps, next.Assumptions = req.Title, req.Sections, req.Gaps, req.Assumptions
+	if prior.Creative != nil {
+		if req.Creative == nil || req.Creative.FrameID != prior.Creative.Brief.FrameID || req.Creative.AssetID != prior.Creative.Brief.AssetID || s.creativeAuthority(r.Context(), p.ID, true) != nil {
+			creativeFailure(w)
+			return
+		}
+		copy := *prior.Creative
+		copy.Brief = *req.Creative
+		next.Creative = &copy
+		if _, err = s.creativeSVG(context.WithValue(r.Context(), journeyGitRootContextKey{}, s.config.ProjectsDir), p, next); err != nil || s.creativeAuthority(r.Context(), p.ID, true) != nil {
+			creativeFailure(w)
+			return
+		}
+	} else if req.Creative != nil {
+		creativeFailure(w)
+		return
+	}
 	next.State = "draft"
 	next.Review = nil
 	next.Actor = actor
@@ -725,6 +791,10 @@ func (s *Server) reviseDistributeArtifact(w http.ResponseWriter, r *http.Request
 	next.Digest = artifactDigest(next)
 	if !validArtifactContent(next) || !validArtifactNewText(next) {
 		journeyError(w, 422, "artifact_content_invalid", "Keep all reviewed artifact content within the declared section and size bounds.")
+		return
+	}
+	if next.Creative != nil && s.creativeAuthority(r.Context(), p.ID, true) != nil {
+		creativeFailure(w)
 		return
 	}
 	record.Revisions = append(record.Revisions, next)
@@ -768,6 +838,10 @@ func (s *Server) reviewDistributeArtifact(w http.ResponseWriter, r *http.Request
 		if e != nil {
 			artifactProblem(w, e)
 		} else {
+			if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, true) != nil {
+				creativeFailure(w)
+				return
+			}
 			journeyJSON(w, 200, map[string]any{"artifact": row, "freshness": "readback"})
 		}
 		return
@@ -801,10 +875,20 @@ func (s *Server) reviewDistributeArtifact(w http.ResponseWriter, r *http.Request
 	next.Actor = actor
 	next.At = time.Now().UTC().Format(time.RFC3339Nano)
 	next.Review = &DistributeArtifactReview{Actor: actor, At: next.At, Digest: prior.Digest}
+	if next.Creative != nil {
+		if _, err = s.creativeSVG(context.WithValue(r.Context(), journeyGitRootContextKey{}, s.config.ProjectsDir), p, next); err != nil {
+			creativeFailure(w)
+			return
+		}
+	}
 	next.RequestKeyDigest, next.RequestDigest = key, digest
 	next.Digest = artifactDigest(next)
 	if !validArtifactNewText(next) {
 		journeyError(w, 422, "artifact_content_invalid", "This retained draft contains text Office XML cannot preserve. Revise the text before review or export.")
+		return
+	}
+	if next.Creative != nil && s.creativeAuthority(r.Context(), p.ID, true) != nil {
+		creativeFailure(w)
 		return
 	}
 	record.Revisions = append(record.Revisions, next)

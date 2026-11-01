@@ -29,7 +29,7 @@ export interface BlueprintService {
   health?: BlueprintHealth;
   deploymentStrategy?: 'recreate';
 }
-export interface BlueprintPublicRoute {profile:'traefik-websecure';serviceId:string;ingressClassName:string;hostname:string;path:string;pathType:'Prefix'|'Exact';tlsSecretName:string}
+export interface BlueprintPublicRoute {profile:'traefik-websecure'|'luci-managed-https';managedHTTPSId?:string;serviceId:string;ingressClassName:string;hostname:string;path:string;pathType:'Prefix'|'Exact';tlsSecretName:string}
 export interface DeploymentBlueprint {
  publicRoute?:BlueprintPublicRoute;
   version: 1; projectId: string; source: BlueprintSource;
@@ -80,7 +80,9 @@ export function validTelemetryStorage(v:unknown):v is TelemetryStorage{
 }
 
 export function validBlueprintPublicRoute(value:unknown):value is BlueprintPublicRoute {
- if(!object(value)||value.profile!=='traefik-websecure'||typeof value.serviceId!=='string'||!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value.serviceId)||value.serviceId.length>63||typeof value.ingressClassName!=='string'||!value.ingressClassName||value.ingressClassName.length>253||typeof value.tlsSecretName!=='string'||!value.tlsSecretName||value.tlsSecretName.length>253||typeof value.hostname!=='string'||value.hostname.length>253||!value.hostname.includes('.')||value.hostname!==value.hostname.toLowerCase()||!value.hostname.split('.').every(label=>label.length>=1&&label.length<=63&&/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))||/\.[0-9]+$/.test(value.hostname)||/\.(localhost|local|internal)$/.test(value.hostname)||value.pathType!=='Prefix'&&value.pathType!=='Exact'||typeof value.path!=='string'||value.path.length>256||!value.path.startsWith('/')||/[\\%?#\x00-\x20\x7f-\uffff]/.test(value.path)||value.path.includes('//')||value.path.split('/').some(part=>part==='.'||part==='..')||value.path!=='/'&&value.path.endsWith('/'))return false;
+ if(!object(value)||(value.profile!=='traefik-websecure'&&value.profile!=='luci-managed-https')||typeof value.serviceId!=='string'||!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value.serviceId)||value.serviceId.length>63||typeof value.ingressClassName!=='string'||value.ingressClassName.length>253||typeof value.tlsSecretName!=='string'||value.tlsSecretName.length>253||typeof value.hostname!=='string'||value.hostname.length>253||!value.hostname.includes('.')||value.hostname!==value.hostname.toLowerCase()||!value.hostname.split('.').every(label=>label.length>=1&&label.length<=63&&/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))||/\.[0-9]+$/.test(value.hostname)||/\.(localhost|local|internal)$/.test(value.hostname)||value.pathType!=='Prefix'&&value.pathType!=='Exact'||typeof value.path!=='string'||value.path.length>256||!value.path.startsWith('/')||/[\\%?#\x00-\x20\x7f-\uffff]/.test(value.path)||value.path.includes('//')||value.path.split('/').some(part=>part==='.'||part==='..')||value.path!=='/'&&value.path.endsWith('/'))return false;
+ if(value.profile==='luci-managed-https')return typeof value.managedHTTPSId==='string'&&/^https-[a-f0-9]{32}$/.test(value.managedHTTPSId)&&value.ingressClassName===''&&value.tlsSecretName==='';
+ if(value.managedHTTPSId!==undefined&&value.managedHTTPSId!==''||!value.ingressClassName||!value.tlsSecretName)return false;
  return [value.ingressClassName,value.tlsSecretName].every(name=>name.split('.').every(label=>label.length>=1&&label.length<=63&&/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)));
 }
 export function validStoredBlueprint(value: unknown, projectId: string): value is DeploymentBlueprint {
@@ -169,9 +171,10 @@ export function validDeploymentBlueprintPlan(value: unknown, request: Deployment
         value.capabilities.some(row => !object(row) || !text(row.id, 128) || !text(row.state, 128) || !text(row.description, 4096)) ||
         value.steps.some(row => !object(row) || !text(row.componentId, 128) || !text(row.action, 128) || !Array.isArray(row.dependsOn) || row.dependsOn.length > 97 || row.dependsOn.some(id => !text(id, 128)))) return false;
     for (const key of ['replicas', 'requestMilliCpu', 'limitMilliCpu', 'requestMemoryMiB', 'limitMemoryMiB', 'gpuCount']) if (!count(value.resourceSummary[key])) return false;
-    if (value.state === 'compiled-prototype' ? value.decisions.length !== 0 || value.artifacts.length !== request.services.length * 2 + request.services.filter(row=>row.telemetryStorage).length + (request.publicRoute?1:0) : value.decisions.length === 0 || value.artifacts.length !== 0) return false;
+    const ingressCount=request.publicRoute?.profile==='traefik-websecure'?1:0;
+    if (value.state === 'compiled-prototype' ? value.decisions.length !== 0 || value.artifacts.length !== request.services.length * 2 + request.services.filter(row=>row.telemetryStorage).length + ingressCount : value.decisions.length === 0 || value.artifacts.length !== 0) return false;
     if(!validSupportingArtifacts(value,request))return false;
-    if(value.artifacts.filter(a=>object(a)&&typeof a.name==='string'&&a.name.endsWith('.ingress.json')).length!==(request.publicRoute?1:0))return false;
+    if(value.artifacts.filter(a=>object(a)&&typeof a.name==='string'&&a.name.endsWith('.ingress.json')).length!==ingressCount)return false;
     const names = new Set<string>();
     const artifacts = value.artifacts;
     return artifacts.every(artifact => {

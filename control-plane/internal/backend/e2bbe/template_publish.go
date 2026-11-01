@@ -27,6 +27,8 @@ type TemplatePublication struct {
 	APIKey            string
 	RootCAs           *x509.CertPool
 	ClientCertificate *tls.Certificate
+	PrivateIP         string
+	BeforeMutation    func(context.Context) error
 	TemplateID        string
 	BuildID           string
 	FromImage         string
@@ -76,6 +78,8 @@ type TemplateCreation struct {
 	APIKey            string
 	RootCAs           *x509.CertPool
 	ClientCertificate *tls.Certificate
+	PrivateIP         string
+	BeforeMutation    func(context.Context) error
 	Name              string
 	CPUCount          int64
 	MemoryMiB         int64
@@ -102,7 +106,7 @@ func (p TemplateCreation) CreateTemplate(ctx context.Context) (TemplateCreateRec
 		privatePublicationDirectory(p.JournalPath) != nil {
 		return result, ErrUnsupported
 	}
-	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate})
+	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate, Deployment: Deployment{AzurePrivateIP: p.PrivateIP}})
 	if err != nil {
 		return result, err
 	}
@@ -129,6 +133,11 @@ func (p TemplateCreation) CreateTemplate(ctx context.Context) (TemplateCreateRec
 		TemplateID string `json:"templateID"`
 		BuildID    string `json:"buildID"`
 		Public     *bool  `json:"public"`
+	}
+	if p.BeforeMutation != nil {
+		if err := p.BeforeMutation(ctx); err != nil {
+			return result, err
+		}
 	}
 	status, _, err := client.call(ctx, http.MethodPost, "/v3/templates", nil, map[string]any{
 		"name": p.Name, "cpuCount": p.CPUCount, "memoryMB": p.MemoryMiB,
@@ -188,7 +197,7 @@ func (p TemplateCreation) ReconcileTemplateCreation(ctx context.Context) (Templa
 	}) {
 		return result, ErrUnknown
 	}
-	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate})
+	client, err := newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate, Deployment: Deployment{AzurePrivateIP: p.PrivateIP}})
 	if err != nil {
 		return result, err
 	}
@@ -261,7 +270,7 @@ func (p TemplatePublication) intent() (TemplateBuildIntent, error) {
 }
 
 func (p TemplatePublication) client() (*providerClient, error) {
-	return newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate})
+	return newClient(Config{Endpoint: p.Endpoint, APIKey: p.APIKey, RootCAs: p.RootCAs, ClientCertificate: p.ClientCertificate, Deployment: Deployment{AzurePrivateIP: p.PrivateIP}})
 }
 
 func (p TemplatePublication) createdTemplate() error {
@@ -333,6 +342,11 @@ func (p TemplatePublication) StartTemplateBuild(ctx context.Context) (TemplateBu
 		return intent, err
 	}
 	path := "/v2/templates/" + url.PathEscape(p.TemplateID) + "/builds/" + url.PathEscape(p.BuildID)
+	if p.BeforeMutation != nil {
+		if err := p.BeforeMutation(ctx); err != nil {
+			return intent, err
+		}
+	}
 	status, _, err := client.call(ctx, http.MethodPost, path, nil, map[string]any{
 		"fromImage": p.FromImage, "force": false, "steps": []any{},
 	}, nil)

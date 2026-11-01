@@ -28,7 +28,7 @@ SHA = re.compile(r"[0-9a-f]{64}\Z")
 GIT = re.compile(r"[0-9a-f]{40}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
 REGION = re.compile(r"[a-z][a-z0-9-]{1,39}\Z")
-MODULE_FILES = {"compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
+MODULE_FILES = {"elastic_hosts.tf", "compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf"}
 SCRIPT_FILES = {"azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/successor.py", "azure-setup/standby.py", "azure-setup/retirement.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py",
                 "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py", "azure-controller-disk/package.py",
                 "azure-controller-disk/mount.py", "azure-controller-disk/recover.py", "azure-controller-disk/retire.py"}
@@ -128,10 +128,14 @@ def bundle(root):
 def requested(selection):
     required = {"version", "mode", "name", "region", "monthlyBudgetUsd", "maxConcurrentVMs",
                 "terraformVariables", "runtimePackage", "controllerPackage", "stateBackend", "controllerHealthURL", "nextGeneration"}
-    if set(selection) != required or selection["version"] != 1 or selection["mode"] != "byo-azure-develop" or not NAME.fullmatch(selection["name"]) or not REGION.fullmatch(selection["region"]):
+    if set(selection) - {"elasticity"} != required or selection["version"] != 1 or selection["mode"] != "byo-azure-develop" or not NAME.fullmatch(selection["name"]) or not REGION.fullmatch(selection["region"]):
         raise ValueError("Azure Develop selection is invalid")
     budget = selection["monthlyBudgetUsd"]
     concurrency = selection["maxConcurrentVMs"]
+    elasticity = selection.get("elasticity")
+    if elasticity is not None:
+        if not isinstance(elasticity, dict) or set(elasticity) != {"bootstrapSeconds", "maxHosts", "hostCostMicrosPerHour", "maxHostSeconds"} or any(isinstance(v, bool) or not isinstance(v, int) or v <= 0 for v in elasticity.values()) or elasticity["bootstrapSeconds"] >= elasticity["maxHostSeconds"] or elasticity["maxHosts"] > concurrency or elasticity["hostCostMicrosPerHour"] > 1 << 50 or elasticity["maxHostSeconds"] * elasticity["hostCostMicrosPerHour"] > (1 << 63) - 3600:
+            raise ValueError("Review exact automatic host limits and a positive complete hourly estimate")
     if isinstance(budget, bool) or not isinstance(budget, (int, float)) or budget <= 0 or budget > 100000 or isinstance(concurrency, bool) or not isinstance(concurrency, int) or concurrency < 1 or concurrency > 1024:
         raise ValueError("Azure spend or concurrency policy is invalid")
     if selection["controllerHealthURL"] != "http://127.0.0.1:8730/v1/healthz" or not isinstance(selection["nextGeneration"], str) or \
@@ -140,6 +144,10 @@ def requested(selection):
     variables = selection["terraformVariables"]
     if not isinstance(variables, dict) or variables.get("name") != selection["name"] or variables.get("location") != selection["region"]:
         raise ValueError("Azure Terraform selection does not match the requested name and region")
+    if elasticity is not None and variables.get("elastic_host_resource_group_name") != selection["name"] + "-hosts":
+        raise ValueError("Automatic hosts require the exact separately reviewed host resource group")
+    if elasticity is None and variables.get("elastic_host_resource_group_name", ""):
+        raise ValueError("Host provisioning authority needs explicit reviewed elasticity limits")
     backend = selection["stateBackend"]
     if not isinstance(backend, dict) or set(backend) != BACKEND_KEYS or not all(isinstance(value, str) for value in backend.values()):
         raise ValueError("Azure setup needs a separate durable Azure Blob state backend")
@@ -164,7 +172,7 @@ def requested(selection):
     return variables
 
 
-def initial_selection(bundle_root, selection_path, name, region, budget, concurrency, private_network_cidr=""):
+def initial_selection(bundle_root, selection_path, name, region, budget, concurrency, private_network_cidr="", elasticity=None):
     """Create the owner-private advanced selection from four ordinary choices.
 
     Empty account-specific fields are deliberately *not* invented.  A later
@@ -210,6 +218,9 @@ def initial_selection(bundle_root, selection_path, name, region, budget, concurr
                  "controllerPackage": {"path": "", "sha256": ""},
                  "stateBackend": {name: "" for name in BACKEND_KEYS},
                  "terraformVariables": variables}
+    if elasticity is not None:
+        selection["elasticity"] = elasticity
+        selection["terraformVariables"]["elastic_host_resource_group_name"] = name + "-hosts"
     requested(selection)
     atomic_json(path, selection)
     plan = make_plan(selection, bundle(bundle_root), path, bundle_root)
@@ -308,7 +319,7 @@ def make_plan(selection, manifest, selection_path, bundle_root):
             missing.append("state_backend_" + name)
     if not selection["nextGeneration"] or selection["nextGeneration"] == variables.get("generation"):
         missing.append("distinct_next_controller_generation")
-    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr", "existing_vnet_name", "existing_vnet_resource_group_name", "foundation_private_dns_resource_group_name"}
+    declared = set(re.findall(r'^variable "([a-z0-9_]+)"', (Path(bundle_root) / "terraform/variables.tf").read_text(), re.M)) - {"previous_generation", "tags", "management_source_cidr", "existing_vnet_name", "existing_vnet_resource_group_name", "foundation_private_dns_resource_group_name", "elastic_host_resource_group_name"}
     for name in sorted(declared):
         if variables.get(name) in (None, "", [], {}):
             missing.append("terraform_" + name)
@@ -894,6 +905,10 @@ def main():
             row.add_argument("--monthly-budget-usd", type=float, required=True)
             row.add_argument("--max-concurrent-vms", type=int, required=True)
             row.add_argument("--private-network-cidr", default="")
+            row.add_argument("--elastic-bootstrap-seconds", type=int)
+            row.add_argument("--elastic-host-count", type=int)
+            row.add_argument("--elastic-host-hourly-micros", type=int)
+            row.add_argument("--elastic-host-seconds", type=int)
         if action == "init-image-inputs":
             for key in ("luci-source", "e2b-source", "image-digests", "envoy-binary", "envoy-license",
                         "runtime-image-root", "controller-image-root", "operator-template"):
@@ -1066,7 +1081,8 @@ def main():
     if args.action == "init-selection":
         print(json.dumps(initial_selection(args.bundle, args.selection, args.name, args.region,
                                            args.monthly_budget_usd, args.max_concurrent_vms,
-                                           args.private_network_cidr), sort_keys=True))
+                                           args.private_network_cidr,
+                                           None if args.elastic_bootstrap_seconds is None and args.elastic_host_count is None and args.elastic_host_hourly_micros is None and args.elastic_host_seconds is None else {"bootstrapSeconds": args.elastic_bootstrap_seconds, "maxHosts": args.elastic_host_count, "hostCostMicrosPerHour": args.elastic_host_hourly_micros, "maxHostSeconds": args.elastic_host_seconds}), sort_keys=True))
         return
     if args.action == "init-image-inputs":
         print(json.dumps(initial_image_inputs(args.bundle, args.selection,

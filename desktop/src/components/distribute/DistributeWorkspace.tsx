@@ -12,9 +12,11 @@ import { useTeamWorkspace } from '../teams/TeamWorkspaceProvider';
 import { Button } from '../fluid/components/button';
 import { JourneyHeader, ProjectRequired } from '../journey/shared';
 import { ArtifactWorkspace } from './ArtifactWorkspace';
+import { LaunchCreativeWorkspace } from './LaunchCreativeWorkspace';
 import { GitHubReleasePublisher } from './GitHubReleasePublisher';
 import { GTMWorkspace } from './GTMWorkspace';
 import { ProjectFeedback } from './ProjectFeedback';
+import { CommercialSignals } from './CommercialSignals';
 import './distribute.css';
 
 const fields=[['id','Control ID'],['requirement','Requirement'],['category','Category'],['applicability','Applies to'],['owner','Owner'],['evidenceExpected','Evidence expected'],['severity','Severity (optional)'],['reviewCadence','Review cadence (optional)']] as const;
@@ -91,6 +93,8 @@ function ProjectDistribute({projectId,accountScope}:{projectId:string;accountSco
     {access.canRead&&!access.error&&<GTMWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
     {access.canRead&&!access.error&&<ArtifactWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
     <GitHubReleasePublisher projectId={projectId}/>
+    {access.canRead&&!access.error&&<LaunchCreativeWorkspace projectId={projectId} canRead={access.canRead} canEdit={access.canEdit}/>}
+    <CommercialSignals projectId={projectId}/>
     {access.canRead&&!access.error&&<ProjectFeedback projectId={projectId}/>}
     {canRead&&<section className="distribute-team-secondary" aria-label="Team controls and assessments">
       <Button type="button" variant="tertiary" aria-expanded={showControls} aria-controls="distribute-team-controls" disabled={edited||!!gapDraft||busy} onClick={()=>setControlsOpen(value=>!value)}>Team controls and assessments</Button>

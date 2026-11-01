@@ -1,5 +1,6 @@
 import { RuntimePreparationWorkspace } from './RuntimePreparationWorkspace';
 import { PublicRouteEditor } from './PublicRouteEditor';
+import { PublicHTTPSCommissioning } from './PublicHTTPSCommissioning';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useCockpit } from '../../store/store';
 import { orchestratorApi } from '../../api/orchestrator';
@@ -312,7 +313,7 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
       <div className="journey-actions"><Button type="button" variant="secondary" disabled={locked || draft.services.length >= 12} onClick={() => add('app')}>Add application</Button><Button type="button" variant="secondary" disabled={locked || draft.services.length >= 12} onClick={() => add('inference')}>Add inference service</Button><Button type="button" variant="secondary" disabled={locked||draft.services.length>=12||draft.services.some(row=>row.collector)} onClick={addCollector}>Add private telemetry Collector</Button></div>
       <Button type="button" variant="secondary" disabled={locked||draft.services.length>10||draft.services.some(row=>row.telemetryStorage)} onClick={addStorage}>Add private durable metrics and trace stores</Button>
       {draft.services.some(row=>row.collector&&!row.collector.ownedDestination)&&!draft.telemetry&&<label className="luci-field">Existing analytics backend reference<input value={draft.telemetryReference} maxLength={512} onChange={e=>edit({...draft,telemetryReference:e.target.value})}/><small>Name the existing destination receiving Collector exports. Choose the owned destination in the Collector to use the planned private stores instead.</small></label>}
-      <PublicRouteEditor value={draft.publicRoute} services={draft.services} disabled={locked} onChange={publicRoute=>edit({...draft,publicRoute})}/>
+      <PublicRouteEditor projectId={projectId} targetId={draft.reference} namespace={draft.namespace} value={draft.publicRoute} services={draft.services} disabled={locked} onChange={publicRoute=>edit({...draft,publicRoute})}/>
       <fieldset disabled={locked} className="definition-fields"><legend>Optional telemetry</legend><label><input type="checkbox" checked={draft.telemetry} onChange={e => edit({ ...draft, telemetry: e.target.checked, services: e.target.checked ? draft.services : draft.services.map(row => ({ ...row, useTelemetry: false })) })}/>Use an existing OTLP/HTTP receiver</label>
         {draft.telemetry && <div className="blueprint-grid"><label className="luci-field">Receiver reference<input value={draft.telemetryReference} maxLength={512} onChange={e => edit({ ...draft, telemetryReference: e.target.value })}/></label><label className="luci-field">HTTPS receiver endpoint<input value={draft.endpoint} maxLength={2048} onChange={e => edit({ ...draft, endpoint: e.target.value })}/><small>No credentials, query tokens or request headers. This binds configuration; it does not instrument the app or provision analytics.</small></label></div>}
       </fieldset>
@@ -334,6 +335,7 @@ function BlueprintEditor({ projectId, scope, active, disabled, onPublishing }: {
     <AzureClusterHandoff projectId={projectId} active={active && canPlan && !disabled} saved={saved} plan={plan} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded} onTarget={target=>edit({...draft,reference:target.id,namespace:target.namespace})}/>
     <RuntimePreparationWorkspace projectId={projectId} active={active && canPlan && !disabled} saved={saved} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded}/>
     <KubernetesDeployment projectId={projectId} active={active && canPlan && !disabled} saved={saved} draftMatchesSaved={!dirty && !unsupported && !reviewNeeded} onTarget={target=>edit({...draft,reference:target.id,namespace:target.namespace})}/>
+      <PublicHTTPSCommissioning projectId={projectId} active={active && canPlan && !disabled}/>
   </section>;
 }
 

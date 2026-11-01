@@ -185,3 +185,13 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "elastic_host_resource_group_name" {
+  type = string
+  default = ""
+  description = "Optional dedicated resource group for reviewed automatic Develop host capacity."
+  validation {
+    condition = var.elastic_host_resource_group_name == "" || can(regex("^[a-z][a-z0-9-]{1,62}$", var.elastic_host_resource_group_name))
+    error_message = "Choose a short lowercase Azure host group name."
+  }
+}

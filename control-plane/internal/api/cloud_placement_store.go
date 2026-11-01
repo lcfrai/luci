@@ -107,7 +107,7 @@ func (s *cloudPlacementStore) read() (cloudPlacementJournal, error) {
 	var journal cloudPlacementJournal
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&journal) != nil || decoder.Decode(new(any)) != io.EOF || journal.Version != 1 || journal.Scope != s.scope || journal.CreatedAt.IsZero() || journal.CreatedAt.After(time.Now().Add(time.Minute)) || journal.Rows == nil || len(journal.Rows) > 8192 {
+	if decoder.Decode(&journal) != nil || decoder.Decode(new(any)) != io.EOF || journal.Version != 1 || journal.Scope != s.scope || journal.CreatedAt.IsZero() || journal.CreatedAt.After(time.Now().Add(time.Minute)) || journal.Rows == nil || !validCloudElastic(journal.Elastic) || len(journal.Rows) > 8192 {
 		return empty, e2bbe.ErrUnknown
 	}
 	originals := map[string]bool{}
@@ -115,6 +115,12 @@ func (s *cloudPlacementStore) read() (cloudPlacementJournal, error) {
 		identity := row.Request.Identity
 		if id == "" || id != identity.OperationID || row.QueueID == "" || row.Actor.Local || row.Actor.UserID == "" || row.Actor.ProjectID != identity.ProjectID || row.Actor.UserID != row.Request.BillingUserID || row.Actor.TeamID != row.Request.BillingTeamID || row.RequestDigest != cloudPlacementDigest(row.Request) || len(row.RunInputDigest) != 64 || !cloudHostID(row.HostID) || len(row.HostFingerprint) != 64 || row.Template.ID == "" || row.Template.MemoryMiB < 128 || row.Template.CPUMillis < 1000 || row.CreatedAt.IsZero() || row.CreatedAt.After(time.Now().Add(time.Minute)) || row.NoProviderEffect && !row.Retired || row.Request.EstimatedCostMicros < 1 || row.Request.EstimatedCostMicros > 1<<50 || row.Request.MaxSeconds < 1 || row.Request.MaxSeconds > 86400 {
 			return empty, e2bbe.ErrUnknown
+		}
+		if row.Terminal != nil {
+			t := row.Terminal
+			if !row.Retired || t.State != e2bbe.Absent || t.ResourcesHeld || t.Request != row.Request || t.RequestDigest != row.RequestDigest || t.Template != row.Template || t.Revision < 1 || t.ProductOutcome != "handoff" && t.ProductOutcome != "cancelled" && t.ProductOutcome != "no-result" {
+				return empty, e2bbe.ErrUnknown
+			}
 		}
 		// Multiple child IDs cannot turn one task attempt into multiple placements.
 		key := identity.ProjectID + "\x00" + identity.TaskID + "\x00" + identity.AttemptID
@@ -127,7 +133,7 @@ func (s *cloudPlacementStore) read() (cloudPlacementJournal, error) {
 }
 func (s *cloudPlacementStore) write(journal cloudPlacementJournal) error {
 	raw, err := json.Marshal(journal)
-	if err != nil || len(raw) > 8<<20 {
+	if err != nil || !validCloudElastic(journal.Elastic) || len(raw) > 8<<20 {
 		return e2bbe.ErrCapacity
 	}
 	const next = ".placements-next"

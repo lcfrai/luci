@@ -4,6 +4,7 @@ import base64
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -537,6 +538,26 @@ def connection_descriptor(core, bundle_root, selection_path, provider=None):
 
 
 def az_json(arguments, timeout=300):
+    # Large signed setup envelopes travel in one owned file, not an OS-limited argv.
+    if list(arguments[:3]) == ['vm', 'run-command', 'invoke'] and '--scripts' in arguments:
+        position = arguments.index('--scripts') + 1
+        if arguments.count('--scripts') != 1 or position >= len(arguments) or '--command-id' not in arguments or arguments.index('--command-id') + 1 >= len(arguments) or arguments[arguments.index('--command-id') + 1] != 'RunShellScript':
+            raise ValueError('One fixed shell-script setup transport is required')
+        script = arguments[position]
+        if not isinstance(script, str) or script.startswith('@') or not 0 < len(script.encode('utf-8')) <= 1 << 20:
+            raise ValueError('Setup script transport exceeds its exact bound')
+        if len(script.encode('utf-8')) > 16384:
+            with tempfile.TemporaryDirectory(prefix='luci-owned-setup-script-') as directory:
+                path = Path(directory) / 'script.sh'
+                descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(descriptor, 'wb') as stream:
+                    stream.write(script.encode('utf-8')); stream.flush(); os.fsync(stream.fileno())
+                selected = list(arguments); selected[position] = '@' + str(path)
+                return _az_json(selected, timeout)
+    return _az_json(arguments, timeout)
+
+
+def _az_json(arguments, timeout=300):
     # Bound the child output while it runs. A post-hoc capture_output length
     # check would already have buffered an arbitrarily large CLI response.
     with tempfile.TemporaryFile() as output:

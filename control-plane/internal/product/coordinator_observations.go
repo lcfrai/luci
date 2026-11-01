@@ -135,7 +135,9 @@ func (s *Server) projectObservationSources(ctx context.Context, p project.Projec
 		unavailable = append(unavailable, "feedback")
 	}
 	_, gtm, ge := s.readGTMLedger(p)
-	if ge == nil {
+	commercial := s.orchestratorCommercialLocked(p)
+	commercialData, commercialParts, commercialKnown := commercialObservation(commercial)
+	if ge == nil && commercialKnown {
 		imports, revision := []GTMMetricImport{}, 1
 		if len(gtm.Revisions) > 0 {
 			latest := gtm.Revisions[len(gtm.Revisions)-1]
@@ -150,8 +152,17 @@ func (s *Server) projectObservationSources(ctx context.Context, p project.Projec
 		if len(imports) == 0 {
 			prefix = "Saved aggregate metric/revenue imports are now empty. Previously imported figures are not current selected evidence; no zero revenue or new financial result is inferred."
 		}
-		sources = append(sources, CoordinatorObservation{"metrics", reviewDigest(imports), revision, observationSummary(prefix, parts)})
-	} else if ge != nil {
+		digest := reviewDigest(imports)
+		if commercialData != nil {
+			digest = reviewDigest(struct {
+				Imports    []GTMMetricImport
+				Commercial any
+			}{imports, commercialData})
+			prefix = "Saved aggregate evidence: CSV rows are user-reported; commercialSignals contains completed source-labelled provider reads. Preserve exact currency, CHARGE metadata filter, period and collection semantics; no accounting/project-sales claim is inferred."
+			parts = append(parts, commercialParts...)
+		}
+		sources = append(sources, CoordinatorObservation{"metrics", digest, revision, observationSummary(prefix, parts)})
+	} else if ge != nil || !commercialKnown {
 		unavailable = append(unavailable, "metrics")
 	}
 	s.mu.RUnlock()
@@ -506,9 +517,13 @@ func (s *Server) refreshCoordinatorObservations(ctx context.Context, p project.P
 	}
 	bounded, cancel := context.WithTimeout(fresh, 10*time.Second)
 	defer cancel()
+	commercialAdvanced := false
+	if observationSelected(rows.SavedRoute.Observations.Kinds, "metrics") {
+		commercialAdvanced = s.refreshCommercialForCoordinator(bounded, p, ref, rows.SavedRoute.Revision)
+	}
 	sources, _, _, err := s.projectObservationSources(bounded, p, ref, rows.SavedRoute.Observations.TelemetryIDs)
 	if err != nil {
-		return false, nil
+		return commercialAdvanced, nil
 	}
 	for _, source := range sources {
 		if observationSelected(rows.SavedRoute.Observations.Kinds, source.Kind) {
@@ -518,7 +533,7 @@ func (s *Server) refreshCoordinatorObservations(ctx context.Context, p project.P
 			}
 		}
 	}
-	return false, nil
+	return commercialAdvanced, nil
 }
 func (s *Server) observationFindingCurrent(ctx context.Context, p project.Project, ref management.ExecutionActorRef, f CoordinatorFinding, rows coordinatorContinuations) bool {
 	current, err := s.observationFindingStatus(ctx, p, ref, f, rows)

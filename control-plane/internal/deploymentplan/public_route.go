@@ -5,18 +5,24 @@ import (
 	"fmt"
 	"net"
 	"path"
+	"regexp"
 	"strings"
 
 	kubevalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 const PublicRouteProfile = "traefik-websecure"
+
+var publicManagedID = regexp.MustCompile(`^https-[a-f0-9]{32}$`)
+
+const ManagedPublicRouteProfile = "luci-managed-https"
 const PublicRouteController = "traefik.io/ingress-controller"
 
 // PublicRoute references an operator-owned controller, DNS name and TLS Secret.
 // It contains no certificate, private key, arbitrary annotation or DNS account.
 type PublicRoute struct {
-	Profile          string `json:"profile" enum:"traefik-websecure"`
+	Profile          string `json:"profile" enum:"traefik-websecure,luci-managed-https"`
+	ManagedHTTPSID   string `json:"managedHTTPSId,omitempty"`
 	ServiceID        string `json:"serviceId"`
 	IngressClassName string `json:"ingressClassName"`
 	Hostname         string `json:"hostname"`
@@ -45,8 +51,15 @@ func validatePublicRoute(b Blueprint) error {
 	if r == nil {
 		return nil
 	}
-	if b.Infrastructure.Kind != "kubernetes" || r.Profile != PublicRouteProfile || !validName(r.ServiceID) || len(r.IngressClassName) > 253 || len(kubevalidation.IsDNS1123Subdomain(r.IngressClassName)) != 0 || !ValidPublicHostname(r.Hostname) || len(r.TLSSecretName) > 253 || len(kubevalidation.IsDNS1123Subdomain(r.TLSSecretName)) != 0 || (r.PathType != "Prefix" && r.PathType != "Exact") || r.Path == "" || len(r.Path) > 256 || !strings.HasPrefix(r.Path, "/") || path.Clean(r.Path) != r.Path || strings.ContainsAny(r.Path, "\\%?#") {
+	if b.Infrastructure.Kind != "kubernetes" || (r.Profile != PublicRouteProfile && r.Profile != ManagedPublicRouteProfile) || !validName(r.ServiceID) || !ValidPublicHostname(r.Hostname) || (r.PathType != "Prefix" && r.PathType != "Exact") || r.Path == "" || len(r.Path) > 256 || !strings.HasPrefix(r.Path, "/") || path.Clean(r.Path) != r.Path || strings.ContainsAny(r.Path, "\\%?#") {
 		return fmt.Errorf("public HTTPS routing needs one exact app, existing Traefik class/TLS Secret, DNS hostname and clean Exact/Prefix path")
+	}
+	if r.Profile == PublicRouteProfile {
+		if r.ManagedHTTPSID != "" || len(r.IngressClassName) > 253 || len(kubevalidation.IsDNS1123Subdomain(r.IngressClassName)) != 0 || len(r.TLSSecretName) > 253 || len(kubevalidation.IsDNS1123Subdomain(r.TLSSecretName)) != 0 {
+			return fmt.Errorf("manual public routing needs existing controller and TLS Secret, without a managed endpoint")
+		}
+	} else if !strings.HasPrefix(r.ManagedHTTPSID, "https-") || len(r.ManagedHTTPSID) != 38 || !publicManagedID.MatchString(r.ManagedHTTPSID) || r.IngressClassName != "" || r.TLSSecretName != "" {
+		return fmt.Errorf("select one retained managed HTTPS endpoint; no duplicate Ingress or TLS Secret is generated")
 	}
 	for _, c := range r.Path {
 		if c < 33 || c > 126 {

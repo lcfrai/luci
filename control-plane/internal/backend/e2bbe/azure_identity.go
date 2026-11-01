@@ -1,6 +1,7 @@
 package e2bbe
 
 import (
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -28,6 +29,21 @@ var (
 // This validates configured identity; it does not claim SKU/region availability,
 // KVM support, an attached disk or a provider price.
 func ValidAzureDeployment(d Deployment, endpoint string) bool {
+	if d.AzurePrivateIP != "" && (net.ParseIP(d.AzurePrivateIP) == nil || !net.ParseIP(d.AzurePrivateIP).IsPrivate() || !azureSubscriptionPattern.MatchString(d.AzureVMID)) {
+		return false
+	}
+	if (d.AzurePrivateIP == "") != (d.AzureVMID == "") {
+		return false
+	}
+	if d.AzureVMResourceID != "" {
+		prefix := "/subscriptions/" + d.AzureSubscriptionID + "/resourcegroups/"
+		parts := strings.Split(strings.TrimPrefix(d.AzureVMResourceID, prefix), "/providers/microsoft.compute/virtualmachines/")
+		if !strings.HasPrefix(d.AzureVMResourceID, prefix) || len(parts) != 2 || !azureNamePattern.MatchString(parts[0]) || !azureNamePattern.MatchString(parts[1]) || d.AzurePrivateIP == "" || d.AzureNICResourceID != prefix+parts[0]+"/providers/microsoft.network/networkinterfaces/"+parts[1] {
+			return false
+		}
+	} else if d.AzureNICResourceID != "" {
+		return false
+	}
 	if d.Provider != "azure" || !azureSubscriptionPattern.MatchString(d.AzureSubscriptionID) ||
 		!azureNamePattern.MatchString(d.AzureResourceGroup) || !azureRegionPattern.MatchString(d.Region) ||
 		!azureSizePattern.MatchString(d.InstanceType) || !azureInstancePattern.MatchString(d.AzureInstanceID) ||
@@ -55,7 +71,7 @@ func ValidAzureDeployment(d Deployment, endpoint string) bool {
 
 func hasAzureDeploymentFields(d Deployment) bool {
 	return d.AzureSubscriptionID != "" || d.AzureResourceGroup != "" || d.AzureScaleSetID != "" ||
-		d.AzureInstanceID != "" || d.AzureDataDiskID != "" || d.AzureZone != "" || d.AzureGatewayHost != ""
+		d.AzureInstanceID != "" || d.AzurePrivateIP != "" || d.AzureVMID != "" || d.AzureVMResourceID != "" || d.AzureNICResourceID != "" || d.AzureDataDiskID != "" || d.AzureZone != "" || d.AzureGatewayHost != ""
 }
 
 func validDeployment(c Config) bool {

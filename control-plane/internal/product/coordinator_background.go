@@ -17,16 +17,17 @@ import (
 // account, team, project, harness and secret authority on every continuation.
 type CoordinatorReauthorizer func(context.Context, management.ExecutionActorRef, string, bool) (context.Context, error)
 type coordinatorBackground struct {
-	mu          sync.Mutex
-	tick        sync.Mutex
-	authorize   CoordinatorReauthorizer
-	dispatch    CoordinatorFindingDispatcher
-	recipients  management.ProjectRecipientLister
-	readFinding management.ProjectReadAuthorizer
-	cancel      context.CancelFunc
-	done        chan struct{}
-	wake        chan struct{}
-	cursor      string
+	mu                  sync.Mutex
+	tick                sync.Mutex
+	authorize           CoordinatorReauthorizer
+	dispatch            CoordinatorFindingDispatcher
+	recipients          management.ProjectRecipientLister
+	readFinding         management.ProjectReadAuthorizer
+	cancel              context.CancelFunc
+	done                chan struct{}
+	wake                chan struct{}
+	capacityMaintenance func(context.Context) error
+	cursor              string
 	// One refused draft fingerprint per saved actor/project. A 4xx cannot be
 	// treated as an absent mutation or sent again on every two-second tick.
 	draftRefusals  map[string]string
@@ -62,6 +63,19 @@ func (s *Server) SetCoordinatorRuntime(authorize CoordinatorReauthorizer) {
 			case <-wake:
 			case <-timer.C:
 			}
+			b.mu.Lock()
+			maintain := b.capacityMaintenance
+			b.mu.Unlock()
+			if maintain != nil {
+				capacityCtx, end := context.WithTimeout(ctx, 20*time.Second)
+				_ = maintain(capacityCtx)
+				end()
+			}
+			// Independent bounded phase on the SAME timer: a slow HTTPS/DNS
+			// read cannot consume ordinary coding/findings' fresh budget.
+			httpsCtx, httpsStop := context.WithTimeout(ctx, 30*time.Second)
+			_, _ = s.continuePublicHTTPS(httpsCtx)
+			httpsStop()
 			bounded, stop := context.WithTimeout(ctx, 30*time.Second)
 			_ = s.RunCoordinatorOnce(bounded)
 			stop()
@@ -396,4 +410,14 @@ func (s *Server) RunCoordinatorOnce(ctx context.Context) error {
 	b.cursor = ""
 	b.mu.Unlock()
 	return nil
+}
+
+// Reuse the existing coordinator timer; this hook only maintains reviewed host
+// prerequisites. It cannot schedule tasks or start an upstream harness.
+func (s *Server) SetCloudCapacityMaintenance(maintain func(context.Context) error) {
+	b := &s.coordinatorBackground
+	b.mu.Lock()
+	b.capacityMaintenance = maintain
+	b.mu.Unlock()
+	s.WakeCoordinator()
 }

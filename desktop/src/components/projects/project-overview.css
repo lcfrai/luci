@@ -70,3 +70,11 @@
   .overview-heading p { grid-column: 1 / -1; grid-row: 2; margin: 0; }
   .overview-card > footer > button:first-child { white-space: normal; text-align: left; height: auto; min-height: 44px; }
 }
+
+.overview-card[data-compact] > header { align-items: flex-start; gap: var(--layout-gap); }
+.overview-card[data-compact] > header > button { flex: 0 0 auto; }
+.overview-card[data-compact] .overview-goal { min-block-size: 3.2em; margin-block: 12px; }
+.overview-card[data-compact] .overview-counts { padding-block: 12px; border-block: 1px solid var(--line); }
+.overview-card[data-compact] > footer { margin-block-end: 0; }
+.overview-card[data-compact]:focus-within { border-color: var(--accent); }
+@media (max-width: 420px) { .overview-card[data-compact] > header { flex-wrap: wrap; } }

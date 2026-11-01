@@ -49,6 +49,13 @@ def digest(value):
     return hashlib.sha256(canonical(value)).hexdigest()
 
 
+SIGNED_RECOVERY_MAX_BYTES = 512 << 10
+
+
+def successor_file_limit(path):
+    return 128 << 10 if path == '/etc/luci/azure-operator-finalization.json' else 16384
+
+
 def private(path, limit=16 << 10):
     info = path.lstat()
     if path.is_symlink() or not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_size < 1 or info.st_size > limit:
@@ -115,7 +122,7 @@ def validate_successor(selection, successor):
     contents = {}
     for row in files:
         if set(row) != {'path', 'content', 'sha256'} or not isinstance(row['content'], str) or \
-                not 0 < len(row['content'].encode()) <= 16384 or 'PRIVATE KEY-----' in row['content'] or \
+                not 0 < len(row['content'].encode()) <= successor_file_limit(row['path']) or 'PRIVATE KEY-----' in row['content'] or \
                 hashlib.sha256(row['content'].encode()).hexdigest() != row['sha256']:
             raise ValueError('signed successor public file is not bounded and exact')
         contents[row['path']] = row['content']
@@ -778,7 +785,7 @@ def main():
     parser.add_argument("action", choices=("initialize", "reconcile-initialize", "recover", "reconcile-recover"))
     parser.add_argument("selection", type=Path)
     args = parser.parse_args()
-    selected = private(args.selection, 96 << 10)
+    selected = private(args.selection, SIGNED_RECOVERY_MAX_BYTES)
     validate(selected)
     if args.action in ('recover', 'reconcile-recover') and 'controllerSuccessor' not in selected:
         raise ValueError('replacement recovery requires a source-bound signed successor')

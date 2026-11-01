@@ -113,7 +113,7 @@ func RuntimeReferenceCount(blueprint Blueprint) int {
 			seen[ref.Kind+"/"+ref.ResourceName] = true
 		}
 	}
-	if blueprint.PublicRoute != nil {
+	if blueprint.PublicRoute != nil && blueprint.PublicRoute.Profile == PublicRouteProfile {
 		seen["secret/"+blueprint.PublicRoute.TLSSecretName] = true
 		seen["ingress-class/"+blueprint.PublicRoute.IngressClassName] = true
 	}

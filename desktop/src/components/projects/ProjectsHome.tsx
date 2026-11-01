@@ -17,7 +17,6 @@ export function ProjectsHome() {
   const loading = useCockpit((state) => state.loading.projects);
   const lastError = useCockpit((state) => state.lastError);
   const [query, setQuery] = useState("");
-  const [showDetails, setShowDetails] = useState(false);
   const home = useProjectHome();
   const visibleIDs = home ? new Set(home.home?.projects.map(project => project.id) ?? []) : null;
   const activity = new Map(home?.activityAvailable ? home.home?.projects.map(project => [project.id, project]) : []);
@@ -104,7 +103,7 @@ export function ProjectsHome() {
         <div className="projects-empty">
           <h2>{canCreate ? "What would you like to make?" : "No projects shared yet"}</h2>
           <p>
-            {canCreate ? "Start a project, describe the outcome and sketch the experience. Connect a coding agent when you are ready to build." : "Once your team administrator grants project access, your shared projects will appear here."}
+            {canCreate ? "Describe the product you want to make. Luci turns it into a plan and visual design, coordinates the agents that build it, and helps you deploy and launch it." : "Once your team administrator grants project access, your shared projects will appear here."}
           </p>
           <ol>
             <li>
@@ -117,15 +116,15 @@ export function ProjectsHome() {
             </li>
             <li>
               <strong>Develop</strong>
-              <span>Build, inspect and verify the code.</span>
+              <span>Coordinate skilled agents, review their work and integrate the changes.</span>
             </li>
             <li>
               <strong>Deploy</strong>
-              <span>Preview locally, then publish.</span>
+              <span>Release to your infrastructure and follow how it runs.</span>
             </li>
             <li>
               <strong>Distribute</strong>
-              <span>Prepare your product for people to use and adopt.</span>
+              <span>Plan your launch, pricing and route to customers.</span>
             </li>
           </ol>
           <Button type="button"
@@ -141,7 +140,7 @@ export function ProjectsHome() {
           {home?.error && <p className="journey-error" role="status">{home.error} <Button variant="secondary" onClick={home.refresh}>Refresh activity</Button></p>}
           {!home?.home && <p role="status">{home?.busy ? 'Loading project activity…' : 'Project activity is unavailable. Refresh activity to verify your accessible projects.'}</p>}
           {home?.home && !home.activityAvailable && <p role="status">Showing last verified projects. Activity is unavailable; refresh before changing pins or queue controls.</p>}
-          {(!home || home.home) && <ul className="home-activity-list" aria-label="Your project cards">{filtered.map(project => {
+          {home?.home && !home.activityAvailable && <ul className="home-activity-list" aria-label="Your project cards">{filtered.map(project => {
             const row = activity.get(project.id);
             const pinned = !!home?.home?.pinnedProjectIds.includes(project.id);
             return <li key={project.id} className="home-project-card">
@@ -157,10 +156,9 @@ export function ProjectsHome() {
               </div>
             </li>;
           })}</ul>}
+          {(!home || home.activityAvailable) && <ProjectOverviewBoard projects={filtered} compact />}
           {(!home || home.activityAvailable) && <PortfolioAttention projects={filtered} />}
           <PortfolioGoals projects={projects.filter(project => !visibleIDs || visibleIDs.has(project.id))} />
-          {(!home || home.home) && <Button type="button" variant="secondary" disabled={!!home && !home.activityAvailable} aria-expanded={showDetails && (!home || home.activityAvailable)} onClick={() => setShowDetails(value => !value)}>{showDetails ? 'Hide detailed overview' : 'Detailed overview and queue controls'}</Button>}
-          {showDetails && (!home || home.activityAvailable) && <ProjectOverviewBoard projects={filtered} />}
         </>
       )}
       {projects.length > 0 && filtered.length === 0 && query && (!home || home.home) && (

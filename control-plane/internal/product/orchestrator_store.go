@@ -175,6 +175,9 @@ func decodeOrchestratorLedger(data []byte, out orchestratorLedger) (orchestrator
 		if turn.Answer != nil && validateStoredOrchestratorAnswer(turn.Context, *turn.Answer) != nil {
 			return out, ErrOrchestratorInvalid
 		}
+		if !validOrchestratorCommercial(turn.Context.CommercialSignals, out.ProjectID) {
+			return out, ErrOrchestratorInvalid
+		}
 		if !validOrchestratorFeedback(turn.Context.SelectedFeedback, out.ProjectID) {
 			return out, ErrOrchestratorInvalid
 		}
@@ -292,6 +295,13 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 			Feedback *OrchestratorFeedbackContext
 		}{value.Digest, feedback})
 	}
+	if commercial := s.orchestratorCommercialLocked(p); commercial != nil {
+		value.CommercialSignals = commercial
+		value.Digest = reviewDigest(struct {
+			Base       string
+			Commercial *OrchestratorCommercialContext
+		}{value.Digest, commercial})
+	}
 	coordination, err := s.readCoordination(p)
 	if err != nil {
 		return OrchestratorContext{}, ErrOrchestratorInvalid
@@ -353,7 +363,7 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 			raw, _ := json.Marshal(value.SelectedFeedback)
 			feedbackBytes = len(raw)
 		}
-		value.CurrentRun, value.ActiveRuns = orchestratorRunProjectionWithHandoffs(runs, state, len(handoff)+feedbackBytes+orchestratorBlueprintBytes(value.DeploymentBlueprint))
+		value.CurrentRun, value.ActiveRuns = orchestratorRunProjectionWithHandoffs(runs, state, len(handoff)+feedbackBytes+commercialContextBytes(value.CommercialSignals)+orchestratorBlueprintBytes(value.DeploymentBlueprint))
 		value.NeedsAttention = projectRunAttentionProjection(runs, state)
 	}
 	return value, nil

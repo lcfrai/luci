@@ -7,6 +7,10 @@ const PREFIX = "luci.project-draft.v1:";
 const MAX_BYTES = 2 * 1024 * 1024;
 const TOTAL_BYTES = 4 * 1024 * 1024;
 const MAX_AGE = 30 * 24 * 60 * 60 * 1000;
+// Unresolved creative save identities are recovery records, not expiring drafts.
+function pendingCreative(key: string, value: unknown): boolean {
+  return key.endsWith(',"launch-creative"]') && !!value && typeof value === "object" && "pending" in value && !!value.pending;
+}
 export interface ProjectDraft<T> { version: 1; base: string; value: T; original?: T; updatedAt: number }
 export function useProjectDraftScope(projectId: string): string | null {
   const auth = useAuth(), setup = useSetup();
@@ -21,6 +25,7 @@ export function useProjectDraftScope(projectId: string): string | null {
 export interface ProjectDraftState<T> {
   pending: ProjectDraft<T> | null;
   retained: boolean;
+  retain(value: T, base: string, original?: T | null): boolean;
   restored: boolean;
   error: string;
   take(): ProjectDraft<T> | null;
@@ -29,7 +34,7 @@ export interface ProjectDraftState<T> {
 }
 /** Only project documents and command drafts enter this hook. Runtime consent and credentials do not. */
 export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty, valid }: {
-  scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan" | "verification-setup" | "preview-setup" | "external-report" | "go-to-market";
+  scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan" | "verification-setup" | "preview-setup" | "external-report" | "go-to-market" | "launch-creative";
   base: string | null; baseValue?: T | null; value: T | null; dirty: boolean; valid(value: unknown): value is T;
 }): ProjectDraftState<T> {
   const key = scope ? PREFIX + JSON.stringify([scope, kind]) : null;
@@ -45,7 +50,7 @@ export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty,
       const record = JSON.parse(raw) as ProjectDraft<unknown>;
       if (raw.length * 2 > MAX_BYTES || record.version !== 1 || typeof record.base !== "string" ||
           !Number.isFinite(record.updatedAt) || record.updatedAt > Date.now() + 60000 || !valid(record.value)) return null;
-      if (Date.now() - record.updatedAt > MAX_AGE) { localStorage.removeItem(key); expected.current = null; return null; }
+      if (Date.now() - record.updatedAt > MAX_AGE && !pendingCreative(key, record.value)) { localStorage.removeItem(key); expected.current = null; return null; }
       // Older drafts have no original document. Keep their edits recoverable,
       // but never infer a merge baseline from a newer saved revision.
       return { ...record, original: valid(record.original) ? record.original : undefined } as ProjectDraft<T>;
@@ -61,14 +66,15 @@ export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty,
     }
     setPending(null); setRetained(false); setRestored(false); setError("");
   }
-  useLayoutEffect(() => {
-    if (!dirty || !value || !base || pending) return;
+  // Explicit request drafts can synchronously retain their original identity
+  // before sending. Ordinary document callers retain through the same effect.
+  function retain(value: T, base: string, original?: T | null): boolean {
     const localSetup = kind === "verification-setup" || kind === "preview-setup";
-    if (!key) { setError(`Draft recovery is unavailable until your account and workspace are known. ${localSetup ? "Keep this page open or copy your command text before leaving." : "Keep this page open until you save."}`); return; }
+    if (!key) { setRetained(false); setError(`Draft recovery is unavailable until your account and workspace are known. ${localSetup ? "Keep this page open or copy your command text before leaving." : "Keep this page open until you save."}`); return false; }
     try {
-      if (localSetup && !valid(value)) throw new Error("This check setup exceeds the browser recovery limits. Keep this page open or copy your command text before leaving.");
+      if ((localSetup || kind === "launch-creative") && !valid(value)) throw new Error("This draft exceeds the browser recovery limits. Keep this page open or copy your text before leaving.");
       if (localStorage.getItem(key) !== expected.current) throw new Error(`Another tab changed this browser draft. Your edits are still here; ${localSetup ? "copy your command text before leaving this page." : "save them to the project before leaving this page."}`);
-      const record: ProjectDraft<T> = { version: 1, base, value, ...(baseValue ? { original: baseValue } : {}), updatedAt: Date.now() };
+      const record: ProjectDraft<T> = { version: 1, base, value, ...(original ? { original } : {}), updatedAt: Date.now() };
       const raw = JSON.stringify(record);
       if (raw.length * 2 > MAX_BYTES) throw new Error(`This draft is too large for browser recovery. ${localSetup ? "Keep this page open or copy your command text before leaving." : "Keep this page open until you save it to the project."}`);
       let bytes = raw.length * 2;
@@ -78,20 +84,27 @@ export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty,
         const stored = localStorage.getItem(other) ?? "";
         try {
           const candidate = JSON.parse(stored) as ProjectDraft<unknown>;
-          if (Number.isFinite(candidate.updatedAt) && Date.now() - candidate.updatedAt > MAX_AGE) { localStorage.removeItem(other); continue; }
+          if (Number.isFinite(candidate.updatedAt) && Date.now() - candidate.updatedAt > MAX_AGE && !pendingCreative(other, candidate.value)) { localStorage.removeItem(other); continue; }
         } catch { /* Preserve unknown entries rather than removing another edit. */ }
         bytes += stored.length * 2;
       }
       if (bytes > TOTAL_BYTES) throw new Error("Browser draft storage is full. Save or discard an existing draft before leaving this page.");
-      localStorage.setItem(key, raw); expected.current = raw;
-      setRetained(true); setError("");
+      localStorage.setItem(key, raw);
+      if (kind === "launch-creative" && localStorage.getItem(key) !== raw) throw new Error("Browser recovery could not be confirmed. No creative request should be sent.");
+      expected.current = raw;
+      setRetained(true); setError(""); return true;
     } catch (cause) {
       setRetained(false);
       setError(cause instanceof Error && !["QuotaExceededError", "SecurityError"].includes(cause.name) ? cause.message : localSetup ? "Browser storage is unavailable or full. Keep this page open or copy your command text before leaving." : "Browser storage is unavailable or full. Keep this page open until you save your changes.");
     }
+    return false;
+  }
+  useLayoutEffect(() => {
+    if (!dirty || !value || !base || pending) return;
+    retain(value, base, baseValue);
   }, [key, kind, dirty, base, baseValue, value, pending, valid]);
   return {
-    pending, retained, restored, error,
+    pending, retained, restored, error, retain,
     take: () => { const record = pending; setPending(null); setRestored(!!record); return record; },
     clear,
     offerRecovery: () => {

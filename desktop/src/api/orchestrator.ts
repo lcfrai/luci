@@ -2,6 +2,7 @@ import { productApi, type Brief, type ImplementationPlan } from "./product";
 import { validBlueprintProposal, validOrchestratorBlueprintContext, type OrchestratorBlueprintContext, type OrchestratorBlueprintProposal } from "./orchestratorBlueprint";
 import { gtmDraftValid, type GTMContent } from "./gtmWorkspace";
 import { validCapturedFeedbackContext, type OrchestratorFeedbackContext } from "./projectFeedback";
+import { validCommercialContext, type CommercialContext } from "./commercialSignals";
 import type { ProjectSpecification } from "./definition";
 import type { DesignPlan } from "./designPlan";
 import type { ProjectRun } from "./projectRuns";
@@ -32,6 +33,7 @@ export interface OrchestratorContext {
   skills?: OrchestratorSkillsContext;
   gtm?: OrchestratorGTMContext;
   selectedFeedback?: OrchestratorFeedbackContext;
+  commercialSignals?: CommercialContext;
   projectId: string; digest: string; brief: Brief; specification: ProjectSpecification;
   designPlan: DesignPlan; plan: ImplementationPlan; sketchRevision: number;
   sourceCommit: string; sourceDirty: boolean; sourceKnown: boolean;
@@ -135,6 +137,7 @@ function verifiedView(value: OrchestratorView, projectId: string): OrchestratorV
       new Set(value.turns.map(turn => turn.id)).size !== value.turns.length ||
       !validOrchestratorSkillsContext(value.context.skills, projectId) || value.turns.some(turn => !validOrchestratorSkillsContext(turn.context.skills, projectId) || !validSuggestedTaskSkills(turn.context, turn.answer?.proposal)) ||
       !validCapturedFeedbackContext(value.context.selectedFeedback, projectId) || value.turns.some(turn => !validCapturedFeedbackContext(turn.context.selectedFeedback, projectId)) ||
+      !validCommercialContext(value.context.commercialSignals, projectId) || value.turns.some(turn => !validCommercialContext(turn.context.commercialSignals, projectId)) ||
       !validOrchestratorBlueprintContext(value.context.deploymentBlueprint, projectId) || value.turns.some(turn => !validOrchestratorBlueprintContext(turn.context.deploymentBlueprint, projectId) || !validBlueprintProposal(turn.context, turn.answer?.proposal) || turn.answer?.proposal?.target === "deployment-blueprint" && !!turn.appliedRevision) ||
       !validActiveRuns(value.context) || !validActivity(value.activity) || !validGTMContext(value.context.gtm) ||
       value.turns.some(turn => !validGTMContext(turn.context.gtm) || turn.answer?.proposal?.target === "gtm" && (!turn.context.gtm || !gtmDraftValid(turn.answer.proposal.gtm) || turn.answer.proposal.specification !== null || turn.answer.proposal.designPlan !== null || turn.answer.proposal.plan !== null)) ||

@@ -529,6 +529,7 @@ func New(d Deps) (*API, error) {
 		d.Product.SetCoordinatorFindingRecipients(d.FindingRecipients, d.AuthorizeProjectRead)
 		d.Product.SetPortfolioFocusReadAuthorizer(d.AuthorizeProjectRead)
 		d.Product.SetCoordinatorRuntime(a.reauthorizeCoordinator)
+		d.Product.SetCloudCapacityMaintenance(a.advanceCloudElasticity)
 	}
 
 	// guarded holds every route the origin middleware protects.
@@ -542,6 +543,10 @@ func New(d Deps) (*API, error) {
 	a.registerCodexConnection(guarded)
 	a.registerAssistance(guarded)
 	a.registerPersonalLuci(guarded)
+	guarded.HandleFunc("GET /v1/product/projects/{id}/cloud-capacity/automation", a.handleCloudElasticity)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/cloud-capacity/automation", a.handleCloudElasticity)
+	guarded.HandleFunc("PUT /v1/product/projects/{id}/cloud-capacity/automation", a.handleCloudElasticity)
+	guarded.HandleFunc("POST /v1/product/projects/{id}/cloud-capacity/automation/disable", a.handleCloudElasticity)
 	guarded.HandleFunc("POST /v1/product/projects/{id}/reuse/catalogue", a.handleProjectReuse)
 	guarded.HandleFunc("GET /v1/product/home", a.handleProjectHome)
 	guarded.HandleFunc("GET /v1/product/portfolio", a.handlePortfolio)

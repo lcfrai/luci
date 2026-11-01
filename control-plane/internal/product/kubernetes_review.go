@@ -301,7 +301,7 @@ func (s *Server) ReviewKubernetesDeployment(ctx context.Context, actor managemen
 	if err != nil {
 		return KubernetesReview{}, ErrKubernetesReview
 	}
-	publicBinding, err := deploymentkube.ReadPublicRouteBinding(ctx, target, plan.Blueprint, func(call context.Context) error { return s.kubernetesAuthority(call, actor, false, true, 0) })
+	publicBinding, err := s.publicRouteForReview(ctx, actor, target, plan.Blueprint)
 	if err != nil {
 		return KubernetesReview{}, ErrKubernetesReview
 	}
@@ -396,6 +396,12 @@ func (s *Server) authorizeKubernetesReview(ctx context.Context, row KubernetesRe
 	target, err := s.resolveKubernetesTarget(ctx, row.Request.Identity)
 	if err != nil || target.NamespaceUID != row.Target.NamespaceUID {
 		return ErrKubernetesReview
+	}
+	if r := row.Request.Blueprint.PublicRoute; r != nil && r.Profile == deploymentplan.ManagedPublicRouteProfile {
+		owned, e := s.managedPublicHTTPSRow(ctx, actor, row.Request.Blueprint, target, mutation || source)
+		if e != nil || owned.Plan.Destination.TargetID != row.Target.ID || row.Request.PublicRouteBinding == nil || row.Request.PublicRouteBinding.Managed == nil || reviewDigest(publicHTTPSBindingSpec(owned)) != reviewDigest(row.Request.PublicRouteBinding.Managed.Spec) {
+			return ErrKubernetesReview
+		}
 	}
 	if source {
 		input := KubernetesReviewInput{TargetID: row.Target.ID, BlueprintRevision: row.BlueprintRevision, BlueprintDigest: row.BlueprintDigest, RunID: row.RunID, CheckID: row.CheckID, MonthlyBudgetUSD: row.MonthlyBudgetUSD}

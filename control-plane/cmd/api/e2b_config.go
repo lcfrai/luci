@@ -27,6 +27,7 @@ import (
 // These are operator-reviewed identities and file paths. Secrets stay in
 // separate private files, never in JSON task input, Git or provider metadata.
 type e2bOperatorConfig struct {
+	Elasticity                *azureElasticSelection      `json:"elasticity,omitempty"`
 	SourceCommit              string                      `json:"sourceCommit,omitempty"`
 	Endpoint                  string                      `json:"endpoint"`
 	APIKeyFile                string                      `json:"apiKeyFile"`
@@ -190,13 +191,17 @@ func cloudOperationEffectAuthorizer(projects cloudOperationContractReader, curre
 }
 
 func openE2BTaskRuntimeSingle(ctx context.Context, cfg Config, projects *product.Server, authorize management.ExecutionAuthorizer, poolGuard func(context.Context, e2bbe.Request, int64) error) (*api.CloudTaskRuntime, func(), error) {
+	return openE2BTaskRuntimeSingleMode(ctx, cfg, projects, authorize, poolGuard, false)
+}
+
+func openE2BTaskRuntimeSingleMode(ctx context.Context, cfg Config, projects *product.Server, authorize management.ExecutionAuthorizer, poolGuard func(context.Context, e2bbe.Request, int64) error, retired bool) (*api.CloudTaskRuntime, func(), error) {
 	if cfg.E2BConfigPath == "" {
 		return nil, nil, nil
 	}
 	if !cfg.Worker || runtime.GOOS != "linux" || projects == nil || authorize == nil {
 		return nil, nil, errors.New("cloud microVM execution requires an authenticated managed Linux worker")
 	}
-	data, err := readPrivateE2BFile(cfg.E2BConfigPath, 16<<10)
+	data, err := readPrivateE2BFile(cfg.E2BConfigPath, 96<<10)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -434,7 +439,12 @@ func openE2BTaskRuntimeSingle(ctx context.Context, cfg Config, projects *product
 		closeStore()
 		return nil, nil, fmt.Errorf("restore exact cloud VM ownership: %w", err)
 	}
-	if err = verifyCloudStartup(ctx, controller); err != nil {
+	if err = func() error {
+		if retired {
+			return nil
+		}
+		return verifyCloudStartup(ctx, controller)
+	}(); err != nil {
 		_ = controller.Close(context.WithoutCancel(ctx))
 		closeStore()
 		return nil, nil, err

@@ -50,10 +50,11 @@ data "azurerm_client_config" "current" {}
 # VM create/delete, public SSH, disk mutation or broader resource-group rights.
 resource "azurerm_role_definition" "controller_host_rotation" {
   name              = "${var.name}-host-rotation"
-  scope             = azurerm_linux_virtual_machine_scale_set.runtime.id
-  assignable_scopes = [azurerm_linux_virtual_machine_scale_set.runtime.id]
+  scope             = data.azurerm_resource_group.selected.id
+  assignable_scopes = [data.azurerm_resource_group.selected.id]
   permissions {
     actions = [
+      "Microsoft.Compute/virtualMachineScaleSets/read",
       "Microsoft.Compute/virtualMachineScaleSets/virtualMachines/read",
       "Microsoft.Compute/virtualMachineScaleSets/virtualMachines/runCommand/action",
     ]

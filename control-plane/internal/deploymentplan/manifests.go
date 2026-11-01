@@ -137,7 +137,7 @@ func manifests(b Blueprint, planDigest string) ([]Artifact, error) {
 			out = append(out, Artifact{Name: name + "." + item.suffix + ".json", MediaType: "application/json", SHA256: digest(raw), Content: string(raw)})
 		}
 	}
-	if b.PublicRoute != nil {
+	if b.PublicRoute != nil && b.PublicRoute.Profile != ManagedPublicRouteProfile {
 		route, err := publicIngressArtifact(b, planDigest)
 		if err != nil {
 			return nil, err

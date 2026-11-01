@@ -11,7 +11,7 @@ import (
 // Source binding is deliberately separate from publication eligibility. Pricing
 // and support documents do not become GitHub launch assets by using saved GTM.
 func gtmArtifactKind(kind string) bool {
-	return launchArtifactKind(kind) || kind == "pricing" || kind == "support-guide" || kind == "go-to-market"
+	return launchArtifactKind(kind) || kind == "pricing" || kind == "support-guide" || kind == "go-to-market" || kind == "launch-creative"
 }
 
 func validArtifactGTMSource(kind string, source DistributeArtifactSource) bool {

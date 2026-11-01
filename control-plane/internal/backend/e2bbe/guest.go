@@ -55,11 +55,11 @@ func NewGuestTransport(cfg GuestConfig) (*GuestTransport, error) {
 	if !validRequest(cfg.Record.Request) || cfg.Record.RequestDigest != digest(cfg.Record.Request) || !validID(cfg.Record.SandboxID) || cfg.Record.State != Allocated || !cfg.Record.ResourcesHeld || cfg.Record.CancelRequested || cfg.Record.CreatedAt.IsZero() || cfg.EnvdVersion != EnvdVersion || !validToken(cfg.EnvdAccessToken) || !validToken(cfg.TrafficAccessToken) || cfg.CurrentRecord == nil || cfg.Authorize == nil {
 		return nil, ErrUnsupported
 	}
-	envd, files, e := privateHTTP(cfg.EnvdEndpoint, cfg.RootCAs, cfg.ClientCertificate)
+	envd, files, e := privateHTTP(cfg.EnvdEndpoint, cfg.RootCAs, cfg.ClientCertificate, cfg.Record.Deployment.AzurePrivateIP)
 	if e != nil {
 		return nil, e
 	}
-	sandbox, attach, e := privateHTTP(cfg.SandboxEndpoint, cfg.RootCAs, cfg.ClientCertificate)
+	sandbox, attach, e := privateHTTP(cfg.SandboxEndpoint, cfg.RootCAs, cfg.ClientCertificate, cfg.Record.Deployment.AzurePrivateIP)
 	if e != nil {
 		files.CloseIdleConnections()
 		return nil, e

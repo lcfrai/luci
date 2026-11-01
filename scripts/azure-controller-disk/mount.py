@@ -30,6 +30,10 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+OPERATOR_MAX_BYTES = 96 << 10
+FINALIZATION_MAX_BYTES = 128 << 10
+
+
 def private(path, limit=16384):
     info = path.lstat()
     if path.is_symlink() or not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_size < 1 or info.st_size > limit:
@@ -216,14 +220,14 @@ def bind(value, finalize_only=False):
         else:
             atomic(path, data)
     if finalize_only and journals:
-        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), FINALIZATION_MAX_BYTES)
         atomic(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json', canonical({
             'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
             'controllerInstanceId': value['controllerInstanceId']}))
     operator = bound_operator(operator, value, disk_path, generation_path, disk_data, generation_data)
     atomic(Path(value["operatorOutputPath"]), canonical(operator))
     if "previousFinalizationSHA256" in value:
-        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), FINALIZATION_MAX_BYTES)
         atomic(Path(value['mountPath']) / 'luci/operator-finalization-receipt.json', canonical({
             'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
             'controllerInstanceId': value['controllerInstanceId'],
@@ -246,7 +250,7 @@ def finalized_operator(value, draft, allow_deferred=False, retained=False):
         # Account management may initialize its owned disk, while the trusted
         # worker launcher explicitly refuses this deferred task operator.
         return draft, []
-    envelope = json.loads(private(Path("/etc/luci/azure-operator-finalization.json"), 64 << 10))
+    envelope = json.loads(private(Path("/etc/luci/azure-operator-finalization.json"), FINALIZATION_MAX_BYTES))
     payload = envelope.get("payload", {})
     if (envelope.get("signatureAlgorithm") != "ecdsa-sha256" or
             payload.get("version") != 1 or payload.get("kind") != "luci-azure-operator-finalization" or
@@ -312,10 +316,10 @@ def resume(value):
     if sha(template_data) != value['operatorTemplateSHA256']:
         raise ValueError('resume operator template source changed')
     mount_exact(dict(value, mode='restore'))
-    installed = json.loads(private(Path(value['operatorOutputPath'])))
+    installed = json.loads(private(Path(value['operatorOutputPath']), OPERATOR_MAX_BYTES))
     operator, journals = finalized_operator(value, json.loads(template_data), allow_deferred='setupDeferred' in installed, retained=True)
     if journals:
-        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        envelope_data = private(Path('/etc/luci/azure-operator-finalization.json'), FINALIZATION_MAX_BYTES)
         expected = {'version': 1, 'envelopeSHA256': sha(envelope_data), 'generation': value['generation'],
                     'controllerInstanceId': value['controllerInstanceId']}
         if 'previousFinalizationSHA256' in value:
@@ -353,12 +357,12 @@ def inspect(value, retained=False):
         raise ValueError("controller generation receipt changed")
     if value["mode"] == "restore" and (generation.get("previousGeneration") != value["previousGeneration"] or generation.get("previousFenceReceiptDigest") != value["previousFenceReceiptDigest"]):
         raise ValueError("controller predecessor fence changed")
-    output = private(Path(value["operatorOutputPath"]))
+    output = private(Path(value["operatorOutputPath"]), OPERATOR_MAX_BYTES)
     operator = json.loads(output)
     if "previousFinalizationSHA256" in value:
         if not retained and boot_identity() != value["targetBootID"]:
             raise ValueError("successor controller boot changed")
-        envelope = private(Path('/etc/luci/azure-operator-finalization.json'), 64 << 10)
+        envelope = private(Path('/etc/luci/azure-operator-finalization.json'), FINALIZATION_MAX_BYTES)
         if sha(envelope) != value["finalizationSHA256"]:
             raise ValueError("successor signed envelope changed")
         receipt = json.loads(private(mount / 'luci/operator-finalization-receipt.json', 4096))

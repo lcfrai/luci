@@ -1,0 +1,13 @@
+.cloud-capacity{margin-block:var(--panel-padding);padding:var(--panel-padding);border:1px solid var(--line-strong);border-radius:var(--r-card);background:var(--surface);color:var(--ink)}
+.cloud-capacity>summary{font-weight:600;cursor:pointer}
+.cloud-capacity-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:1rem}
+.cloud-capacity-fields label{display:flex;flex-direction:column;gap:.4rem;min-width:0}
+.cloud-capacity-fields input,.cloud-capacity-fields select{width:100%;min-width:0;box-sizing:border-box}
+.cloud-capacity-fields small{color:var(--ink-3)}
+.cloud-capacity-review{padding:1rem;margin-block:1rem;border:1px solid var(--line-strong);border-radius:var(--r-card)}
+.cloud-capacity-hosts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.75rem;padding:0;list-style:none}
+.cloud-capacity-hosts li{display:flex;flex-direction:column;gap:.35rem;border:1px solid var(--line-strong);border-radius:var(--r-card);padding:.75rem;min-width:0}
+.cloud-capacity code{overflow-wrap:anywhere;word-break:break-word}
+
+.cloud-capacity-fields input,.cloud-capacity-fields select{background:var(--field);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--r-ctl);padding:0 var(--control-pad-inline);font:inherit;min-height:var(--control-size)}
+.cloud-capacity :is(input,select,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}

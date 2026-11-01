@@ -16,18 +16,19 @@ import (
 // Values never enter receipts: this records only original class/Secret identity
 // and the closed route selection. Browser trust, DNS and reachability are unknown.
 type PublicRouteBinding struct {
-	Version           int    `json:"version"`
-	RouteDigest       string `json:"routeDigest"`
-	NamespaceUID      string `json:"namespaceUid"`
-	TargetFingerprint string `json:"targetFingerprint"`
-	ClassName         string `json:"className"`
-	ClassUID          string `json:"classUid"`
-	ClassVersion      string `json:"classVersion"`
-	Controller        string `json:"controller"`
-	TLSSecretName     string `json:"tlsSecretName"`
-	TLSSecretUID      string `json:"tlsSecretUid"`
-	TLSSecretVersion  string `json:"tlsSecretVersion"`
-	MetadataDigest    string `json:"metadataDigest"`
+	Managed           *ManagedPublicHTTPSBinding `json:"managed,omitempty"`
+	Version           int                        `json:"version"`
+	RouteDigest       string                     `json:"routeDigest"`
+	NamespaceUID      string                     `json:"namespaceUid"`
+	TargetFingerprint string                     `json:"targetFingerprint"`
+	ClassName         string                     `json:"className"`
+	ClassUID          string                     `json:"classUid"`
+	ClassVersion      string                     `json:"classVersion"`
+	Controller        string                     `json:"controller"`
+	TLSSecretName     string                     `json:"tlsSecretName"`
+	TLSSecretUID      string                     `json:"tlsSecretUid"`
+	TLSSecretVersion  string                     `json:"tlsSecretVersion"`
+	MetadataDigest    string                     `json:"metadataDigest"`
 }
 
 func publicBindingDigest(row PublicRouteBinding) string { row.MetadataDigest = ""; return digest(row) }
@@ -38,6 +39,12 @@ func validatePublicRouteBinding(request Request) error {
 			return ErrRefused
 		}
 		return nil
+	}
+	if r.Profile == deploymentplan.ManagedPublicRouteProfile {
+		return validateManagedPublicRouteBinding(request)
+	}
+	if b != nil && b.Managed != nil {
+		return ErrRefused
 	}
 	if b == nil || b.Version != 1 || b.RouteDigest != digest(*r) || b.NamespaceUID == "" || len(b.NamespaceUID) > 128 || b.TargetFingerprint != request.Identity.TargetFingerprint || b.ClassName != r.IngressClassName || b.Controller != deploymentplan.PublicRouteController || b.TLSSecretName != r.TLSSecretName || b.MetadataDigest != publicBindingDigest(*b) {
 		return ErrRefused
@@ -122,6 +129,9 @@ func (c *Connector) publicHostnameAvailable(ctx context.Context, target Target, 
 	if r == nil {
 		return nil
 	}
+	if r.Profile == deploymentplan.ManagedPublicRouteProfile {
+		return nil
+	}
 	if c.authorize(ctx, request, mutation) != nil {
 		return ErrRefused
 	}
@@ -163,6 +173,9 @@ func (c *Connector) validatePublicRouteReferences(ctx context.Context, target Ta
 	}
 	if service != nil && service.ID != r.ServiceID {
 		return nil
+	}
+	if r.Profile == deploymentplan.ManagedPublicRouteProfile {
+		return ReadManagedPublicHTTPSReferences(ctx, target, request, func(cctx context.Context) error { return c.authorize(cctx, request, mutation) })
 	}
 	actual, err := ReadPublicRouteBinding(ctx, target, request.Blueprint, func(ctx context.Context) error { return c.authorize(ctx, request, mutation) })
 	if err != nil {

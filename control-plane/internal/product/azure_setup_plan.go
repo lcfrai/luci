@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -23,11 +24,18 @@ import (
 // Azure Develop setup is deliberately distinct from /v1/setup/cloud/plan,
 // which provisions an ordinary Docker application/deployment VM. This plan
 // never contacts a provider, executes a command, or changes selected mode.
+type azureDevelopElasticity struct {
+	BootstrapSeconds      int   `json:"bootstrapSeconds"`
+	MaxHosts              int   `json:"maxHosts"`
+	HostCostMicrosPerHour int64 `json:"hostCostMicrosPerHour"`
+	MaxHostSeconds        int   `json:"maxHostSeconds"`
+}
 type azureDevelopPlanRequest struct {
-	Name             string  `json:"name"`
-	Region           string  `json:"region"`
-	MonthlyBudgetUSD float64 `json:"monthlyBudgetUsd"`
-	MaxConcurrentVMs int     `json:"maxConcurrentVMs"`
+	Elasticity       *azureDevelopElasticity `json:"elasticity,omitempty"`
+	Name             string                  `json:"name"`
+	Region           string                  `json:"region"`
+	MonthlyBudgetUSD float64                 `json:"monthlyBudgetUsd"`
+	MaxConcurrentVMs int                     `json:"maxConcurrentVMs"`
 }
 
 type azureSetupBundleManifest struct {
@@ -80,7 +88,7 @@ var azureSetupRequired = []string{
 	"azure-embed-host/package.py", "azure-embed-host/service.py", "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py",
 	"azure-controller-disk/package.py", "azure-controller-disk/mount.py", "azure-controller-disk/recover.py", "azure-controller-disk/retire.py",
 	"terraform/.terraform.lock.hcl", "terraform/compute.tf", "terraform/fence.tf", "terraform/identity.tf",
-	"terraform/moved.tf", "terraform/network.tf", "terraform/outputs.tf", "terraform/variables.tf", "terraform/versions.tf",
+	"terraform/elastic_hosts.tf", "terraform/moved.tf", "terraform/network.tf", "terraform/outputs.tf", "terraform/variables.tf", "terraform/versions.tf",
 }
 
 func readAzureSetupBundle(runtimeDir, projectRoot string) ([]byte, string, string, error) {
@@ -242,6 +250,14 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 		problem(w, 403, "budget_policy", "Current account policy does not allow this Azure Develop plan or reviewed budget.")
 		return
 	}
+	elasticFlags := ""
+	if e := requested.Elasticity; e != nil {
+		if e.BootstrapSeconds < 1 || e.BootstrapSeconds >= e.MaxHostSeconds || e.MaxHosts < 1 || e.MaxHosts > requested.MaxConcurrentVMs || e.HostCostMicrosPerHour < 1 || e.HostCostMicrosPerHour > 1<<50 || e.MaxHostSeconds < 1 || int64(e.MaxHostSeconds) > (math.MaxInt64-3599)/e.HostCostMicrosPerHour {
+			problem(w, 400, "invalid_azure_elasticity", "Review host count, a positive hourly host estimate and maximum host lifetime.")
+			return
+		}
+		elasticFlags = " --elastic-bootstrap-seconds " + strconv.Itoa(e.BootstrapSeconds) + " --elastic-host-count " + strconv.Itoa(e.MaxHosts) + " --elastic-host-hourly-micros " + strconv.FormatInt(e.HostCostMicrosPerHour, 10) + " --elastic-host-seconds " + strconv.Itoa(e.MaxHostSeconds)
+	}
 	archive, digest, revision, err := readAzureSetupBundle(s.runtimeDir, s.projectRoot())
 	if err != nil || len(archive) == 0 {
 		problem(w, 503, "azure_setup_unavailable", "This Luci package does not include a verified Azure Develop installer.")
@@ -274,7 +290,7 @@ func (s *Server) planAzureDevelop(w http.ResponseWriter, r *http.Request) {
 			"python3 -c 'import hashlib,sys; assert hashlib.sha256(open(sys.argv[1], \"rb\").read()).hexdigest() == sys.argv[2]' luci-azure-setup.tar " + digest,
 			"mkdir -m 700 luci-azure-setup", "tar -xf luci-azure-setup.tar -C luci-azure-setup",
 			"mkdir -m 700 luci-azure-private",
-			"python3 luci-azure-setup/azure-setup/installer.py init-selection --bundle luci-azure-setup --selection luci-azure-private/selection.json --name " + requested.Name + " --region " + requested.Region + " --monthly-budget-usd " + strconv.FormatFloat(requested.MonthlyBudgetUSD, 'f', -1, 64) + " --max-concurrent-vms " + strconv.Itoa(requested.MaxConcurrentVMs),
+			"python3 luci-azure-setup/azure-setup/installer.py init-selection --bundle luci-azure-setup --selection luci-azure-private/selection.json --name " + requested.Name + " --region " + requested.Region + " --monthly-budget-usd " + strconv.FormatFloat(requested.MonthlyBudgetUSD, 'f', -1, 64) + " --max-concurrent-vms " + strconv.Itoa(requested.MaxConcurrentVMs) + elasticFlags,
 			"python3 luci-azure-setup/azure-setup/installer.py continue --bundle luci-azure-setup --selection luci-azure-private/selection.json",
 		},
 		"note": "The existing deployment-target cloud setup creates an ordinary VM. This Azure plan prepares Develop microVM infrastructure and does not connect or provision anything by itself.",

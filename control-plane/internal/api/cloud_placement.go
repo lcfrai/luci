@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math"
 	"sort"
 	"strings"
@@ -49,19 +50,24 @@ type cloudPlacement struct {
 	Admitted         bool                         `json:"admitted"`
 	Retired          bool                         `json:"retired"`
 	NoProviderEffect bool                         `json:"noProviderEffect"`
+	Terminal         *e2bbe.Record                `json:"terminal,omitempty"`
 }
 type cloudPlacementJournal struct {
 	Version   int                       `json:"version"`
 	Scope     string                    `json:"scope"`
 	CreatedAt time.Time                 `json:"createdAt"`
 	Rows      map[string]cloudPlacement `json:"rows"`
+	Elastic   *cloudElasticLedger       `json:"elastic,omitempty"`
 }
 type CloudTaskPool struct {
-	mu          sync.Mutex
-	config      CloudTaskPoolConfig
-	hosts       map[string]CloudTaskHost
-	store       *cloudPlacementStore
-	probeCursor atomic.Uint64
+	elastic      *cloudElasticRuntime
+	dynamicMu    sync.RWMutex
+	dynamicHosts map[string]CloudTaskHost
+	mu           sync.Mutex
+	config       CloudTaskPoolConfig
+	hosts        map[string]CloudTaskHost
+	store        *cloudPlacementStore
+	probeCursor  atomic.Uint64
 }
 type cloudHostSnapshot struct {
 	HostID      string
@@ -164,18 +170,36 @@ func (p *CloudTaskPool) Close() error {
 		return nil
 	}
 	p.mu.Lock()
+	closers := []func(){}
+	if p.elastic != nil {
+		for id, closeHost := range p.elastic.closes {
+			closers = append(closers, closeHost)
+			delete(p.elastic.closes, id)
+		}
+	}
+	p.mu.Unlock()
+	for _, closeHost := range closers {
+		closeHost()
+	}
+	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.store.Close()
 }
 func (p *CloudTaskPool) snapshots() []cloudHostSnapshot {
-	ids := make([]string, 0, len(p.hosts))
-	for id := range p.hosts {
+	hosts := p.allHosts()
+	ids := make([]string, 0, len(hosts))
+	for id := range hosts {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 	out := make([]cloudHostSnapshot, 0, len(ids))
 	for _, id := range ids {
-		controller := p.hosts[id].Runtime.Runtime.Controller
+		host := hosts[id]
+		if host.Runtime == nil || host.Runtime.Runtime == nil || host.Runtime.Runtime.Controller == nil {
+			out = append(out, cloudHostSnapshot{HostID: id, Unavailable: true})
+			continue
+		}
+		controller := host.Runtime.Runtime.Controller
 		rows, err := controller.OwnershipSnapshot()
 		_, settled := controller.SpendSnapshot()
 		out = append(out, cloudHostSnapshot{HostID: id, Records: rows, Settled: settled, Unavailable: err != nil})
@@ -311,6 +335,10 @@ func (p *CloudTaskPool) refreshLocked(journal *cloudPlacementJournal, snapshots 
 				if record.State == e2bbe.Absent && !record.ResourcesHeld {
 					row.Retired = true
 					row.NoProviderEffect = record.SandboxID == ""
+					if record.ProductOutcome != "" {
+						copy := record
+						row.Terminal = &copy
+					}
 				}
 			}
 			for _, settled := range snapshot.Settled {
@@ -384,7 +412,7 @@ func (p *CloudTaskPool) neverMaterialized(projectID, runID, operationID, childID
 	return true, nil
 }
 func (p *CloudTaskPool) runtime(row cloudPlacement) (*CloudTaskRuntime, error) {
-	host, ok := p.hosts[row.HostID]
+	host, ok := p.allHosts()[row.HostID]
 	if !ok || cloudHostFingerprint(host) != row.HostFingerprint {
 		return nil, e2bbe.ErrUnknown
 	}
@@ -396,7 +424,7 @@ func (p *CloudTaskPool) candidates(allowed []string) []CloudTaskHost {
 	}
 	hosts := []CloudTaskHost{}
 	for _, id := range allowed {
-		if host, ok := p.hosts[id]; ok && !host.Draining {
+		if host, ok := p.allHosts()[id]; ok && !host.Draining {
 			hosts = append(hosts, host)
 		}
 	}
@@ -462,6 +490,10 @@ func (p *CloudTaskPool) reserve(ctx context.Context, host CloudTaskHost, queueID
 			return old, nil
 		}
 	}
+	currentHost, currentOK := p.allHosts()[host.ID]
+	if !currentOK || currentHost.Draining || cloudHostFingerprint(currentHost) != cloudHostFingerprint(host) {
+		return cloudPlacement{}, e2bbe.ErrCapacity
+	}
 	snapshots := p.snapshots()
 	if err = p.refreshLocked(&journal, snapshots); err != nil {
 		return cloudPlacement{}, err
@@ -492,7 +524,7 @@ func (p *CloudTaskPool) reserve(ctx context.Context, host CloudTaskHost, queueID
 	}
 	row.Admitted = true
 	journal.Rows[request.Identity.OperationID] = row
-	usage := cloudAggregateUsage(journal.Rows, snapshots, actor, time.Now().UTC())
+	usage := p.aggregateUsage(journal, snapshots, actor, time.Now().UTC())
 	l := p.config.Limits
 	if !cloudPoolAllows(usage, l, budget, request.MaxSeconds) {
 		row.Admitted = materialized
@@ -522,15 +554,15 @@ func (p *CloudTaskPool) AuthorizeAllocation(ctx context.Context, hostID string, 
 		return err
 	}
 	row, ok := journal.Rows[request.Identity.OperationID]
-	host, configured := p.hosts[hostID]
-	if !ok || !configured || !row.Admitted || row.Retired || row.HostID != hostID || row.Request != request || row.RequestDigest != cloudPlacementDigest(request) || row.HostFingerprint != cloudHostFingerprint(host) || row.Actor.UserID != request.BillingUserID || row.Actor.TeamID != request.BillingTeamID {
+	host, configured := p.allHosts()[hostID]
+	if !ok || !configured || host.Draining || !row.Admitted || row.Retired || row.HostID != hostID || row.Request != request || row.RequestDigest != cloudPlacementDigest(request) || row.HostFingerprint != cloudHostFingerprint(host) || row.Actor.UserID != request.BillingUserID || row.Actor.TeamID != request.BillingTeamID {
 		return management.ErrExecutionAuthority
 	}
 	snapshots := p.snapshots()
 	if err = p.refreshLocked(&journal, snapshots); err != nil {
 		return err
 	}
-	usage := cloudAggregateUsage(journal.Rows, snapshots, row.Actor, time.Now().UTC())
+	usage := p.aggregateUsage(journal, snapshots, row.Actor, time.Now().UTC())
 	l := p.config.Limits
 	if !cloudPoolAllows(usage, l, budget, request.MaxSeconds) {
 		return e2bbe.ErrCapacity
@@ -572,7 +604,7 @@ func (a *API) cloudAttemptRuntime(projectID, runID, operationID, childID string)
 // timeout, provider labels, guest output or an untrusted browser argument.
 func (p *CloudTaskPool) originalRuntime(projectID, runID, operationID, childID string) (*CloudTaskRuntime, bool, error) {
 	var selected *CloudTaskRuntime
-	for _, host := range p.hosts {
+	for _, host := range p.allHosts() {
 		records, err := host.Runtime.Runtime.Controller.OwnershipSnapshot()
 		if err != nil {
 			return nil, false, e2bbe.ErrUnknown
@@ -619,7 +651,7 @@ func (a *API) chooseCloudRuntime(ctx context.Context, req product.SwarmDispatchR
 			return nil, nil, e2bbe.ErrConflict
 		}
 		selected, err := cloud.Pool.runtime(row)
-		host := cloud.Pool.hosts[row.HostID]
+		host := cloud.Pool.allHosts()[row.HostID]
 		return selected, &host, err
 	}
 	if len(run.Input.Route.CloudHostIDs) > 0 && run.Input.Route.CloudPoolDigest != cloud.Pool.catalogueDigest() {
@@ -630,14 +662,18 @@ func (a *API) chooseCloudRuntime(ctx context.Context, req product.SwarmDispatchR
 		return nil, nil, err
 	}
 	if present {
-		for _, host := range cloud.Pool.hosts {
+		for _, host := range cloud.Pool.allHosts() {
 			if host.Runtime == original {
 				return original, &host, nil
 			}
 		}
 	}
-	candidates := cloud.Pool.candidates(run.Input.Route.CloudHostIDs)
+	candidates := cloud.Pool.elasticCandidates(req.Actor, run.Input.Route.CloudHostIDs)
 	if len(candidates) == 0 {
+		authority, e := a.authorizeExecution(ctx, req.Actor, run.Input.Route.Harness, true)
+		if e == nil && product.OrchestrationAuthorityMatches(run, authority) {
+			_ = a.requestCloudExpansion(ctx, req.Actor, run.Input.Route.Harness)
+		}
 		return nil, nil, e2bbe.ErrCapacity
 	}
 	// These are read-only prerequisite observations, not allocation attempts.
@@ -657,6 +693,7 @@ func (a *API) chooseCloudRuntime(ctx context.Context, req product.SwarmDispatchR
 	if connectionErr != nil {
 		return nil, nil, e2bbe.ErrUnsupported
 	}
+	capacityRefused := false
 	start := int((cloud.Pool.probeCursor.Add(1) - 1) % uint64(len(candidates)))
 	for i := 0; i < len(candidates); i++ {
 		host := candidates[(start+i)%len(candidates)]
@@ -676,13 +713,17 @@ func (a *API) chooseCloudRuntime(ctx context.Context, req product.SwarmDispatchR
 		if !current() {
 			return nil, nil, management.ErrExecutionAuthority
 		}
-		if controller.VerifyNodeCapacity(bounded) != nil {
+		if nodeErr := controller.VerifyNodeCapacity(bounded); nodeErr != nil {
+			capacityRefused = capacityRefused || errors.Is(nodeErr, e2bbe.ErrCapacity)
 			continue
 		}
 		if !current() {
 			return nil, nil, management.ErrExecutionAuthority
 		}
 		return host.Runtime, &host, nil
+	}
+	if capacityRefused && current() {
+		_ = a.requestCloudExpansion(ctx, req.Actor, run.Input.Route.Harness)
 	}
 	return nil, nil, e2bbe.ErrCapacity
 }

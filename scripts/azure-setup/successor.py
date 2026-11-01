@@ -147,7 +147,7 @@ def prepare(core, bundle, selection_path, provider, ask=input, emit=print):
     signed_path = parent / ('azure-successor-' + recovery['newGeneration'] + '.json')
     if not signed_path.exists():
         operator.prepare_successor(core, bundle, selection_path, recovery_path, core.digest(prior_envelope), observed['newBootID'], credential_root)
-    successor = core.private_json(signed_path)
+    successor = core.private_json(signed_path, 384 << 10)
     recovery['controllerSuccessor'] = successor
     recovery_module.validate_successor(recovery, successor)
     host = current_host(core, parent, infrastructure, selected)
@@ -165,6 +165,8 @@ def prepare(core, bundle, selection_path, provider, ask=input, emit=print):
         'journalPath': mount + '/luci/host-delivery-' + recovery['newGeneration'] + '.json', 'controllerMountPath': mount,
         'controllerFilesystemUUID': recovery['filesystemUUID'], 'hostConfig': host, 'hostConfigSHA256': core.digest(host)}
     recovery_module.validate(recovery)
+    if len(core.canonical(recovery)) + 1 > 512 << 10:
+        raise ValueError('Signed recovery transport exceeds its exact bound')
     core.atomic_json(recovery_path, recovery)
     journal.update(state='successor_prepared', recoverySelectionPath=str(recovery_path), recoverySelectionSHA256=core.digest(recovery),
         credentialDirectory=str(credential_root), nextSelectionPath=str(next_path))
@@ -177,7 +179,7 @@ def run(core, bundle, selection_path, provider, ask=input, emit=print):
     if journal['state'] in ('successor_review_paused', 'successor_active'): return journal
     parent = Path(selection_path).parent
     path = parent / 'azure-successor-state.json'
-    recovery = core.private_json(journal['recoverySelectionPath'])
+    recovery = core.private_json(journal['recoverySelectionPath'], 512 << 10)
     if core.digest(recovery) != journal['recoverySelectionSHA256']:
         raise ValueError('Retained signed recovery selection changed')
     selected = core.private_json(selection_path)
@@ -229,7 +231,7 @@ def finish(core, bundle, selection_path, journal, provider, ask=input, emit=prin
     if core.bundle(bundle)['luciRevision'] != journal['sourceCommit'] or core.digest(core.private_json(selection_path)) != journal['selectionDigest']:
         raise ValueError('Recovered source or predecessor selection changed; no active generation substitution')
     parent = Path(selection_path).parent
-    recovery = core.private_json(journal['recoverySelectionPath'])
+    recovery = core.private_json(journal['recoverySelectionPath'], 512 << 10)
     if core.digest(recovery) != journal['recoverySelectionSHA256']: raise ValueError('Retained successor changed')
     directory = parent / ('azure-generation-' + recovery['newGeneration'])
     if directory.is_symlink(): raise ValueError('Active generation path is unsafe')

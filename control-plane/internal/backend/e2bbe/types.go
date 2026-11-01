@@ -79,6 +79,11 @@ type Deployment struct {
 	AzureDataDiskID     string `json:"azureDataDiskId,omitempty"`
 	AzureZone           string `json:"azureZone,omitempty"`
 	AzureGatewayHost    string `json:"azureGatewayHost,omitempty"`
+	// Private instance routing keeps the original TLS/SNI name; never a browser endpoint.
+	AzurePrivateIP     string `json:"azurePrivateIp,omitempty"`
+	AzureVMID          string `json:"azureVmId,omitempty"`
+	AzureVMResourceID  string `json:"azureVmResourceId,omitempty"`
+	AzureNICResourceID string `json:"azureNicResourceId,omitempty"`
 }
 type Template struct {
 	ID          string `json:"id"`

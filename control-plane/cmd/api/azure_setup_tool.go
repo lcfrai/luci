@@ -54,12 +54,19 @@ type azureSetupRuntimeInstance struct {
 	} `json:"properties"`
 }
 
+type azureSetupNodeMetrics struct {
+	CPUCount             *int64 `json:"cpuCount"`
+	MemoryTotalBytes     *int64 `json:"memoryTotalBytes"`
+	AllocatedMemoryBytes *int64 `json:"allocatedMemoryBytes"`
+	MemoryUsedBytes      *int64 `json:"memoryUsedBytes"`
+}
 type azureSetupNodeReceipt struct {
-	ID                   string `json:"id"`
-	Status               string `json:"status"`
-	SandboxCount         *int64 `json:"sandboxCount"`
-	SandboxStartingCount *int64 `json:"sandboxStartingCount"`
-	MaxSandboxes         *int64 `json:"maxSandboxes"`
+	Metrics              *azureSetupNodeMetrics `json:"metrics,omitempty"`
+	ID                   string                 `json:"id"`
+	Status               string                 `json:"status"`
+	SandboxCount         *int64                 `json:"sandboxCount"`
+	SandboxStartingCount *int64                 `json:"sandboxStartingCount"`
+	MaxSandboxes         *int64                 `json:"maxSandboxes"`
 }
 
 func azureSetupCleanSource(info *debug.BuildInfo, revision string) bool {

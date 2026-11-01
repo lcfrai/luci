@@ -1,0 +1,10 @@
+.public-https{display:grid;gap:var(--layout-gap);padding:var(--panel-padding);border:1px solid var(--line-strong);border-radius:var(--r-card);background:var(--surface);color:var(--ink)}
+.public-https header{display:flex;flex-wrap:wrap;align-items:start;justify-content:space-between;gap:var(--layout-gap)}
+.public-https h3,.public-https h4,.public-https p{margin:0}.public-https p{line-height:1.5;overflow-wrap:anywhere}.public-https h4{font-size:1rem}
+.public-https label{display:grid;gap:.4rem;min-width:0}.public-https input:not([type=checkbox]),.public-https select{box-sizing:border-box;width:100%;min-height:var(--control-size);padding-inline:var(--control-pad-inline);border:1px solid var(--line-strong);border-radius:var(--r-ctl);background:var(--field);color:inherit;font:inherit}
+.public-https-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:var(--layout-gap)}
+.public-https fieldset,.public-https-record,.public-https-recovery{display:grid;gap:var(--layout-gap);min-width:0;margin:0;padding:var(--panel-padding);border:1px solid var(--line-strong);border-radius:var(--r-ctl)}
+.public-https legend{padding-inline:.3rem}.public-https details>summary{cursor:pointer;min-height:var(--control-size);display:list-item;align-content:center}.public-https details[open]>:not(summary){margin-block-start:var(--layout-gap)}
+.public-https label.public-https-check{display:flex;align-items:flex-start;gap:.6rem;line-height:1.5}.public-https-check input{flex:0 0 auto;margin-block-start:.3rem;accent-color:var(--ink)}
+.public-https-actions{display:flex;flex-wrap:wrap;gap:.5rem}.public-https-effect{display:grid;justify-items:start;gap:.5rem}.public-https-error{color:var(--danger,var(--ink));border-inline-start:3px solid currentColor;padding-inline-start:.75rem}.public-https button{white-space:normal}.public-https :focus-visible{outline:2px solid currentColor;outline-offset:3px}
+@media(max-width:480px){.public-https header>button,.public-https-actions>button{width:100%}.public-https fieldset,.public-https-record,.public-https-recovery{padding:var(--panel-padding)}}

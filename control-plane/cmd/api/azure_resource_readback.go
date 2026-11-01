@@ -21,6 +21,7 @@ type azureARMResource struct {
 	ManagedBy         string   `json:"managedBy"`
 	ManagedByExtended []string `json:"managedByExtended"`
 	Properties        struct {
+		VMID              string `json:"vmId"`
 		DiskState         string `json:"diskState"`
 		MaxShares         *int   `json:"maxShares"`
 		ProvisioningState string `json:"provisioningState"`
@@ -117,10 +118,48 @@ func verifyAzureARMOwnership(ctx context.Context, selected e2bOperatorConfig, re
 		return errors.New("Azure controller instance is unverified")
 	}
 	runtimeID := selected.Deployment.AzureScaleSetID + "/virtualMachines/" + selected.Deployment.AzureInstanceID
+	if selected.Deployment.AzureVMResourceID != "" {
+		runtimeID = selected.Deployment.AzureVMResourceID
+	}
 	var runtime azureARMResource
 	if err := reader.Read(ctx, runtimeID, "2023-09-01", &runtime); err != nil ||
 		strings.ToLower(runtime.ID) != strings.ToLower(runtimeID) || runtime.Properties.ProvisioningState != "Succeeded" {
 		return errors.New("Azure E2B host instance is unverified")
+	}
+	if selected.Deployment.AzurePrivateIP != "" {
+		if !strings.EqualFold(runtime.Properties.VMID, selected.Deployment.AzureVMID) {
+			return errors.New("original runtime VM was replaced")
+		}
+		client, ok := reader.(*azureARMClient)
+		if !ok {
+			return errors.New("original runtime NIC reader unavailable")
+		}
+		if selected.Deployment.AzureNICResourceID != "" {
+			var nic struct {
+				ID         string `json:"id"`
+				Properties struct {
+					VirtualMachine struct {
+						ID string `json:"id"`
+					} `json:"virtualMachine"`
+					IPConfigurations []struct {
+						Properties struct {
+							PrivateIP string          `json:"privateIPAddress"`
+							PublicIP  json.RawMessage `json:"publicIPAddress"`
+						} `json:"properties"`
+					} `json:"ipConfigurations"`
+				} `json:"properties"`
+			}
+			if client.readJSON(ctx, selected.Deployment.AzureNICResourceID, "2023-09-01", &nic) != nil || !strings.EqualFold(nic.ID, selected.Deployment.AzureNICResourceID) || !strings.EqualFold(nic.Properties.VirtualMachine.ID, runtimeID) || len(nic.Properties.IPConfigurations) != 1 {
+				return errors.New("original runtime NIC is uncertain")
+			}
+			ip := nic.Properties.IPConfigurations[0].Properties
+			if ip.PrivateIP != selected.Deployment.AzurePrivateIP || len(ip.PublicIP) > 0 && string(ip.PublicIP) != "null" {
+				return errors.New("original runtime private address changed")
+			}
+		} else {
+			return errors.New("instance routing requires exact standalone VM/NIC identity")
+		}
+
 	}
 	return nil
 }

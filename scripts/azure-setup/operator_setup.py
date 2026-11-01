@@ -50,6 +50,14 @@ def verify_signed_payload(core, envelope, public_key):
             raise ValueError('prior operator signature is invalid')
 
 
+FINALIZATION_MAX_BYTES = 128 << 10
+SUCCESSOR_MAX_BYTES = 384 << 10
+
+
+def successor_file_limit(path):
+    return FINALIZATION_MAX_BYTES if path == '/etc/luci/azure-operator-finalization.json' else 16384
+
+
 def prepare_successor(core, bundle_root, selection_path, recovery_selection_path, prior_envelope_sha,
                       new_boot_id, new_credentials_dir):
     """Sign a replacement controller without copying old-generation TLS or task state.
@@ -159,7 +167,7 @@ def prepare_successor(core, bundle_root, selection_path, recovery_selection_path
                           ('/etc/luci/azure-private-ca.crt', ca_data.decode()),
                           ('/etc/luci/azure-controller.env', env),
                           ('/etc/luci/azure-operator-finalization.json', core.canonical(envelope).decode())):
-        if not 0 < len(content) <= 16384:
+        if not 0 < len(content.encode('utf-8')) <= successor_file_limit(path):
             raise ValueError('bounded successor public configuration is unavailable')
         files.append({'path': path, 'content': content, 'sha256': hashlib.sha256(content.encode()).hexdigest()})
     mount_root = variables['controller_mount_path']
@@ -189,6 +197,8 @@ def prepare_successor(core, bundle_root, selection_path, recovery_selection_path
                  'priorEnvelopeSHA256': prior_envelope_sha, 'newEnvelopeSHA256': core.digest(envelope),
                  'newTemplateSHA256': core.digest(draft), 'newPublicCASHA256': hashlib.sha256(ca_data).hexdigest(),
                  'files': files, 'mountTemplate': mount_template}
+    if len(core.canonical(successor)) + 1 > SUCCESSOR_MAX_BYTES:
+        raise ValueError('Signed successor transport exceeds its exact bound')
     core.atomic_json(successor_path, successor)
     return {'state': 'successor_signed_pending_fence', 'successorPath': str(successor_path),
             'successorDigest': core.digest(successor), 'sourceCommit': manifest['luciRevision'],
@@ -441,12 +451,45 @@ def finalize(core, bundle_root, selection_path, provider, controller_readback=No
         azureDataDiskId=identities["controller_disk_id"].lower(), managementReceiptDigest=core.digest({"instance": instances[0], "nodes": nodes, "gateway": expected_gateway}),
         restoreReceiptDigest=state["readbackPlanSHA256"])
     operator["store"]["azureDataDiskId"] = identities["controller_disk_id"].lower()
+    if selection.get("elasticity") is not None:
+        elastic = selection["elasticity"]
+        if elastic["maxHostSeconds"] < operator["taskMaxSeconds"] + elastic["bootstrapSeconds"]:
+            raise ValueError("The reviewed host lifetime must accommodate an original task deadline")
+        model = provider(["rest", "--method", "get", "--url", "https://management.azure.com" + scale_set + "?api-version=2025-04-01"])
+        if model.get("id", "").lower() != scale_set.lower() or model.get("properties", {}).get("provisioningState") != "Succeeded":
+            raise ValueError("Exact original host image/network model is unavailable")
+        model_profile = model["properties"]["virtualMachineProfile"]
+        model_profile.get("osProfile", {}).pop("customData", None)
+        host_boot = {"version": 1, "scope": variables["scope"], "generation": variables["generation"],
+            "runtimePackageSHA256": variables["runtime_package_sha256"], "vaultURL": "https://" + variables["key_vault_name"] + ".vault.azure.net",
+            "gatewayHost": variables["gateway_zone_name"], "gatewayPrivateIP": variables["gateway_private_ip"], "controllerPrivateIP": variables["controller_private_ip"],
+            "runtimeSubnetCIDR": variables["runtime_subnet_cidr"], "hostClientID": identities["runtime_identity_client_id"], "controllerClientID": client_id, "secretRefs": variables["host_secret_refs"]}
+        if variables.get("previous_generation") is not None: host_boot["previousGeneration"] = variables["previous_generation"]
+        content = base64.b64encode(json.dumps(host_boot, sort_keys=True, separators=(",", ":")).encode()).decode()
+        cloud_init = "#cloud-config\nwrite_files:\n  - path: /etc/luci/azure-embed-deployment.json\n    permissions: '0600'\n    owner: root:root\n    content: '" + content + "'\n    encoding: b64\nruncmd:\n  - [systemctl, enable, --now, run-luci_embed.mount]\n  - [systemctl, enable, --now, luci-azure-embed-host.service]\n"
+        custom_data = base64.b64encode(cloud_init.encode()).decode()
+        if len(custom_data) >= 65536: raise ValueError("Reviewed host bootstrap exceeds the provider source bound")
+        model_digest = hashlib.sha256(json.dumps([scale_set.lower(), model["location"], model["sku"]["name"], model["sku"].get("tier", ""), model.get("zones", []), model["properties"]["virtualMachineProfile"], model.get("identity"), model["properties"].get("uniqueId", "")], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        node = nodes[0]
+        metrics = node.get("metrics", {})
+        required = (node.get("maxSandboxes"), metrics.get("cpuCount"), metrics.get("memoryTotalBytes"), metrics.get("allocatedMemoryBytes"), metrics.get("memoryUsedBytes"))
+        if any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in required) or not required[0] or not required[1] or not required[2]:
+            raise ValueError("Original node CPU/memory/sandbox capacity is required for host acquisition backpressure")
+        non_vm_memory = max(0, metrics["memoryUsedBytes"] - metrics["allocatedMemoryBytes"])
+        pending_slots = min(node["maxSandboxes"], metrics["cpuCount"] * 1000 // operator["template"]["cpuMillis"], max(0, metrics["memoryTotalBytes"] - non_vm_memory) // (operator["template"]["memoryMiB"] << 20), operator["limits"]["MaxConcurrent"])
+        if pending_slots < 1:
+            raise ValueError("Original node has no measured capacity for the selected task template")
+        operator["elasticity"] = {**elastic, "hostCustomData": custom_data, "pendingTaskSlots": pending_slots, "parentHostId": "primary", "profileDigest": "", "budgetMicros": int(selection["monthlyBudgetUsd"] * 1000000), "vmssModelDigest": model_digest,
+            "hostResourceGroupId": "/subscriptions/" + variables["subscription_id"].lower() + "/resourcegroups/" + variables["elastic_host_resource_group_name"].lower()}
+
     payload = {"version": 1, "kind": "luci-azure-operator-finalization", "sourceCommit": manifest["luciRevision"],
         "templateSHA256": variables["controller_operator_template_sha256"], "scope": variables["scope"], "generation": variables["generation"],
         "controllerInstanceId": identities["controller_instance_id"].lower(), "diskID": identities["controller_disk_id"].lower(),
         "controllerBootID": boot_id,
         "operator": operator, "createJournal": create, "createResponse": response, "buildJournal": build}
     envelope = {"payload": payload, "signatureAlgorithm": "ecdsa-sha256", "signature": sign(core, payload, parent / "azure-credentials")}
+    if len(core.canonical(operator)) + 1 > 96 << 10 or len(core.canonical(envelope)) + 1 > FINALIZATION_MAX_BYTES:
+        raise ValueError('Signed operator transport exceeds its exact bound')
     core.atomic_json(parent / "azure-operator-finalization.json", envelope)
     return {"state": "operator_finalized_pending_authenticated_install", "sourceCommit": manifest["luciRevision"],
             "finalizationPath": str(parent / "azure-operator-finalization.json"), "finalizationDigest": core.digest(envelope), "connected": False}

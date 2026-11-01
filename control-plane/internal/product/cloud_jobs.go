@@ -623,10 +623,17 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 	if j.Kind == "aks" || j.Kind == "telemetry-storage" {
 		// Durable original intent precedes the one existing provider mutation. A
 		// lost response never restores commissioning or silently repeats deletion.
+		s.publicHTTPSMu.Lock()
+		if err := s.publicHTTPSClusterDeleteGuard(j); err != nil {
+			s.publicHTTPSMu.Unlock()
+			problem(w, 409, "https_retirement_required", err.Error())
+			return
+		}
 		s.mu.Lock()
 		current, exists := s.jobs[j.ID]
 		if !exists || current.DeleteAttempted || current.PlanID != j.PlanID || current.Plan.Foundation == nil || current.Plan.Foundation.PlanDigest != j.Plan.Foundation.PlanDigest {
 			s.mu.Unlock()
+			s.publicHTTPSMu.Unlock()
 			problem(w, 409, "operation_running", "Read the original retained delete attempt.")
 			return
 		}
@@ -637,6 +644,7 @@ func (s *Server) deleteCloudJob(w http.ResponseWriter, r *http.Request) {
 		s.jobs[j.ID] = current
 		saveErr := s.saveJobsLocked()
 		s.mu.Unlock()
+		s.publicHTTPSMu.Unlock()
 		if saveErr != nil {
 			problem(w, 500, "save_failed", "Delete intent could not be confirmed; no provider delete was called. Read the original record before another action.")
 			return

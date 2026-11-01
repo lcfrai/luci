@@ -66,6 +66,21 @@ func artifactExportLines(row DistributeArtifact, freshness string) []artifactExp
 	for _, assumption := range row.Assumptions {
 		add("Assumption", assumption)
 	}
+	if row.Creative != nil {
+		b := row.Creative.Brief
+		add("Creative product", b.Product)
+		add("Creative headline", b.Headline)
+		add("Creative body", b.Body)
+		add("Creative CTA", b.CTA)
+		add("Creative alternative text", b.Alt)
+		add("Creative format", b.Format)
+		add("Creative renderer", row.Creative.Renderer)
+		add("Creative frame digest", row.Creative.FrameDigest)
+		for _, a := range row.Creative.Assets {
+			add("Creative asset source", a.Path+" · "+a.Content.SourceCommit+" · "+a.Content.Digest)
+			add("Declared asset licence", a.Licence)
+		}
+	}
 	return lines
 }
 
@@ -262,6 +277,10 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		return
 	}
 	format := r.PathValue("format")
+	if format == "svg" {
+		s.exportLaunchCreative(w, r)
+		return
+	}
 	if format != "docx" && format != "xlsx" && format != "pptx" && format != "pdf" {
 		journeyError(w, 422, "artifact_format_unavailable", "Choose an available DOCX, PPTX, XLSX or PDF export.")
 		return
@@ -338,6 +357,10 @@ func (s *Server) exportDistributeArtifact(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := r.Context().Err(); err != nil {
+		return
+	}
+	if row.Creative != nil && s.creativeAuthority(r.Context(), p.ID, false) != nil {
+		creativeFailure(w)
 		return
 	}
 	w.Header().Set("Cache-Control", "private, no-store")

@@ -68,6 +68,11 @@ type Options struct {
 }
 
 type Server struct {
+	publicHTTPSMu                   sync.Mutex
+	publicHTTPSWorkMu               sync.Mutex
+	publicHTTPSCursor               int
+	publicHTTPSResourceRPC          publicHTTPSRPCFunc
+	publicHTTPSProbe                publicHTTPSProbeFunc
 	runtimePreparationMu            sync.Mutex
 	outcomeCostsMu                  sync.Mutex
 	distributeWorkAdmission         func(context.Context) (func(), error)
@@ -162,6 +167,10 @@ type Server struct {
 	githubReleasesMu                sync.Mutex
 	githubReleaseRunner             GitHubReleaseRunner
 	feedbackMu                      sync.Mutex
+	commercialMu                    sync.Mutex
+	commercialRefreshMu             sync.Mutex
+	commercialStripe                stripeCommercialReader
+	commercialGitHub                commercialGitHubReader
 	researchAuthorize               management.ResearchAuthorizer
 	feedbackAuthorize               ProjectFeedbackAuthorizer
 	githubIssuesRunner              GitHubIssuesRunner

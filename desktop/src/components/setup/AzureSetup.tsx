@@ -4,6 +4,7 @@ import { azurePrerequisites, createAzureSetupClient, readAzureConnectionDescript
 import { TEAM_WORKSPACE_CHANGED } from "../../api/teamScope";
 import { AUTH_EXPIRED } from "../../api/authSession";
 import { Button } from "../fluid/components/button";
+import { capacityMoney } from "../../api/cloudCapacity";
 import { CloudManager } from "./CloudManager";
 import "./azure-setup.css";
 
@@ -26,6 +27,7 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
   const api = useMemo(() => createAzureSetupClient(client), [client]);
   const id = useId();
   const [input, setInput] = useState<AzureSetupRequest>({ name: "luci", region: "australiaeast", monthlyBudgetUsd: budget > 0 ? budget : 30, maxConcurrentVMs: 1 });
+  const [elasticCost, setElasticCost] = useState("");
   const [plan, setPlan] = useState<AzureSetupPlan | null>(null);
   const [descriptor, setDescriptor] = useState<AzureConnectionDescriptor | null>(null);
   const [progress, setProgress] = useState<AzureSetupProgress | null>(null);
@@ -116,7 +118,17 @@ export function AzureSetup({ client, disabled, budget = 30 }: { client: ProductC
           <div className="luci-field"><label htmlFor={`${id}-budget`}>Monthly budget (USD)</label><input id={`${id}-budget`} aria-describedby={`${id}-budget-help`} type="number" required min="0.01" max="100000" step="0.01" value={input.monthlyBudgetUsd} onChange={event => update({ monthlyBudgetUsd: Number(event.target.value) })} /><small id={`${id}-budget-help`}>Review actual Azure charges before creating resources. This does not cap provider billing.</small></div>
           <div className="luci-field"><label htmlFor={`${id}-capacity`}>Concurrent task VMs</label><input id={`${id}-capacity`} aria-describedby={`${id}-capacity-help`} type="number" required min="1" max="1024" step="1" value={input.maxConcurrentVMs} onChange={event => update({ maxConcurrentVMs: Number(event.target.value) })} /><small id={`${id}-capacity-help`}>Each upstream task gets its own isolated VM, within account capacity and your policy.</small></div>
         </div>
-        <Button type="submit">{busy === "Preparing instructions…" ? busy : plan ? "Prepare fresh Azure instructions" : "Prepare Azure instructions"}</Button>
+        <details className="azure-elastic-setup"><summary>Automatic cloud capacity</summary>
+          <p>Prepare a dedicated Azure resource group for extra agent hosts. Each project chooses its own limits and approves costs before Luci adds capacity.</p>
+          <label className="setup-check"><input type="checkbox" checked={!!input.elasticity} onChange={event => {setElasticCost("");update({elasticity:event.target.checked?{maxHosts:Math.min(2,input.maxConcurrentVMs),hostCostMicrosPerHour:0,maxHostSeconds:7200,bootstrapSeconds:900}:undefined})}}/>Include elastic host setup</label>
+          {input.elasticity&&<div className="azure-setup-fields">
+            <label className="luci-field">Maximum extra hosts<input type="number" required min={1} max={input.maxConcurrentVMs} step={1} value={input.elasticity.maxHosts} onChange={event=>update({elasticity:{...input.elasticity!,maxHosts:Number(event.target.value)}})}/><small>Each host can run multiple isolated task VMs within its available capacity.</small></label>
+            <label className="luci-field">Estimated full cost per host hour (USD)<input type="text" inputMode="decimal" required pattern="(?:0|[1-9][0-9]*)(?:[.][0-9]{1,6})?" value={elasticCost} onChange={event=>{setElasticCost(event.target.value);update({elasticity:{...input.elasticity!,hostCostMicrosPerHour:capacityMoney(event.target.value)??0}})}}/><small>Use the selected Azure host's reviewed estimate, including its disks and networking. This is not a live quote or provider billing cap.</small></label>
+            <label className="luci-field">Startup allowance (minutes)<input type="number" required min={1} step={1} value={input.elasticity.bootstrapSeconds/60} onChange={event=>update({elasticity:{...input.elasticity!,bootstrapSeconds:Number(event.target.value)*60}})}/><small>Allow time for Azure to create the host and prepare its runtime before its first task.</small></label>
+            <label className="luci-field">Maximum host lifetime (minutes)<input type="number" required min={1} step={1} value={input.elasticity.maxHostSeconds/60} onChange={event=>update({elasticity:{...input.elasticity!,maxHostSeconds:Number(event.target.value)*60}})}/><small>The installer requires enough time for startup and a full task.</small></label>
+          </div>}
+        </details>
+        <Button type="submit" disabled={!!input.elasticity&&capacityMoney(elasticCost)===null}>{busy === "Preparing instructions…" ? busy : plan ? "Prepare fresh Azure instructions" : "Prepare Azure instructions"}</Button>
       </fieldset>
     </form>
     {error && <p role="alert" className="journey-error">{error}</p>}

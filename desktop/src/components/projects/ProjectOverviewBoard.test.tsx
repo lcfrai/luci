@@ -570,3 +570,33 @@ it('labels a legacy unknown failure count without claiming no failures', async (
   await screen.findByText('Failure history is unavailable; no zero count inferred.');
   expect(screen.queryByText(/0 failed queue entries/)).toBeNull();
 });
+
+it('keeps compact project destinations ahead of pending summaries and clears hidden queue selections', async () => {
+  const pending = new Map<string, (value: ProjectOverview) => void>();
+  vi.mocked(projectOverviewApi.get).mockImplementation(id => new Promise(resolve => pending.set(id, resolve)));
+  render(<ProjectOverviewBoard projects={projects} compact />);
+  expect(screen.getAllByRole('button', { name: 'Open project' })).toHaveLength(2);
+  const destinations = screen.getByRole('navigation', { name: 'Open a project' });
+  expect(within(destinations).getByRole('button', { name: 'Open project Notes' })).toBeTruthy();
+  expect(within(destinations).getByRole('button', { name: 'Open project Shop' })).toBeTruthy();
+  expect(destinations.compareDocumentPosition(screen.getByRole('list', { name: 'Your project cards' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Manage queue' })).toBeNull();
+  await act(async () => { pending.get('p1')!(overview('p1')); pending.get('p2')!(overview('p2')); });
+  expect(screen.getAllByRole('button', { name: 'Review the plan' })).toHaveLength(2);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Project details' })[0]);
+  await userEvent.click(screen.getByRole('button', { name: 'Manage queue' }));
+  await userEvent.click(await screen.findByRole('checkbox', { name: 'Select Build comments in Notes' }));
+  expect(screen.getByRole('region', { name: 'Selected queued tasks' })).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Hide project details' }));
+  expect(screen.queryByRole('region', { name: 'Selected queued tasks' })).toBeNull();
+  expect(screen.queryByRole('checkbox', { name: 'Select Build comments in Notes' })).toBeNull();
+  expect(swarmQueueApi.control).not.toHaveBeenCalled();
+});
+
+it('keeps the Distribute next action in the project destination', async () => {
+  vi.mocked(projectOverviewApi.get).mockImplementation(async id => ({ ...overview(id), nextAction: { id: 'review-plan', label: 'Open launch plan', lens: 'distribute' } }));
+  render(<ProjectOverviewBoard projects={projects} compact />);
+  await userEvent.click((await screen.findAllByRole('button', { name: 'Open launch plan' }))[0]);
+  expect(useCockpit.getState().selection.projectId).toBe('p1');
+  expect(useCockpit.getState().lens).toBe('distribute');
+});

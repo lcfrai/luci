@@ -23,7 +23,7 @@ MAX_ORDINARY = 8 << 20
 PACK_LIMITS = {'builder-source/luci.pack': 40 << 20, 'builder-source/e2b.pack': 4 << 20}
 SOURCE_MEMBERS = ('builder-source/source.json', 'builder-source/luci.pack', 'builder-source/e2b.pack')
 sys.dont_write_bytecode = True
-MODULE = ("compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf", ".terraform.lock.hcl")
+MODULE = ("elastic_hosts.tf", "compute.tf", "fence.tf", "identity.tf", "moved.tf", "network.tf", "outputs.tf", "versions.tf", "variables.tf", ".terraform.lock.hcl")
 SCRIPTS = ("azure-setup/installer.py", "azure-setup/credentials.py", "azure-setup/guided.py", "azure-setup/foundation.py", "azure-setup/builder.py", "azure-setup/builder_guest.py", "azure-setup/source_bundle.py", "azure-setup/successor.py", "azure-setup/standby.py", "azure-setup/retirement.py", "azure-setup/operator_setup.py", "azure-setup/README.md", "azure-embed-host/package.py", "azure-embed-host/service.py",
            "azure-embed-host/deliver.py", "azure-embed-host/guest_registry.py", "azure-controller-disk/package.py", "azure-controller-disk/mount.py",
            "azure-controller-disk/recover.py", "azure-controller-disk/retire.py")
