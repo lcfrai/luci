@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/lcfrai/luci/control-plane/internal/deploymentkube"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
