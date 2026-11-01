@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-02",
+  "updatedAt": "2026-11-01T16:50:12.978Z",
   "baseline": "f4801fdc9caf07c1610ead1d1a3b74125e4aacd1",
   "branch": "codex/product-engine-20261029",
   "principle": "Prototype structure, engine and connectors first; integrate and test afterward. 100x is an ambition, not a measured claim.",
@@ -23,13 +23,15 @@
         "Representative roadmap and change-propagation journeys after implementation."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-02",
@@ -48,16 +50,19 @@
         "Exercise public research/search → retained quoted evidence → ordinary model finding → reviewed roadmap amendment."
       ],
       "currentBatch": "Research V1 frozen; root review fixes for empty-source removal, content reversion dedupe, and research-draft preservation are being incorporated into V2. Private Brave search and public URL capture feed attributed exact quotes into existing strategy and ordinary replanning.",
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "implementationUpdate": "Public research/search and saved observation routing integrated; sources remain exact, untrusted evidence.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-03",
@@ -73,13 +78,15 @@
         "Representative cross-stage amendment and conflict journeys; no service-to-requirement mapping is invented."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-04",
@@ -91,19 +98,22 @@
       "dependsOn": "L100-01",
       "evidence": "",
       "currentBatch": "Copy-and-adapt visual frame variants and screen/state/width coverage navigation under implementation; existing scene/undo/task context retained.",
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "progress": "Source adds copy/adapt frame variants, width/state coverage navigation and lazy read-only saved Design history through existing revisions; originals, dirty drafts and approval boundaries preserved.",
       "remainingWork": [
         "Representative assisted visual iteration, responsive implementation and usability journeys after implementation."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-05",
@@ -123,13 +133,15 @@
       ],
       "currentSourceWork": "Integrated: versioned token-bound component library, cross-project package import, scene copies and agent context. Source peer-reviewed; current batch not compiled or tested.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-06",
@@ -151,13 +163,15 @@
       "currentBatch": "Optional immutable source URL/revision, licence declaration and expected tools source packet frozen for independent review. Metadata travels in existing captured task and bounded orchestrator context; no capability grants or installation.",
       "implementationUpdate": "Immutable optional skill license/source/revision/tool metadata integrated; no implied tool grants.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-07",
@@ -179,13 +193,15 @@
       "currentSourceWork": "Existing event-driven finding dispatch, durable jobs/recovery and review/repair/integration continuation are connected source; the missing work is external saved-signal routing, not a replacement engine.",
       "implementationUpdate": "Saved observations feed the existing finding/model/amendment loop with monotonic sequencing and original-outcome preservation.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-08",
@@ -201,13 +217,15 @@
         "Representative parallel implementation → independent review/repair → ordered integration, including conflicts."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-09",
@@ -223,16 +241,22 @@
         "Commission the packaged matching runtime sources into the selected immutable image when runtime gates are available.",
         "Representative multi-harness task/restart/integration journeys."
       ],
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "progress": "Ordinary Codex result contract plus task-only normal-zero PID1 capability, exact immutable Docker terminal identity, durable private registry result and restart/long-running completion observation. Unknown identity holds; nonzero/OOM and original pre-allocation failure use diagnostic paths. Source only.",
-      "currentSourceWork": "Integrated exact Codex, Claude Code and OpenCode completion contracts, preserving original normal-zero/controller identity and image capability requirements. Source peer-reviewed; matching runtime image and new package not built.",
+      "currentSourceWork": "Codex, Claude Code and OpenCode completion contracts are integrated and the matching runtime sources are included in the885add77 package. Historical Linux compilation is retained by the unchanged whole sandboxd tree. Matching immutable runtime-image build/activation and multi-harness journeys remain to be commissioned.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "historicalSourceNotes": {
+        "currentSourceWork": "Integrated exact Codex, Claude Code and OpenCode completion contracts, preserving original normal-zero/controller identity and image capability requirements. Source peer-reviewed; matching runtime image and new package not built."
       }
     },
     {
@@ -246,18 +270,19 @@
       "evidence": "",
       "currentSourceWork": "Automatic Azure capacity is integrated and independently source-reviewed: current demand, owned host creation from the reviewed model, private routing, resource/cost limits, original-host retirement and recovery, and guided UI. It extends the existing portfolio scheduler rather than adding another scheduler.",
       "remainingWork": [
-        "Compile and package the joined source and matching Azure setup bundle.",
         "Commission the supported Azure host flow, concurrent work and original recovery after implementation completion."
       ],
       "implementationUpdate": "Owned host acquisition is now implemented source. Current compiled delivery remains explicitly identified by currentDelivery until the new build is complete.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-11",
@@ -273,13 +298,15 @@
         "Representative reviewer findings, bounded repair and renewed review/integration journey."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-12",
@@ -300,13 +327,15 @@
         "Representative attention prioritization and multiple-project usability with changing real evidence."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-13",
@@ -322,15 +351,18 @@
         "Representative fairness/dependency/capacity usability and integration testing."
       ],
       "currentBatch": "Reviewed focus ceilings and accepted-upstream dependencies are integrated in committed 5c10d69d source.",
-      "currentBatchValidation": "API compiled and TypeScript passed at 5c10d69d; Vite later hit native allocator cap. No current-source product tests.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "API compiled and TypeScript passed at 5c10d69d; Vite later hit native allocator cap. No current-source product tests."
     },
     {
       "id": "L100-14",
@@ -349,14 +381,19 @@
         "Exercise private portfolio conversation, archived history and explicit project handoffs across account/workspace changes."
       ],
       "currentSourceWork": "Private conversation/history/recovery plus explicit reviewed discussion or work-request purpose now integrated. Work requests use the existing project orchestrator and current project authority; private history is not forwarded.",
-      "currentBatch": "Nine-file work-purpose handoff independently reviewed and integrated; uncompiled and untested new source.",
+      "currentBatch": "Work-purpose handoff is integrated, reviewed and included in the compiled885add77 package. Functional and private-history/recovery journeys remain deferred.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "historicalSourceNotes": {
+        "currentBatch": "Nine-file work-purpose handoff independently reviewed and integrated; uncompiled and untested new source."
       }
     },
     {
@@ -379,15 +416,18 @@
         "Exercise assisted topology handoff, dirty-draft preservation and explicit versioned Save."
       ],
       "currentBatch": "Durable project-private blueprint persistence with CAS and recoverable conflicts authored and source reviewed; monotonic bounded-history correction in progress.",
-      "currentBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "Source work only: no tests, build or runtime executed in this batch yet."
     },
     {
       "id": "L100-16",
@@ -400,22 +440,24 @@
       "evidence": "",
       "progress": "Source implements closed explicit Kubernetes target credentials and namespace identity, actor-bound expiring review, Apply and Observe with durable unknown-outcome journal and exact owned UID/resourceVersion. Blueprint and current source/check/authority rechecked. Private ClusterIP workloads do not require public publishing authority. Image provenance remains user-supplied.",
       "remainingWork": [
-        "Compile and package the complete joined source.",
         "Exercise authorized cluster, application, DNS/TLS and retirement journeys after implementation completion.",
         "Non-Azure managed providers and broader high-availability automation remain explicit extensions."
       ],
       "currentBatch": "Current Azure host, operator transport and automatic public HTTPS lifecycle/UI source is integrated and source-reviewed.",
-      "currentBatchValidation": "Source review only; current-source compilation, packaging and runtime validation are tracked separately.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "currentSourceWork": "Automatic public HTTPS is integrated with per-project owned Traefik, Azure DNS records, persistent native certificate issuance/renewal, pause/resume/retire recovery and UI. Existing managed AKS, image publication, inference, storage and telemetry paths remain connected.",
       "implementationUpdate": "Fixed Azure-managed GPU pool and original public Traefik HTTPS route integrated. Completed Develop work starts reviewed image publication before cluster selection; resource-only and image-plus-resource preparation use exact original source. No cloud/image/model effects performed. Owned durable telemetry, private query transport and optional reviewed Azure Blob commissioning are integrated.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "Source review only; current-source compilation, packaging and runtime validation are tracked separately."
     },
     {
       "id": "L100-17",
@@ -432,13 +474,15 @@
       ],
       "currentBatch": "Integrated bounded public-HTTPS single-file model transfer into owned PVC, fixed immutable helper image build, source hash/byte/EOF checks, original helper completion and explicit recovery cleanup. No actual model acquisition or cluster effect.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-18",
@@ -449,7 +493,7 @@
       "work": "OTel traces/metrics/logs and customer product events are different needs. Add deployment instrumentation plus a product-event schema, destinations and dashboards.",
       "dependsOn": "L100-15,L100-16",
       "evidence": "",
-      "currentSourceWork": "Integrated typed Collector deployment/configuration, generated Node instrumentation adapter and dependencies, task handoff, and exact owned workload product-counter read/retention/export. V4 source independently reviewed; current batch uncompiled and untested.",
+      "currentSourceWork": "Typed Collector deployment/configuration, Node instrumentation adapter/dependencies, task handoff and owned product-counter read/retention/export are integrated and included in the compiled885add77 package. Live telemetry and functional journeys remain deferred.",
       "remainingWork": [
         "Exercise app instrumentation to Collector to backend and original-workload logs/traces.",
         "Exercise integrated authenticated Stripe and GitHub release observations feeding current findings; additional provider connectors remain extensions."
@@ -457,12 +501,17 @@
       "currentBatch": "Owned Prometheus/Tempo, durable TSDB/WAL PVCs, Azure Blob handoff, private TLS, authenticated bounded queries and UI are integrated and independently source-reviewed. Exact three query dependencies acquired; no provider or telemetry runtime executed.",
       "implementationUpdate": "Original workload logs/traces and selected outcomes connect to planning; owned production storage and private query paths now connect to the same saved deployment/resource flow.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "historicalSourceNotes": {
+        "currentSourceWork": "Integrated typed Collector deployment/configuration, generated Node instrumentation adapter and dependencies, task handoff, and exact owned workload product-counter read/retention/export. V4 source independently reviewed; current batch uncompiled and untested."
       }
     },
     {
@@ -474,18 +523,23 @@
       "work": "Commit-bound deployment and rollback source exists. Connect branch previews, promotion, release observations and safe recovery; distinguish code rollback from data restore.",
       "dependsOn": "L100-08,L100-15",
       "evidence": "",
-      "currentSourceWork": "Existing check→preview→publication/recovery source traced. Integrated manual create/stop/historical rebuild current-actor/target/config rechecks and truthful data-not-restored UI; current source batch uncompiled/untested.",
+      "currentSourceWork": "Manual create/stop/historical rebuild actor/target/config rechecks and truthful data-not-restored UI are integrated and included in the compiled885add77 package. Recovery journeys remain deferred.",
       "remainingWork": [
         "Representative integration-check → preview → release/recovery journeys, including revoked grants and provider uncertainty.",
         "Historical commit rebuild uses current runtime configuration and does not restore application data."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "historicalSourceNotes": {
+        "currentSourceWork": "Existing check→preview→publication/recovery source traced. Integrated manual create/stop/historical rebuild current-actor/target/config rechecks and truthful data-not-restored UI; current source batch uncompiled/untested."
       }
     },
     {
@@ -507,13 +561,15 @@
       "currentSourceWork": "Integrated durable private GTM history continuation with exact global revisions/replay and bounded recovery from interrupted archive writes; lazy history/export preserves current drafts.",
       "implementationUpdate": "Saved GTM strategies and ordinary model proposals feed exact-source go-to-market documents and feedback.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-21",
@@ -535,13 +591,15 @@
       ],
       "implementationUpdate": "Pricing and support/FAQ drafts use saved commercial inputs; bounded projections disclose omissions and preserve legacy histories.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-22",
@@ -558,13 +616,15 @@
         "Compile integrated authenticated Stripe revenue aggregates and GitHub release counters; additional publishing channels remain extensions."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-23",
@@ -575,18 +635,23 @@
       "work": "Task-level Glasses discovery and reuse decisions use public catalogue metadata, retained provenance and explicit licence/compatibility notes. No automatic source acquisition or licence/quality guarantee.",
       "dependsOn": "L100-05,L100-06",
       "evidence": "",
-      "currentSourceWork": "Integrated: explicit public Glasses search/inspection, source/licence snapshots and task-level reuse decisions; exact captured-source membership for model proposals. Source peer-reviewed; no catalogue request, compilation or tests executed.",
+      "currentSourceWork": "Explicit Glasses search/inspection, source/licence snapshots, task-level reuse decisions and exact captured-source membership for model proposals are integrated and compiled in885add77. No new catalogue requests or functional tests were executed.",
       "remainingWork": [
         "Exercise explicit Glasses search/inspection/selection → exact task context with current catalogue data.",
         "Automatic acquisition or installation of catalogue code is deliberately not part of selection."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "historicalSourceNotes": {
+        "currentSourceWork": "Integrated: explicit public Glasses search/inspection, source/licence snapshots and task-level reuse decisions; exact captured-source membership for model proposals. Source peer-reviewed; no catalogue request, compilation or tests executed."
       }
     },
     {
@@ -603,13 +668,15 @@
         "Representative crash/restart/unknown-outcome journeys across the joined task, personal-chat and GTM stores."
       ],
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     },
     {
       "id": "L100-25",
@@ -626,17 +693,20 @@
         "Exercise customer/product/revenue feedback through the integrated findings path.",
         "Representative usability and correctness testing."
       ],
-      "currentBatchValidation": "Root and independent source review accepted; 4 Go, 3 UI and 2 API regression cases authored but unrun. No build/runtime evidence yet.",
+      "currentBatchValidation": "Included in the compiled885add77 API/frontend/native package. Current functional, native and provider validation remains deferred.",
       "currentBatch": "Actual terminal-clock durations, explicit human actions and exact operator-reconciled cost receipts are being joined to existing outcome views. Estimates are not relabelled as actual charges.",
       "implementationUpdate": "Task elapsed time, accepted control actions and operator-reconciled charges integrated; unknown remains unknown and no universal speedup is inferred.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "previousBatchValidation": "Root and independent source review accepted; 4 Go, 3 UI and 2 API regression cases authored but unrun. No build/runtime evidence yet."
     },
     {
       "id": "L100-26",
@@ -648,21 +718,23 @@
       "dependsOn": "L100-01,L100-12,L100-15",
       "evidence": "",
       "progress": {
-        "date": "2026-10-31",
-        "state": "Supported implementation compiled and packaged at 2bbdba04; 648 fixture source files compile. Focused test preflights passed, capacity admission failed before both suites. No current functional tests or native journeys ran."
+        "date": "2026-11-02",
+        "state": "Supported Local/Azure implementation compiled and packaged at885add77, including current Azure transport. Functional and user journeys deferred."
       },
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
+        "nativeCompiled": true,
+        "currentAzureBundleIncluded": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
         "renderedNativeReviewed": false
       },
       "remainingWork": [
-        "94 named Go cases and 203 frontend cases, baseline capacity admission required",
-        "Rendered native appearance/density/card contrast/navigation/reflow/persistence",
-        "Representative multi-project coding, review, integration and restart",
+        "Run authored Go and frontend regressions for the final source; prior named-case counts belong to the older baseline",
+        "Rendered native appearance, density, contrast, navigation, reflow and persistence",
+        "Representative multi-project coding, independent review, integration and restart",
         "Authorized live deployment, inference, telemetry and launch/feedback journeys",
         "Second-device installation, signing/distribution and Office-format fidelity"
       ]
@@ -687,13 +759,15 @@
       ],
       "currentBatch": "System/light/dark, three accents, three densities, independent surface contrast and clear Home cards are wired. Personal conversation now shares actual theme/density tokens and defined control colours; telemetry caption token corrected. Source reviewed, current rendering pending.",
       "currentDelivery": {
-        "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
+        "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
         "sourceIntegrated": true,
         "apiAndFrontendCompiled": true,
         "packaged": true,
         "currentFunctionalTestsExecuted": false,
-        "renderedNativeReviewed": false
-      }
+        "renderedNativeReviewed": false,
+        "nativeCompiled": true
+      },
+      "previousDeliveryRevision": "2bbdba04d376b431bcebf34981eb195ace92188f"
     }
   ],
   "statusDefinitions": {
@@ -717,16 +791,75 @@
       "failed": 0,
       "typescriptExit": 0
     },
-    "qualification": "Unit/component checks after structure implementation. Native app not rebuilt or launched. Earlier UI35pass4fail remains recorded; fixed two tests, production code unchanged.",
+    "qualification": "Current source builds passed and the matching internal app folder was assembled. Functional tests remain deferred. Historical test evidence below is not current acceptance.",
     "latestConnectedSource": {
-      "source": "eab0c9d19e19852731badcfba31353154646a354",
-      "eightPrototypeChecksPassed": true,
-      "fullTypeScriptExit": 0,
-      "newSourceJoin": "outcome-v3 / skills-v2 / azure-v4; focused checks pending",
-      "nativeLaunch": false,
-      "fullAcceptance": false
+      "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
+      "tree": "db528b6c71c6a9f66707a126550d38fec71ebfe2",
+      "compiled": true,
+      "packaged": true,
+      "testsExecuted": false
     },
     "currentRepair": {
+      "state": "compiler_issues_corrected_and_final_builds_passed",
+      "goUnusedImport": {
+        "path": "E:/Luci-local-acceptance/artifacts/luci-final-api-import-fix-20261102/source-amendment.json",
+        "bytes": 1449,
+        "sha256": "96cfb3e97fa533ab3eceec5e67f5a44a59ae2f07786cf3fe4bc42d9ea3b3eff1"
+      },
+      "frontendCorrection": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-final-web-compile-source-correction-root-actual-20261102.json",
+        "bytes": 1898,
+        "sha256": "14a379429193001acf8ffd525737054999925fcafa41e97c54a1ece991001509"
+      },
+      "currentAPI": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-api-compile-root-actual-20261102.json",
+        "bytes": 2075,
+        "sha256": "39f0caa1134c8e68943bda2e4dd56697e48feca48f68b0de34fb5165a960ded0"
+      },
+      "currentFrontend": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-web-compile-root-actual-20261102.json",
+        "bytes": 2834,
+        "sha256": "3e93889f05654f60610e2714f49e2f145f51654973d053dddee5519995c07f32"
+      },
+      "testsExecuted": false
+    },
+    "currentCompiledCandidate": {
+      "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
+      "tree": "db528b6c71c6a9f66707a126550d38fec71ebfe2",
+      "api": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-api-compile-root-actual-20261102.json",
+        "bytes": 2075,
+        "sha256": "39f0caa1134c8e68943bda2e4dd56697e48feca48f68b0de34fb5165a960ded0"
+      },
+      "frontend": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-web-compile-root-actual-20261102.json",
+        "bytes": 2834,
+        "sha256": "3e93889f05654f60610e2714f49e2f145f51654973d053dddee5519995c07f32"
+      },
+      "webManifest": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-web-manifest-root-actual-20261102.json",
+        "bytes": 1734,
+        "sha256": "cf75f53769bc5efd2f54c6faf04434e16f24a36c5e367d59672e8d147ab1d69e"
+      },
+      "native": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-native-root-actual-20261102.json",
+        "bytes": 2858,
+        "sha256": "f03d5fb6ddef14ca1d59de757dbd6b831521ac94f91586be43cd50fbeaa2f48d"
+      },
+      "azure": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-azure-bundle-root-actual-v2-20261102.json",
+        "bytes": 4043,
+        "sha256": "fba125ced01cfd7611a746b3acbed1b55c031f363777f391ed5afaa45a98c223"
+      },
+      "package": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-stage-root-actual-v2-20261102.json",
+        "bytes": 3594,
+        "sha256": "c36f20d48ec61647357dd4394431af85d50b9ef8f0f4121b60df06e3fc62b25e"
+      },
+      "functionalTestsExecuted": false,
+      "nativeLaunched": false
+    },
+    "previousRepair": {
       "base": "8645b9b1d9e93f9c1c2094a74e074ba713909eba",
       "testFiles": 4,
       "productionChanges": false,
@@ -735,63 +868,6 @@
       "frontendRerunNamed": 4,
       "fullTypeScript": "pending",
       "unchangedPriorResultsRetained": true
-    },
-    "currentCompiledCandidate": {
-      "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
-      "tree": "aab1edb7eab2f07d99719feab36b441634c97c5b",
-      "api": {
-        "actual": {
-          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-2bbdba04-api-compile-root-actual-20261031.json",
-          "bytes": 2848,
-          "sha256": "7697b119c948cb988c30449455bb56714b91fbc1a9632a25719fced98111846c"
-        },
-        "artifact": {
-          "path": "E:\\Luci-local-acceptance\\artifacts\\product-engine-2bbdba04-api-build-20261031-inner\\luci-api.exe",
-          "bytes": 103038464,
-          "sha256": "aa9efcbe2fab1e97574ef6d79a56e6e3fb492280b11829aa6edb7879ea99636c"
-        },
-        "elapsedSeconds": 58.79700000002049,
-        "normalClosure": true
-      },
-      "web": {
-        "actual": {
-          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-2bbdba04-web-compile-root-actual-20261031.json",
-          "bytes": 2933,
-          "sha256": "2d8575d1facd590708a34048c6f01325b9ba3b0a3865a294c73079f9162688d2"
-        },
-        "artifact": {
-          "path": "E:\\Luci-local-acceptance\\artifacts\\product-engine-2bbdba04-web-1024-build-20261031-inner\\web\\index.html",
-          "bytes": 781,
-          "sha256": "42532c049813a9e8528c7d7b2c2244ed896f77fe64500496a55714a9bb62164f"
-        },
-        "elapsedSeconds": 32.73499999998603,
-        "normalClosure": true
-      },
-      "webManifest": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-2bbdba04-web-manifest-root-actual-20261031.json",
-        "bytes": 1934,
-        "sha256": "33887052078bf32a0168ff56c3c07f7f2e6926cb037dd47ffd0744960851ad3f"
-      },
-      "native": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-2bbdba04-native-root-actual-20261031.json",
-        "bytes": 3958,
-        "sha256": "72fb5d5db2e6ede1b1c66293e109c24d3ba578ab7f543c681ce8f55d60bdded3"
-      },
-      "stage": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-2bbdba04-stage-root-actual-20261031.json",
-        "bytes": 3415,
-        "sha256": "35a237ad12404d7715dff379d09ddebefbf4ac170c5b81d3ea1b9edde02d936b"
-      },
-      "testSourceCompilation": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-2bbdba04-remaining5-test-source-compile-root-actual-20261031.json",
-        "bytes": 4813,
-        "sha256": "044415f45af124e624ac6249a168eb65be17e2b12638850963784ff795b7748e"
-      },
-      "testAdmission": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-pe47-test-admission-root-actual-20261031.json",
-        "bytes": 2595,
-        "sha256": "d17dc958684620661955ee183ebdeed6814d3c1c603ff7b50dbe18428897196a"
-      }
     }
   },
   "validationBatches": [
@@ -990,37 +1066,37 @@
       "https://cursor.com/blog/scaling-agents",
       "https://code.claude.com/docs/en/best-practices"
     ],
-    "priority": "Finish compilation and packaging of the complete reviewed Local/Azure source, including its current Azure installer bundle; then start functional and user-journey validation.",
-    "sourceCut": "All thirteen final source packets and compilation repairs are committed in 2bbdba04 and included in the current internal app. No native launch, runtime image activation, live infrastructure or current-revision functional suite execution is claimed.",
+    "priority": "Supported Local/Azure implementation and package are delivered. Functional and user journeys remain deferred; broader extensions remain explicit.",
+    "sourceCut": "Final implementation885add77 is compiled and packaged with current Azure transport. This status update is docs-only; no native launch, runtime image activation, live infrastructure or current functional suites executed.",
     "currentBuild": {
-      "commit": "2bbdba04d376b431bcebf34981eb195ace92188f",
-      "tree": "aab1edb7eab2f07d99719feab36b441634c97c5b",
+      "commit": "885add771a59bcffde01eb56f4a6c15d6b56b015",
+      "tree": "db528b6c71c6a9f66707a126550d38fec71ebfe2",
       "api": "Compiled successfully",
-      "frontend": "Full TypeScript and frontend build passed; retained warnings are recorded",
+      "frontend": "Whole TypeScript and frontend build passed; retained warnings recorded",
       "native": "Compiled successfully; not launched",
-      "packageRoot": "E:/Luci-local-acceptance/ready/product-engine-2bbdba04-internal/app",
+      "azureBundle": "Current source assembled and verified; not installed in Azure",
+      "packageRoot": "E:/Luci-local-acceptance/ready/product-engine-885add77-a1-internal/app",
       "files": 549,
-      "bytes": 182832384,
-      "linuxWorker": "Accepted 4f64dca4 worker compile retained by whole unchanged worker tree",
-      "modelTransferHelper": "Compiled separately; source unchanged through current revision",
-      "qualification": "Unsigned internal app folder. Keep all files together. Older installed candidate unchanged; no installer/second-device/full acceptance. New 2 November working source is not in this package."
+      "bytes": 184475680,
+      "linuxWorker": "Historical 4f64dca4 compile retained by unchanged whole sandboxd tree; no new image activation",
+      "qualification": "Unsigned internal app folder. Keep all files together. No current functional tests, native launch, live provider journeys or full acceptance."
     },
     "activeImplementation": [
       {
         "area": "Automatic Azure hosts",
-        "state": "source_integrated_reviewed_uncompiled"
+        "state": "compiled_and_packaged_not_flow_tested"
       },
       {
         "area": "Public HTTPS commissioning",
-        "state": "source_integrated_reviewed_uncompiled"
+        "state": "compiled_and_packaged_not_flow_tested"
       },
       {
         "area": "Commercial feedback",
-        "state": "source_integrated_reviewed_uncompiled"
+        "state": "compiled_and_packaged_not_flow_tested"
       },
       {
         "area": "Launch creatives",
-        "state": "source_integrated_reviewed_uncompiled"
+        "state": "compiled_and_packaged_not_flow_tested"
       }
     ],
     "integratedSourceReceipts": {
@@ -1110,16 +1186,16 @@
       "bytes": 6398,
       "sha256": "8b7842bf60dda4bf73a81a893795212844e5e821b001f4be4dceba42a0a8d04d"
     },
-    "sourceRevision": "2bbdba04d376b431bcebf34981eb195ace92188f",
-    "sourceTree": "aab1edb7eab2f07d99719feab36b441634c97c5b",
-    "supportedImplementationBuilt": false,
-    "currentSourceCompiled": false,
-    "currentSourcePackaged": false,
+    "sourceRevision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
+    "sourceTree": "db528b6c71c6a9f66707a126550d38fec71ebfe2",
+    "supportedImplementationBuilt": true,
+    "currentSourceCompiled": true,
+    "currentSourcePackaged": true,
     "installedCandidateUnchanged": true,
     "nextValidation": [
-      "94 named Go cases and 203 frontend cases, baseline capacity admission required",
-      "Rendered native appearance/density/card contrast/navigation/reflow/persistence",
-      "Representative multi-project coding, review, integration and restart",
+      "Run authored Go and frontend regressions for the final source; prior named-case counts belong to the older baseline",
+      "Rendered native appearance, density, contrast, navigation, reflow and persistence",
+      "Representative multi-project coding, independent review, integration and restart",
       "Authorized live deployment, inference, telemetry and launch/feedback journeys",
       "Second-device installation, signing/distribution and Office-format fidelity"
     ],
@@ -1130,6 +1206,96 @@
       "Generative video/audio and other richer media workflows beyond the implemented editable design-backed launch creatives"
     ],
     "currentEvidence": {
+      "revision": "885add771a59bcffde01eb56f4a6c15d6b56b015",
+      "tree": "db528b6c71c6a9f66707a126550d38fec71ebfe2",
+      "api": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-api-compile-root-actual-20261102.json",
+        "bytes": 2075,
+        "sha256": "39f0caa1134c8e68943bda2e4dd56697e48feca48f68b0de34fb5165a960ded0"
+      },
+      "frontend": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-web-compile-root-actual-20261102.json",
+        "bytes": 2834,
+        "sha256": "3e93889f05654f60610e2714f49e2f145f51654973d053dddee5519995c07f32"
+      },
+      "webManifest": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-web-manifest-root-actual-20261102.json",
+        "bytes": 1734,
+        "sha256": "cf75f53769bc5efd2f54c6faf04434e16f24a36c5e367d59672e8d147ab1d69e"
+      },
+      "native": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-native-root-actual-20261102.json",
+        "bytes": 2858,
+        "sha256": "f03d5fb6ddef14ca1d59de757dbd6b831521ac94f91586be43cd50fbeaa2f48d"
+      },
+      "azure": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-azure-bundle-root-actual-v2-20261102.json",
+        "bytes": 4043,
+        "sha256": "fba125ced01cfd7611a746b3acbed1b55c031f363777f391ed5afaa45a98c223"
+      },
+      "package": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-stage-root-actual-v2-20261102.json",
+        "bytes": 3594,
+        "sha256": "c36f20d48ec61647357dd4394431af85d50b9ef8f0f4121b60df06e3fc62b25e"
+      },
+      "functionalTestsExecuted": false,
+      "nativeLaunched": false
+    },
+    "workingSource": {
+      "baseCommit": "885add771a59bcffde01eb56f4a6c15d6b56b015",
+      "compiled": true,
+      "packaged": true,
+      "home": "integrated",
+      "capacityUI": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-capacity-ui-source-integration-root-actual-20261102.json",
+        "bytes": 2535,
+        "sha256": "708c33fae756efb9e770c6de6be977e723fdb83f33713aa852b371b13f856798"
+      },
+      "launchCreative": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-launch-creative-v4-source-integration-root-actual-20261102.json",
+        "bytes": 4946,
+        "sha256": "6135a5ff16695b6b3ee94bac353926c7e07cc9e169c618afaf3357ede1954cfd"
+      },
+      "commercial": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-commercial-v3-source-integration-root-actual-20261102.json",
+        "bytes": 9266,
+        "sha256": "7824f59a1d2b1fc4a4d2fdd5640fd1f16ce22c62c1e53c520993a2635334be5b"
+      },
+      "automaticHosts": {
+        "state": "compiled_and_packaged_not_live_commissioned",
+        "actual": {
+          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-automatic-capacity-v3-source-integration-root-actual-20261102.json",
+          "bytes": 13265,
+          "sha256": "05b4628f541ead56adc4b5042939e806135cc9ec2337eb2f659c4b87f4ddd4ad"
+        },
+        "azureBundleRebuildRequired": false,
+        "azureBundle": {
+          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/product-engine-885add77-azure-bundle-root-actual-v2-20261102.json",
+          "bytes": 4043,
+          "sha256": "fba125ced01cfd7611a746b3acbed1b55c031f363777f391ed5afaa45a98c223"
+        }
+      },
+      "publicHTTPS": {
+        "state": "compiled_and_packaged_not_live_commissioned",
+        "actual": {
+          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-public-https-v2-source-integration-root-actual-20261102.json",
+          "bytes": 12469,
+          "sha256": "9e5b00499d058e85bfe290782da616708fbfe9552531dc7d83a7a10d2fa1dada"
+        }
+      },
+      "publicHTTPSUI": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-public-https-ui-v4-source-integration-root-actual-20261102.json",
+        "bytes": 1369,
+        "sha256": "049d39b1b6e5aef9161f931e52f86cb63e4a424fe460c435cef88373aa95aa18"
+      },
+      "azureOperatorEnvelope": {
+        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-azure-operator-envelope-source-integration-root-actual-20261102.json",
+        "bytes": 3441,
+        "sha256": "af64da63b928ca79cb3a1bc451be56c21ba8cc22948a17a3717cf2e00e520931"
+      },
+      "sourceTree": "db528b6c71c6a9f66707a126550d38fec71ebfe2"
+    },
+    "previousCompiledEvidence": {
       "revision": "2bbdba04d376b431bcebf34981eb195ace92188f",
       "tree": "aab1edb7eab2f07d99719feab36b441634c97c5b",
       "api": {
@@ -1186,53 +1352,19 @@
         "sha256": "d17dc958684620661955ee183ebdeed6814d3c1c603ff7b50dbe18428897196a"
       }
     },
-    "workingSource": {
-      "baseCommit": "db130fcc7f2f429bc1ee4be80d944e69b27b818b",
-      "compiled": false,
-      "packaged": false,
-      "home": "integrated",
-      "capacityUI": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-capacity-ui-source-integration-root-actual-20261102.json",
-        "bytes": 2535,
-        "sha256": "708c33fae756efb9e770c6de6be977e723fdb83f33713aa852b371b13f856798"
-      },
-      "launchCreative": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-launch-creative-v4-source-integration-root-actual-20261102.json",
-        "bytes": 4946,
-        "sha256": "6135a5ff16695b6b3ee94bac353926c7e07cc9e169c618afaf3357ede1954cfd"
-      },
-      "commercial": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-commercial-v3-source-integration-root-actual-20261102.json",
-        "bytes": 9266,
-        "sha256": "7824f59a1d2b1fc4a4d2fdd5640fd1f16ce22c62c1e53c520993a2635334be5b"
-      },
-      "automaticHosts": {
-        "state": "source_integrated_reviewed_uncompiled",
-        "actual": {
-          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-automatic-capacity-v3-source-integration-root-actual-20261102.json",
-          "bytes": 13265,
-          "sha256": "05b4628f541ead56adc4b5042939e806135cc9ec2337eb2f659c4b87f4ddd4ad"
-        },
-        "azureBundleRebuildRequired": true
-      },
-      "publicHTTPS": {
-        "state": "source_integrated_reviewed_uncompiled",
-        "actual": {
-          "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-public-https-v2-source-integration-root-actual-20261102.json",
-          "bytes": 12469,
-          "sha256": "9e5b00499d058e85bfe290782da616708fbfe9552531dc7d83a7a10d2fa1dada"
-        }
-      },
-      "publicHTTPSUI": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-public-https-ui-v4-source-integration-root-actual-20261102.json",
-        "bytes": 1369,
-        "sha256": "049d39b1b6e5aef9161f931e52f86cb63e4a424fe460c435cef88373aa95aa18"
-      },
-      "azureOperatorEnvelope": {
-        "path": "C:/Users/DylanMackie/Documents/ChatGPT/Luci/audit-evidence/local-acceptance/luci-azure-operator-envelope-source-integration-root-actual-20261102.json",
-        "bytes": 3441,
-        "sha256": "af64da63b928ca79cb3a1bc451be56c21ba8cc22948a17a3717cf2e00e520931"
-      }
-    }
+    "previousCompiledBuild": {
+      "commit": "2bbdba04d376b431bcebf34981eb195ace92188f",
+      "tree": "aab1edb7eab2f07d99719feab36b441634c97c5b",
+      "api": "Compiled successfully",
+      "frontend": "Full TypeScript and frontend build passed; retained warnings are recorded",
+      "native": "Compiled successfully; not launched",
+      "packageRoot": "E:/Luci-local-acceptance/ready/product-engine-2bbdba04-internal/app",
+      "files": 549,
+      "bytes": 182832384,
+      "linuxWorker": "Accepted 4f64dca4 worker compile retained by whole unchanged worker tree",
+      "modelTransferHelper": "Compiled separately; source unchanged through current revision",
+      "qualification": "Unsigned internal app folder. Keep all files together. Older installed candidate unchanged; no installer/second-device/full acceptance. New 2 November working source is not in this package."
+    },
+    "previousSourceCut": "All thirteen final source packets and compilation repairs are committed in 2bbdba04 and included in the current internal app. No native launch, runtime image activation, live infrastructure or current-revision functional suite execution is claimed."
   }
 }
