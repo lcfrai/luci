@@ -1,0 +1,107 @@
+name: Luci isolated regression validation
+
+on:
+  push:
+    branches: ['codex/e2e-validation-20261102']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luci-isolated-regression-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: '1.26.3'
+  NODE_VERSION: '24.19.0'
+  GOMAXPROCS: '1'
+  GOMEMLIMIT: '768MiB'
+  CGO_ENABLED: '0'
+  GOTOOLCHAIN: local
+  NODE_OPTIONS: '--max-old-space-size=1024'
+  UV_THREADPOOL_SIZE: '1'
+  RAYON_NUM_THREADS: '1'
+  ROLLDOWN_WORKER_THREADS: '1'
+  CI: 'true'
+  VITE_LUCI_API: ''
+
+jobs:
+  backend:
+    name: Whole control-plane Go and operator-envelope regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify exact event source
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "$(git rev-parse HEAD:control-plane)" = "16e1bdbb3476db021a40fa55547585d111e600d2"
+          test "$(git rev-parse HEAD:sandboxd)" = "d8f3178469b7f41de07a8d8da95b94b3c95357ea"
+          test "$(git rev-parse HEAD:desktop)" = "8babb05ea9954c95915d6dd3f61a190cd7481ebd"
+          test "$(git rev-parse HEAD:scripts)" = "6fec4e91eda79ffcdd52cd210b43eb156090011f"
+          test "$(git rev-parse HEAD:images)" = "c056f9eda3f8bd1c7a8e9a2f97d0fb4fc6862572"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            control-plane/go.sum
+            sandboxd/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Fetch only declared Go dependencies
+        run: go -C control-plane mod download
+      - name: Run isolated bounded backend regressions
+        run: bash .github/luci-regression/run-isolated.sh backend
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: luci-isolated-go-${{ github.sha }}
+          path: artifacts/isolated-regression/
+          if-no-files-found: warn
+          retention-days: 14
+  frontend:
+    name: Whole frontend Vitest, one worker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify exact event source
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test "$(git rev-parse HEAD:control-plane)" = "16e1bdbb3476db021a40fa55547585d111e600d2"
+          test "$(git rev-parse HEAD:sandboxd)" = "d8f3178469b7f41de07a8d8da95b94b3c95357ea"
+          test "$(git rev-parse HEAD:desktop)" = "8babb05ea9954c95915d6dd3f61a190cd7481ebd"
+          test "$(git rev-parse HEAD:scripts)" = "6fec4e91eda79ffcdd52cd210b43eb156090011f"
+          test "$(git rev-parse HEAD:images)" = "c056f9eda3f8bd1c7a8e9a2f97d0fb4fc6862572"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install exact locked test dependencies
+        working-directory: desktop
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run isolated bounded whole frontend regressions
+        run: bash .github/luci-regression/run-isolated.sh frontend
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: luci-isolated-vitest-${{ github.sha }}
+          path: artifacts/isolated-regression/
+          if-no-files-found: warn
+          retention-days: 14
